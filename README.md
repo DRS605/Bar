@@ -96,7 +96,8 @@ dotnet ef migrations add <Nombre> \
 | **Catálogo** (Productos e Impuestos) | ✅ Terminado |
 | **Facturación** (facturas emitidas) | ✅ Terminado |
 | **Gastos** | ✅ Terminado |
-| Tesorería (cobros y pagos) | ⏳ Siguiente |
-| Documentos, Informes | 🕓 Planificado |
+| **Tesorería** (cobros y pagos) | ✅ Terminado |
+| Documentos (PDF y email) | ⏳ Siguiente |
+| Informes | 🕓 Planificado |
 
 El desarrollo avanza **módulo a módulo**: cada uno se entrega completo antes de empezar el siguiente.
