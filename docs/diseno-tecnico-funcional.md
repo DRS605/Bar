@@ -1,293 +1,295 @@
 # ALXOR Core — Documento de diseño técnico y funcional (MVP)
 
-> **Estado: propuesta para revisión.** Este documento es el entregable previo al código.
-> No se ha escrito todavía el proyecto. Cuando lo apruebes, el primer incremento será un
-> *slice vertical mínimo* (login → empresa → cliente → producto → factura → cobro).
+> **Estado: propuesta para revisión.** Entregable previo al código. No se ha escrito todavía el
+> proyecto. Cuando lo apruebes, el desarrollo será **módulo a módulo**, cada uno completamente
+> terminado (dominio · API · persistencia · tests unitarios · tests de integración · documentación)
+> antes de empezar el siguiente.
 
 ---
 
-## Contexto
+## 0. Visión y objetivo
 
-ALXOR Core es un **ERP SaaS para autónomos y pequeñas empresas españolas**, con precio objetivo
-~15 €/mes. Prioridades: simplicidad de uso ("sin manual"), coste operativo bajo, y un núcleo
-pequeño pero sólido que pueda crecer durante años sin rehacerse. Es el núcleo de la futura
-plataforma ALXOR; Questioner, Tuday y CostControl quedan **fuera** del código inicial (se
-conectarán en el futuro vía API/eventos).
+ALXOR Core **no** es un ERP tradicional. Es **el ERP más sencillo del mercado para pequeñas
+empresas españolas**. El éxito no se mide en número de funcionalidades, sino en que **cualquier
+persona pueda empezar a trabajar sin leer un manual** y **emitir una factura en menos de 5 minutos**
+sin haber usado nunca el programa.
 
-**Decisiones ya fijadas:**
-
-| Decisión | Elección |
-|---|---|
-| Backend | **.NET 8 (C#)** |
-| Base de datos | **PostgreSQL** |
-| Multitenancy | **BD compartida + `company_id` + Row-Level Security (RLS)** |
-| Primer incremento | **Slice vertical mínimo** (login → empresa → cliente → producto → factura → cobro) |
-| Huella fiscal (VeriFactu/SII) | **Solo reservar campos** en el modelo; sin cálculo de encadenamiento aún |
-| Frontend | Fuera de esta fase (API-first); UI se añade después |
-| Idioma del código | **Español** (Factura, Cliente, Cobro…; tablas en español). UI/PDF/correo también en español |
-| Impuestos del slice inicial | **IVA + IRPF** (retención) desde el primer incremento |
-
-Principio rector transversal: **simplicidad visible, complejidad interna controlada; nada de
-sobrearquitectura**. Se evitan patrones que no aporten valor hoy (sin microservicios, sin
-CQRS/event-sourcing pesado, sin MediatR obligatorio).
+Regla de oro para toda decisión (técnica, funcional o de UX): **la simplicidad gana siempre a la
+cantidad de funcionalidades.**
 
 ---
 
-## 1. Perfiles de usuario y tareas principales
+## 1. Filosofía de producto (principios inquebrantables)
 
-| Perfil | Quién es | Tareas principales | Notas |
-|---|---|---|---|
-| **Propietario / Autónomo** | El propio dueño del negocio | Crear empresa, emitir facturas, registrar cobros/pagos, ver panel e informes básicos, gestionar usuarios | Es el rol por defecto al registrarse; ve todo de su empresa |
-| **Administrativo / Facturación** | Persona de gestión | Clientes/proveedores, presupuestos→factura, cobros/pagos, gastos, envío por correo, importación/exportación CSV | No gestiona usuarios ni ajustes fiscales sensibles |
-| **Solo lectura / Gestoría** | Asesor externo, contable | Consultar y exportar facturas, gastos e informes; **sin** editar | Preparado para el día que la gestoría necesite acceso |
-| **Superadmin de plataforma** | Operación de ALXOR (interno) | Soporte, alta/baja de tenants, métricas globales | Fuera del alcance funcional del MVP salvo lo mínimo de operación |
+- La simplicidad siempre gana a la cantidad de funcionalidades.
+- Ninguna pantalla debe intimidar al usuario.
+- Ninguna acción frecuente debe requerir más de **tres clics**.
+- **Todo** debe poder hacerse con teclado.
+- Nunca añadiremos una funcionalidad solo porque otro ERP la tenga.
+- Solo añadiremos funcionalidades **solicitadas o validadas por clientes reales**.
+- Debe sentirse como una **aplicación moderna**, no como un ERP clásico.
 
-En el MVP se implementan **3 roles de negocio** (Propietario, Administrativo, Solo lectura) más el
-soporte técnico interno. Los permisos son granulares por debajo (ver §9) para poder crecer.
-
----
-
-## 2. Flujos esenciales del MVP
-
-1. **Alta y arranque**: registro → verificación de email → crear empresa → configurar datos
-   fiscales (NIF, dirección, IVA por defecto, serie de facturación).
-2. **Venta feliz (camino corto)**: crear cliente → **emitir factura** directa → generar PDF →
-   enviar por correo → **registrar cobro**. *Este es el flujo que debe hacerse sin formación.*
-3. **Venta completa (camino largo, opcional)**: presupuesto → aceptado → pedido de venta →
-   albarán (entrega) → factura → cobro. Cada paso puede saltarse; se puede facturar directo.
-4. **Compra/gasto**: registrar factura recibida o gasto → registrar pago.
-5. **Cobros y pagos**: registrar cobro/pago total o parcial contra una factura; ver saldo pendiente.
-6. **Cierre operativo diario**: panel con pendientes de cobro/pago, borradores, y totales del mes.
-7. **Datos**: importar clientes/productos por CSV; exportar facturas/gastos/informes a CSV.
-8. **Auditoría**: toda operación crítica queda registrada (quién, qué, cuándo).
-
-Regla de UX transversal: **formulario simple por defecto**, con "opciones avanzadas" plegadas
-(retenciones, recargo de equivalencia, tipo de operación, fechas fiscales alternativas, etc.).
+Estos principios son criterio de aceptación: una funcionalidad que los incumpla no entra, aunque
+"sea útil".
 
 ---
 
-## 3. Módulos y responsabilidades (monolito modular)
+## 2. Modelo de negocio
+
+ALXOR **no vende un ERP**: vende **soluciones independientes** que funcionan solas o integradas.
+
+Productos:
+
+- **ALXOR Core Start** — el MVP de este documento (gestión diaria de una microempresa).
+- **ALXOR Core Pro** — evolución con funciones avanzadas (ver §14).
+- **Questioner** (calidad), **Tuday** (control horario), **CostControl** (costes) — **aplicaciones
+  totalmente independientes**, no forman parte del código de ALXOR Core.
+
+Reglas del modelo:
+
+- Un cliente puede usar cualquier aplicación **sin necesidad de tener ALXOR Core**.
+- ALXOR Core es únicamente **el núcleo donde converge la información**.
+- Si más adelante el cliente quiere centralizar, incorpora ALXOR Core **sin migraciones ni pérdida
+  de datos**. → Implicación técnica: las integraciones con otros productos se harán vía **API y
+  eventos** detrás de puertos; **nada de acoplamiento** en el código inicial.
+
+---
+
+## 3. Alcance del MVP (ALXOR Core Start)
+
+**Incluye únicamente:**
+
+- Registro e inicio de sesión
+- Empresa
+- Usuarios
+- Clientes
+- Productos y servicios
+- Facturas emitidas
+- Gastos
+- Cobros
+- Pagos
+- Dashboard
+- Informes básicos
+- **Libros de IVA** (repercutido/soportado)
+- **Exportación para la gestoría**
+- PDF de documentos
+- Envío por email
+
+**Fuera del MVP** (pertenece a ALXOR Core Pro u otros productos): presupuestos, pedidos, albaranes,
+producción, stock, compras avanzadas, contabilidad completa, CRM, RR. HH., nóminas, BI,
+automatizaciones e IA.
+
+**Contabilidad**: en el MVP **no** hay programa de contabilidad. Solo facturación, gastos, cobros,
+pagos, **libros de IVA** y **exportación para la gestoría**. La contabilidad completa llega después.
+
+---
+
+## 4. Experiencia de usuario (PRIORIDAD ABSOLUTA)
+
+Cada pantalla debe cumplir:
+
+- Menú lateral con **menos de 10 opciones**.
+- Formularios con **el menor número posible de campos**.
+- **Opciones avanzadas ocultas** (plegadas por defecto).
+- **Valores por defecto inteligentes** (IVA 21 %, serie del año, fecha de hoy, cliente reciente…).
+- Diseño limpio, **muy pocos colores**, **mucho espacio en blanco**.
+- Iconografía sencilla, **lenguaje natural**, sin terminología técnica innecesaria.
+- Todo operable con **teclado**; acciones frecuentes en **≤ 3 clics**.
+
+Criterio de aceptación de UX: **emitir una factura en < 5 minutos sin formación previa**.
+
+> Nota: la UI se construye después del backend (API-first ya acordado). Estos principios se fijan
+> **ahora** porque condicionan la API: endpoints pensados para flujos de ≤ 3 pasos, valores por
+> defecto resueltos en servidor, y respuestas listas para pintar sin lógica compleja en cliente.
+
+Menú lateral objetivo del MVP (**8 opciones**): Inicio (Dashboard) · Facturas · Gastos · Clientes ·
+Productos · Cobros y pagos · Informes · Ajustes.
+
+---
+
+## 5. Perfiles de usuario y tareas
+
+| Perfil | Quién es | Tareas principales |
+|---|---|---|
+| **Propietario** | Dueño de la microempresa | Crear empresa, emitir facturas, registrar gastos/cobros/pagos, ver dashboard e informes, gestionar usuarios |
+| **Usuario** | Persona de apoyo/gestión | Facturas, gastos, cobros/pagos, clientes, productos, envío por email |
+| **Solo lectura / Gestoría** | Asesor externo | Consultar y **exportar** facturas, gastos, libros de IVA e informes; sin editar |
+
+Roles del MVP: **Propietario, Usuario, Solo lectura**. Permisos granulares por debajo (§10).
+
+---
+
+## 6. Flujos esenciales del MVP
+
+1. **Alta y arranque**: registro → (verificación email) → crear empresa (NIF, dirección, IVA por
+   defecto, serie) → listo para facturar.
+2. **Emitir factura (flujo estrella, < 5 min, ≤ 3 clics)**: nueva factura → elegir/crear cliente →
+   añadir línea (producto o texto libre) → **emitir**. PDF y envío por email opcionales al final.
+3. **Registrar un gasto**: nuevo gasto → proveedor (texto) + importe + IVA → guardar.
+4. **Cobrar / pagar**: sobre una factura o gasto → registrar cobro/pago (total o parcial) → el saldo
+   se actualiza solo.
+5. **Cierre del día**: dashboard con pendientes de cobro/pago y totales del mes.
+6. **Gestoría**: exportar libros de IVA y documentos del periodo (CSV/estándar).
+
+---
+
+## 7. Módulos y responsabilidades (monolito modular)
 
 Cada módulo es un *bounded context* con fronteras claras. Se comunican por **interfaces de
-aplicación** y **eventos de dominio in-process** (no llamadas directas a la BD de otro módulo).
+aplicación** y **eventos de dominio in-process** (un módulo no toca la BD de otro).
 
-| Módulo | Responsabilidad | Agregados principales |
-|---|---|---|
-| **Identidad** | Autenticación, usuarios, roles, permisos, membresías por empresa | Usuario, Rol, Membresia |
-| **Organizacion** | Empresas (tenants), ajustes fiscales, series y numeración | Empresa, SerieNumeracion, AjustesEmpresa |
-| **Terceros** | Clientes y proveedores | Cliente, Proveedor |
-| **Catalogo** | Productos/servicios e impuestos | Producto, Impuesto |
-| **Ventas** | Presupuestos, pedidos, albaranes, facturas emitidas, rectificativas | Presupuesto, PedidoVenta, Albaran, Factura |
-| **Compras** | Facturas recibidas y gastos | FacturaRecibida, Gasto |
-| **Cobros** | Cobros y pagos (total/parcial), saldo de documentos | Movimiento (cobro/pago) |
-| **Documentos** | Generación de PDF y envío por correo (adaptadores) | — (servicios de aplicación + puertos) |
-| **Informes** | Informes básicos, importación/exportación CSV | — (consultas de lectura) |
-| **Auditoria** | Registro inmutable de operaciones críticas | RegistroAuditoria |
-| **Nucleo (SharedKernel)** | Tipos comunes: `Dinero`, `TipoImpositivo`, `ContextoEmpresa`, `Resultado`, IDs | Value objects transversales |
+| # | Módulo | Responsabilidad | Agregados |
+|---|---|---|---|
+| — | **Nucleo (SharedKernel)** | Tipos comunes: `Dinero`, `TipoImpositivo`, `ContextoEmpresa`, `Resultado`, IDs, fechas | Value objects |
+| 1 | **Identidad** | Registro, login, JWT, usuarios, roles, permisos, membresías | Usuario, Rol, Membresia |
+| 2 | **Organizacion** | Empresas (tenants), ajustes fiscales, series y numeración | Empresa, SerieNumeracion |
+| 3 | **Terceros** | Clientes | Cliente |
+| 4 | **Catalogo** | Productos/servicios e impuestos | Producto, Impuesto |
+| 5 | **Facturacion** | Facturas emitidas (sin presupuestos/pedidos/albaranes) | Factura |
+| 6 | **Gastos** | Gastos (proveedor como texto libre) | Gasto |
+| 7 | **Tesoreria** | Cobros y pagos (total/parcial), saldo de documentos | Movimiento (cobro/pago) |
+| 8 | **Documentos** | PDF y envío por email (adaptadores tras puertos) | — |
+| 9 | **Informes** | Dashboard, informes básicos, **libros de IVA**, **exportación gestoría** | — (lecturas) |
+| — | **Auditoria** | Registro inmutable de operaciones críticas (transversal) | RegistroAuditoria |
 
-**Integraciones externas (Documentos, y futuro AEAT/SII, pasarelas de correo)** siempre detrás de
-**puertos (interfaces) en Application** con adaptadores en Infrastructure → desacople total.
+> Cambios respecto a la versión anterior: se eliminan **Presupuestos, Pedidos y Albaranes**; el
+> antiguo módulo "Ventas" se reduce a **Facturacion**; "Compras" se reduce a **Gastos**; se añade a
+> **Informes** los **libros de IVA** y la **exportación para gestoría**. Se elimina el módulo de
+> proveedores como entidad (proveedor = texto en el gasto).
 
 ---
 
-## 4. Modelo de dominio (visión de agregados)
+## 8. Modelo de dominio (visión de agregados)
 
-Notación: **Agregado** { entidades / value objects clave }. Todo agregado lleva `empresa_id`.
+Notación: **Agregado** { campos clave }. Todo agregado de negocio lleva `empresa_id`.
 
 - **Empresa** { NIF, razón social, dirección fiscal, régimen IVA, moneda=EUR, país=ES }
-- **Membresia** { usuario_id, empresa_id, rol, estado } — un usuario puede pertenecer a varias empresas.
-- **Usuario** { email, hash contraseña, nombre, estado, email verificado } *(global, no por tenant)*.
-- **Rol/Permiso** { código de permiso } — asignación de permisos a roles.
-- **Cliente / Proveedor (Tercero)** { NIF/NIE/VAT, nombre, direcciones, email, IRPF por defecto, tipo de operación por defecto }
+- **Usuario** { email, hash contraseña, nombre, estado, email verificado } *(global, no por tenant)*
+- **Membresia** { usuario_id, empresa_id, rol, estado }
+- **Cliente** { NIF/NIE/VAT, nombre, dirección, email, IRPF por defecto }
 - **Producto** { referencia, nombre, tipo (bien/servicio), precio, impuesto por defecto, unidad }
-- **Impuesto** { código, nombre, tipo (IVA/IRPF/RecargoEq), porcentaje, vigencia }
-- **SerieNumeracion** { código, tipo de documento, ejercicio, patrón, **último número** }
-- **Presupuesto** { tercero, líneas, estado, validez } → líneas { producto?, descripción, cantidad, precio, impuestos, descuento }
-- **PedidoVenta** { origen presupuesto?, líneas, estado }
-- **Albaran** { pedido?, líneas entregadas, estado }
-- **Factura (emitida)** { serie+número, tercero (datos "congelados"), líneas, base, cuotas, retención, total, estado, **fecha emisión**, **fecha operación/devengo**, tipo de factura (ordinaria/rectificativa), factura rectificada (ref), tipo de operación, *campos VeriFactu reservados* }
-- **FacturaRecibida** { proveedor, nº externo, base, cuota soportada, retención, fecha, estado }
-- **Gasto** { proveedor?, concepto, importe, impuesto, fecha, estado }
-- **Movimiento (cobro/pago)** { documento asociado (factura/gasto), sentido (cobro/pago), importe, fecha, método } — soporta parciales.
-- **RegistroAuditoria** { actor, empresa, entidad, id, acción, timestamp, resumen de cambios }
+- **Impuesto** { código, tipo (IVA/IRPF), porcentaje, vigencia }
+- **SerieNumeracion** { tipo de documento, ejercicio, prefijo, **siguiente número** }
+- **Factura** { serie+número, cliente (datos **congelados**), líneas, base, cuota IVA, retención
+  IRPF, total, estado, **fecha emisión**, **fecha operación**, tipo (ordinaria/rectificativa),
+  factura rectificada (ref), tipo de operación, *campos VeriFactu reservados* }
+- **Gasto** { proveedor (texto), concepto, base, IVA soportado, retención, fecha, estado }
+- **Movimiento (cobro/pago)** { documento asociado (factura/gasto), sentido, importe, fecha, método }
+- **RegistroAuditoria** { actor, empresa, entidad, id, acción, cambios, timestamp }
 
-**Value objects**: `Dinero` (importe + moneda, redondeo a 2 decimales), `TipoImpositivo`, `NIF/VAT`,
-`Direccion`, `NumeroDocumento`, `RangoFechas`.
+**Value objects**: `Dinero` (importe + moneda, redondeo a 2 decimales), `TipoImpositivo`, `NIF`,
+`Direccion`, `NumeroDocumento`.
 
-**Datos "congelados" en la factura**: al emitir, se copian NIF/nombre/dirección del tercero y
-precios/impuestos de las líneas. La factura **no** depende de cambios posteriores en cliente o
-producto (invariante fiscal clave).
+**Datos congelados**: al emitir, la factura copia NIF/nombre/dirección del cliente y
+precios/impuestos de las líneas. No depende de cambios posteriores en cliente o producto.
 
-### Campos VeriFactu/SII **reservados** (no calculados en MVP)
+### Campos VeriFactu/SII reservados (no calculados en el MVP)
 
-En `Factura` se crean ya, nullable, para no rehacer el núcleo al añadir SII/VeriFactu:
-`huella` (hash del registro), `huella_anterior` (encadenamiento), `id_registro`,
-`tipo_operacion`, `clave_regimen`, `fecha_expedicion`, `estado_envio_aeat`. Se dejan documentados
-y sin lógica de cálculo (decisión: "solo reservar campos").
+En `Factura`, nullable, para no rehacer el núcleo al añadir SII/VeriFactu en el futuro: `huella`,
+`huella_anterior`, `id_registro`, `tipo_operacion`, `clave_regimen`, `fecha_expedicion`,
+`estado_envio_aeat`.
 
 ---
 
-## 5. Invariantes y reglas críticas
+## 9. Invariantes y reglas críticas
 
-**Facturación (las más importantes):**
-- **F1 — Numeración correlativa sin huecos** por (serie + ejercicio). Se asigna el número **solo
-  al emitir**, no en borrador. Asignación bajo bloqueo/transacción para evitar duplicados o saltos.
-- **F2 — Factura emitida es inmutable**: una vez emitida no se edita ni se borra. Corrección solo
-  vía **factura rectificativa** que referencia a la original.
-- **F3 — Cuadre de importes**: `total = Σ(base_línea) + Σ(cuota_IVA) + Σ(recargo) − retención_IRPF`.
-  Impuestos se calculan **por línea** y se agregan por tipo; redondeo a 2 decimales consistente.
-- **F4 — Datos fiscales congelados** al emitir (ver §4).
-- **F5 — Fechas fiscales coherentes**: `fecha_operación ≤ fecha_emisión`; el ejercicio de la serie
-  se deriva de la fecha de emisión.
-- **F6 — Rectificativa** obliga a: motivo, referencia a original, y signo coherente (importes que
-  corrigen). No puede rectificar una factura inexistente ni una ya anulada por rectificación total.
+**Facturación:**
+- **F1 — Numeración correlativa sin huecos** por (serie + ejercicio); se asigna **solo al emitir**,
+  bajo transacción/bloqueo.
+- **F2 — Factura emitida inmutable**: no se edita ni se borra; corrección solo vía rectificativa.
+- **F3 — Cuadre**: `total = Σ base_línea + Σ cuota_IVA − retención_IRPF`; impuestos por línea;
+  redondeo a 2 decimales consistente.
+- **F4 — Datos fiscales congelados** al emitir.
+- **F5 — Fechas coherentes**: `fecha_operación ≤ fecha_emisión`; ejercicio derivado de la emisión.
+- **F6 — Rectificativa**: exige motivo, referencia a original y signo coherente.
 
-**Cobros/pagos:**
-- **P1** — La suma de cobros/pagos de un documento **no puede superar su total** (sin sobrepago).
-- **P2** — Estado del documento (pendiente/parcial/pagado) se deriva del saldo, no se fija a mano.
+**Tesorería:**
+- **P1** — La suma de cobros/pagos de un documento **no puede superar su total**.
+- **P2** — Estado del documento (pendiente/parcial/pagado) **derivado** del saldo, no editable a mano.
 
 **Multiempresa / seguridad:**
-- **T1 — Aislamiento total**: toda lectura/escritura filtra por `empresa_id`; RLS como red de
-  seguridad a nivel BD (ver §8).
+- **T1 — Aislamiento total** por `empresa_id`; RLS como red de seguridad.
 - **T2** — Un usuario solo opera sobre empresas donde tiene `Membresia` activa.
 
-**Impuestos españoles (MVP):**
-- IVA: 21 % / 10 % / 4 % / 0 % (exento). IRPF retención: 7 % / 15 % (configurable).
-  Recargo de equivalencia: 5,2 / 1,4 / 0,5 % (opción avanzada). Cálculo por línea con su tipo.
+**Impuestos (MVP):** IVA 21/10/4/0 %; retención IRPF 7/15 % (opción avanzada, oculta por defecto).
 
 ---
 
-## 6. Esquema inicial de base de datos (PostgreSQL)
+## 10. Multiempresa, permisos y auditoría
 
-Convenciones: **PK `uuid` (v7, ordenable)**; `empresa_id uuid` en toda tabla de negocio;
-`creado_en/actualizado_en timestamptz`; borrado lógico solo donde tenga sentido (no en facturas).
-Índice compuesto `(empresa_id, …)` en todo acceso frecuente. **Nombres en español, `snake_case`**.
+**Multiempresa (multitenancy):** BD compartida, `empresa_id` obligatorio en cada agregado. Tenant
+resuelto del JWT → `ContextoEmpresa` (scoped) + `SET app.empresa_actual` en PostgreSQL. Doble
+barrera: **global query filter de EF Core** (imposible olvidar el WHERE) + **RLS en PostgreSQL**
+(la BD no devuelve filas de otro tenant aunque una consulta se escape).
 
-**Núcleo identidad/organización**
+**Permisos (granular):** códigos finos (`factura.emitir`, `factura.leer`, `cobro.registrar`,
+`gasto.gestionar`, `cliente.gestionar`, `producto.gestionar`, `informe.leer`, `datos.exportar`,
+`empresa.ajustes`, `usuario.gestionar`). Roles = conjuntos de permisos (Propietario = todos;
+Usuario = operativa sin gestión de usuarios/ajustes sensibles; Solo lectura = `*.leer` +
+`datos.exportar`). Comprobación centralizada en la capa de aplicación (`IComprobadorPermisos`).
+
+**Auditoría:** los agregados emiten **eventos de dominio**; un manejador escribe en
+`registro_auditoria` (append-only) **en la misma transacción**. Se audita: emitir/rectificar
+factura, registrar cobro/pago, cambios de estado, alta/baja de usuarios y permisos, cambios de
+ajustes fiscales y series. Base para el registro VeriFactu futuro.
+
+---
+
+## 11. Esquema inicial de base de datos (PostgreSQL)
+
+Convenciones: **PK `uuid` (v7)**; `empresa_id uuid` en toda tabla de negocio; `creado_en/
+actualizado_en timestamptz`; sin borrado físico de documentos fiscales; índices `(empresa_id, …)`;
+**nombres en español, `snake_case`**.
+
 - `usuario` (id, email UNIQUE, hash_password, nombre, email_verificado, estado, timestamps)
 - `empresa` (id, nif, razon_social, direccion_*, regimen_iva, moneda, pais, timestamps)
 - `membresia` (id, usuario_id, empresa_id, rol, estado, UNIQUE(usuario_id, empresa_id))
-- `rol` / `permiso` / `rol_permiso` (semilla de permisos; ver §9)
+- `rol` / `permiso` / `rol_permiso`
 - `serie_numeracion` (id, empresa_id, tipo_documento, ejercicio, prefijo, siguiente_numero, UNIQUE(empresa_id, tipo_documento, ejercicio, prefijo))
-
-**Terceros y catálogo**
-- `cliente` (id, empresa_id, nif, nombre, direcciones(jsonb), email, irpf_defecto, …)
-- `proveedor` (id, empresa_id, nif, nombre, …)
+- `cliente` (id, empresa_id, nif, nombre, direccion(jsonb), email, irpf_defecto)
 - `producto` (id, empresa_id, referencia, nombre, tipo, precio_unitario, impuesto_defecto_id, unidad)
-- `impuesto` (id, empresa_id, codigo, tipo[IVA|IRPF|REQ], porcentaje, vigente_desde, vigente_hasta)
-
-**Ventas**
-- `presupuesto` / `pedido_venta` / `albaran` (id, empresa_id, tercero_id, estado, fechas, totales…)
-- `factura` (id, empresa_id, serie_id, numero, fecha_emision, fecha_operacion, cliente_snapshot(jsonb),
-  base, cuota_iva, retencion_irpf, total, estado, tipo_factura, rectifica_factura_id, tipo_operacion,
-  **campos veri_factu nullable**)
-- `linea_*` para cada documento (id, documento_id, producto_id?, descripcion, cantidad, precio_unitario,
-  descuento, impuesto_id, base_linea, cuota_linea)
-
-**Compras y cobros**
-- `factura_recibida` (id, empresa_id, proveedor_id, numero_externo, base, cuota, retencion, fecha, estado)
-- `gasto` (id, empresa_id, proveedor_id?, concepto, importe, impuesto_id, fecha, estado)
+- `impuesto` (id, empresa_id, codigo, tipo[IVA|IRPF], porcentaje, vigente_desde, vigente_hasta)
+- `factura` (id, empresa_id, serie_id, numero, fecha_emision, fecha_operacion, cliente_snapshot(jsonb), base, cuota_iva, retencion_irpf, total, estado, tipo_factura, rectifica_factura_id, tipo_operacion, **campos veri_factu nullable**)
+- `linea_factura` (id, factura_id, producto_id?, descripcion, cantidad, precio_unitario, descuento, impuesto_id, base_linea, cuota_linea)
+- `gasto` (id, empresa_id, proveedor_texto, concepto, base, cuota_iva, retencion, fecha, estado)
 - `movimiento` (id, empresa_id, tipo_documento, documento_id, sentido[cobro|pago], importe, fecha, metodo)
+- `registro_auditoria` (id, empresa_id, actor_usuario_id, entidad, entidad_id, accion, cambios(jsonb), en) — *append-only*
 
-**Auditoría**
-- `registro_auditoria` (id, empresa_id, actor_usuario_id, entidad, entidad_id, accion, cambios(jsonb), en) — *append-only*.
-
-RLS: política por `current_setting('app.empresa_actual')` en todas las tablas con `empresa_id`.
+RLS por `current_setting('app.empresa_actual')` en toda tabla con `empresa_id`.
 
 ---
 
-## 7. Estados y transiciones
+## 12. Estados y transiciones
 
-**Presupuesto**: `borrador → enviado → aceptado | rechazado | caducado`
-(desde `aceptado` puede generar Pedido o Factura).
+- **Factura**: `borrador → emitida → (cobro parcial) → pagada`; `emitida → rectificada`; nunca se
+  borra una emitida; la numeración se asigna en `borrador → emitida`.
+- **Gasto**: `borrador → registrado → (pago parcial) → pagado | anulado`.
+- **Movimiento**: sin máquina de estados propia; mueve el saldo del documento (`pendiente → parcial
+  → pagado`), derivado (P2).
 
-**PedidoVenta**: `borrador → confirmado → (parcialmente) servido → cerrado | cancelado`.
-
-**Albaran**: `borrador → entregado → facturado | cancelado`.
-
-**Factura (emitida)**: `borrador → emitida → (cobro parcial) → pagada`;
-además `emitida → rectificada` (por una rectificativa) y `anulada` solo vía rectificativa total.
-*Nunca* se borra una emitida. Numeración se asigna en `borrador → emitida`.
-
-**FacturaRecibida / Gasto**: `borrador → registrada → (pago parcial) → pagada | anulada`.
-
-**Movimiento (cobro/pago)**: no tiene máquina de estados propia; su existencia mueve el estado de
-saldo del documento asociado (`pendiente → parcial → pagado`), derivado (P2).
-
-Cada transición válida se valida en el dominio; las inválidas lanzan error de dominio (no excepción
-genérica) y quedan cubiertas por tests.
+Transiciones inválidas lanzan error de dominio y están cubiertas por tests.
 
 ---
 
-## 8. Estrategia multiempresa (multitenancy)
+## 13. Arquitectura técnica (decisiones aprobadas, sin cambios)
 
-- **Modelo**: BD compartida, discriminador `empresa_id` en cada agregado de negocio.
-- **Resolución de tenant**: de la sesión/JWT (empresa activa) → se fija en un `ContextoEmpresa`
-  (scoped por request) y en la sesión de PostgreSQL vía `SET app.empresa_actual = <uuid>`.
-- **Filtro por defecto (EF Core global query filter)**: todas las entidades de negocio filtran por
-  `empresa_id == ContextoEmpresa.EmpresaId` automáticamente → imposible "olvidar" el WHERE.
-- **Red de seguridad (defensa en profundidad)**: **RLS en PostgreSQL** usando `app.empresa_actual`.
-  Aunque una consulta se escape del filtro de EF, la BD no devuelve filas de otro tenant.
-- **Cambio de empresa**: un usuario con varias `membresias` cambia de empresa activa; se re-emite
-  el contexto. Sin fuga de datos entre empresas.
-- **Escalado futuro**: si un cliente grande requiere aislamiento, se puede migrar ese tenant a
-  esquema/BD propia sin cambiar el modelo de dominio (el `empresa_id` ya existe).
-
----
-
-## 9. Permisos básicos (autorización granular)
-
-- **Permisos** como códigos finos: `factura.crear`, `factura.emitir`, `factura.leer`,
-  `cobro.registrar`, `cliente.gestionar`, `producto.gestionar`, `informe.leer`, `empresa.ajustes`,
-  `usuario.gestionar`, `datos.exportar`, `datos.importar`, etc.
-- **Roles = conjuntos de permisos** (semilla):
-  - *Propietario*: todos.
-  - *Administrativo*: gestión operativa (clientes, productos, ventas, compras, cobros/pagos,
-    import/export) **sin** `usuario.gestionar` ni `empresa.ajustes` sensibles.
-  - *Solo lectura*: `*.leer` + `datos.exportar`.
-- **Aplicación**: comprobación en la capa de aplicación (caso de uso) mediante un
-  `IComprobadorPermisos`, no en controladores dispersos. Autorización basada en política de ASP.NET
-  Core mapeada a permisos.
-- **Multiempresa**: el permiso se evalúa **para la empresa activa** del usuario.
-- Diseño preparado para permisos por recurso/serie en el futuro sin rehacer el modelo.
-
----
-
-## 10. Estrategia de auditoría
-
-- **Qué se audita**: operaciones críticas — emitir/rectificar factura, registrar cobro/pago,
-  cambios de estado de documentos, alta/baja de usuarios y cambios de permisos, cambios de ajustes
-  fiscales y de series.
-- **Cómo**: los agregados emiten **eventos de dominio**; un manejador escribe en `registro_auditoria`
-  (append-only) dentro de la **misma transacción** que la operación (consistencia).
-- **Contenido**: actor, empresa, entidad+id, acción, diff resumido (jsonb), timestamp. Inmutable:
-  sin update/delete sobre `registro_auditoria`.
-- **No** es un log técnico: es un registro funcional consultable/exportable (base para
-  cumplimiento antifraude futuro).
-- Preparado para, más adelante, alimentar el **registro de facturación VeriFactu** (los eventos ya
-  existen; solo faltaría calcular la huella).
-
----
-
-## 11. Arquitectura técnica (sencilla)
-
-**Estilo**: Monolito modular + Clean Architecture **ligera** por módulo. Un solo proceso
-ASP.NET Core, un solo despliegue, una sola BD.
-
-Capas por módulo (sin ceremonia innecesaria):
+.NET 8 LTS · PostgreSQL · **monolito modular** · **API First** · **Clean Architecture ligera** ·
+**DDD práctico** · EF Core · JWT · **UUID** · **BD compartida con `empresa_id` obligatorio** ·
+arquitectura preparada para crecer 20 años. Sin sobrearquitectura (sin microservicios, sin
+CQRS/event-sourcing pesado, sin MediatR obligatorio).
 
 ```
 src/
-  AlxorCore.Api            → host web, endpoints, auth, OpenAPI (Swagger)
+  AlxorCore.Api            → host web, endpoints REST, auth, OpenAPI (Swagger)
   AlxorCore.Nucleo         → Dinero, Resultado, ContextoEmpresa, IDs, tipos comunes
   Modulos/
     Identidad/{Dominio, Aplicacion, Infraestructura}
-    Organizacion/{Dominio, Aplicacion, Infraestructura}
+    Organizacion/{...}
     Terceros/{...}
     Catalogo/{...}
-    Ventas/{Dominio, Aplicacion, Infraestructura}
-    Compras/{...}
-    Cobros/{...}
+    Facturacion/{...}
+    Gastos/{...}
+    Tesoreria/{...}
     Documentos/{Aplicacion(puertos), Infraestructura(PDF, correo)}
     Informes/{Aplicacion, Infraestructura}
     Auditoria/{...}
@@ -295,112 +297,90 @@ tests/
   <por módulo>.PruebasUnitarias / .PruebasIntegracion
 ```
 
-- **Dominio**: entidades, value objects, invariantes, eventos de dominio. Sin dependencias de framework.
-- **Aplicación**: casos de uso como servicios/handlers simples (clases con un método), interfaces
-  (puertos), validación. **Sin MediatR obligatorio** (se puede añadir después si aporta).
-- **Infraestructura**: EF Core (Npgsql), repositorios, adaptadores (PDF con QuestPDF, correo vía puerto),
-  migraciones.
-- **Api**: endpoints REST, **API First** con contrato OpenAPI, validación de entrada, mapeo a casos
-  de uso, autenticación JWT, autorización por permisos.
-- **Persistencia**: EF Core + migraciones; **global query filter** por tenant; **RLS** en BD.
-- **Fronteras entre módulos**: un módulo no accede al `DbContext` de otro; se comunican por
-  interfaces de aplicación públicas y eventos de dominio in-process. Preparado para *outbox* cuando
-  haya eventos externos (ALXOR/otros productos), sin implementarlo aún.
-- **Seguridad por diseño**: hashing de contraseñas (`PasswordHasher`), JWT, validación estricta, RLS,
-  autorización por permiso, secretos fuera del código, HTTPS.
-- **Testing**: unit tests de dominio (impuestos, numeración, estados, permisos) + integración con
-  **PostgreSQL real vía Testcontainers**. Cobertura obligatoria en facturación, impuestos, permisos
-  y estados (requisito del producto).
-- **Coste operativo bajo**: 1 contenedor .NET + 1 PostgreSQL gestionado pequeño; sin colas ni
-  servicios extra en el MVP.
+- **Dominio** sin dependencias de framework; **Aplicación** = casos de uso simples + puertos;
+  **Infraestructura** = EF Core (Npgsql), repositorios, adaptadores; **Api** = REST + OpenAPI + JWT.
+- Persistencia con **global query filter** por tenant + **RLS**.
+- Integraciones externas (correo, futuro AEAT/SII, otros productos ALXOR) siempre tras **puertos**.
+- Testing: unit (impuestos, numeración, estados, permisos) + integración con **PostgreSQL real vía
+  Testcontainers**.
+- Coste operativo bajo: 1 contenedor .NET + 1 PostgreSQL pequeño.
 
 ---
 
-## 12. Roadmap incremental
+## 14. Método de desarrollo: **un módulo a la vez, completamente terminado**
 
-**Incremento 0 — Cimientos (parte del primer PR):** solución .NET, Nucleo, `ContextoEmpresa`,
-EF Core + Npgsql, primera migración, RLS, autenticación JWT, esqueleto de OpenAPI, pipeline de
-tests con Testcontainers, CI básico.
+Regla estricta (tu requisito): **nunca se desarrolla más de un módulo simultáneamente**. Un módulo
+no se da por hecho ni se avanza al siguiente hasta que están **todos** verdes:
 
-**Incremento 1 — Slice vertical mínimo (PRIMER entregable de código):**
-Registro/login → crear empresa → crear cliente → crear producto → **emitir factura** (con
-numeración, IVA+IRPF, congelado de datos, invariantes F1–F5) → **registrar cobro** → auditoría de
-esas operaciones. Con tests de dominio e integración end-to-end. **Sin PDF/correo todavía**.
+- [ ] Dominio (entidades, value objects, invariantes, eventos)
+- [ ] API (endpoints REST + contrato OpenAPI)
+- [ ] Persistencia (EF Core, migración, RLS donde aplique)
+- [ ] Tests unitarios
+- [ ] Tests de integración (Testcontainers)
+- [ ] Documentación del módulo
 
-**Incremento 2 — Documentos y comunicación:** PDF de factura (QuestPDF), envío por correo,
-panel principal básico.
+**Orden propuesto** (respeta dependencias; el **Nucleo** y la infra base de persistencia/tenant son
+prerrequisito y se entregan junto con el módulo 1):
 
-**Incremento 3 — Ventas completas:** presupuestos → pedidos → albaranes → factura; rectificativas;
-recargo de equivalencia.
+1. **Identidad** (+ Nucleo + infra base: EF Core, `ContextoEmpresa`, RLS, JWT, CI/tests).
+2. **Organizacion** (Empresa, series).
+3. **Terceros** (Clientes).
+4. **Catalogo** (Productos, Impuestos).
+5. **Facturacion** (Facturas emitidas: numeración, IVA+IRPF, invariantes F1–F6, auditoría).
+6. **Gastos**.
+7. **Tesoreria** (Cobros y pagos).
+8. **Documentos** (PDF de factura + envío por email).
+9. **Informes** (Dashboard, informes básicos, **libros de IVA**, **exportación gestoría**).
 
-**Incremento 4 — Compras y gastos:** facturas recibidas, gastos, pagos.
+**Auditoria** es transversal: su infraestructura se levanta con el módulo 1 y cada módulo posterior
+añade sus eventos auditables.
 
-**Incremento 5 — Datos e informes:** import/export CSV, informes básicos, roles/solo lectura pulido.
-
-**Incremento 6 — Preparación fiscal:** cálculo real de huella/encadenamiento (activar campos
-reservados) — puerta de entrada a VeriFactu/SII **post-MVP**.
-
-Cada incremento es desplegable y con tests verdes.
-
----
-
-## 13. Riesgos (seguridad, fiscales, integridad de datos)
-
-**Seguridad**
-- *Fuga entre tenants*: mitigado con doble barrera (query filter EF + RLS). Riesgo si algún acceso
-  usa SQL crudo → norma: todo acceso pasa por el `DbContext` con tenant fijado.
-- *Auth*: robo de credenciales/JWT → hashing fuerte, expiración/rotación de tokens, rate limiting en
-  login, verificación de email.
-- *Autorización*: fallos de permisos → comprobación centralizada en Aplicación, tests de permisos.
-
-**Fiscal / cumplimiento**
-- *Numeración con huecos o duplicada* → invariante F1 con asignación transaccional; test de concurrencia.
-- *Edición/borrado de factura emitida* → prohibido por diseño (F2); solo rectificativas.
-- *Redondeo de impuestos incoherente* → política de redondeo única por línea (F3), tests de impuestos.
-- *No estar listo para VeriFactu/SII* → campos reservados + auditoría por eventos ya presentes;
-  activar cálculo de huella es aditivo, no rehace el núcleo.
-- *Datos fiscales que cambian tras emitir* → congelado de snapshot (F4).
-
-**Integridad de datos**
-- *Saldos incoherentes* → estado derivado del saldo (P1/P2), no editable a mano.
-- *Migraciones destructivas* → migraciones versionadas, revisadas, con backups; sin borrado físico
-  de documentos fiscales.
-- *Importación CSV sucia* → validación estricta y modo "previsualizar antes de confirmar".
+> Este método **sustituye** al "slice vertical" que habíamos acordado antes: pasamos a completar
+> módulo por módulo.
 
 ---
 
-## Primer incremento (detalle del código a escribir cuando apruebes)
+## 15. ALXOR Core Pro y otros productos (fuera del MVP, solo para no cerrar puertas)
 
-1. **Solución y proyectos**: `AlxorCore.Api`, `AlxorCore.Nucleo`, módulos
-   `Identidad`, `Organizacion`, `Terceros`, `Catalogo`, `Ventas`, `Cobros`, `Auditoria`
-   (solo lo necesario para el slice), + proyectos de test.
-2. **Infra base**: EF Core + Npgsql, `DbContext` con global query filter por `empresa_id`,
-   primera migración, script RLS, `ContextoEmpresa` scoped.
-3. **Auth**: registro, login, JWT, verificación de email (stub), `PasswordHasher`.
-4. **Casos de uso del slice**: CrearEmpresa, CrearCliente, CrearProducto, EmitirFactura (numeración
-   + **IVA e IRPF** + snapshot + invariantes F1–F5), RegistrarCobro; con auditoría vía eventos de
-   dominio. Nombres de dominio en **español**.
-5. **API REST + OpenAPI** para esos casos de uso.
-6. **Tests**: unit (impuestos, numeración, estados, permisos) + integración con Testcontainers
-   (flujo login→empresa→cliente→producto→factura→cobro).
+Pro añadirá (cuando lo pidan clientes reales): presupuestos, pedidos, albaranes, stock, compras
+avanzadas, contabilidad completa, CRM, etc., y el envío real a **AEAT (VeriFactu/SII)** activando
+los campos ya reservados. Questioner, Tuday y CostControl se integrarán vía **API + eventos**. Nada
+de esto condiciona ni entra en el código del MVP.
 
 ---
 
-## Verificación (cómo se probará el primer incremento)
+## 16. Riesgos (seguridad, fiscales, integridad)
 
-- `dotnet build` y `dotnet test` verdes (unit + integración).
-- Integración levanta **PostgreSQL vía Testcontainers**, aplica migraciones y ejecuta el flujo
-  completo por la API.
-- Prueba manual opcional: `docker compose up` (api + postgres) y recorrer el flujo con Swagger.
-- Criterios: numeración correlativa correcta, importes/impuestos cuadran, factura emitida inmutable,
-  cobro parcial deja estado "parcial", ningún dato visible de otra empresa (test de aislamiento).
+- **Fuga entre tenants** → doble barrera (query filter EF + RLS); norma: todo acceso por el
+  `DbContext` con tenant fijado.
+- **Auth** → hashing fuerte, expiración/rotación de JWT, rate limiting en login, verificación email.
+- **Numeración con huecos/duplicada** → F1 transaccional + test de concurrencia.
+- **Edición/borrado de factura emitida** → prohibido por diseño (F2).
+- **Redondeo de impuestos** → política única por línea (F3) + tests.
+- **No estar listo para VeriFactu/SII** → campos reservados + auditoría por eventos.
+- **Saldos incoherentes** → estado derivado (P1/P2).
+- **Migraciones destructivas** → versionadas, revisadas, sin borrado físico de documentos fiscales.
+- **Libros de IVA / exportación gestoría incorrectos** → tests sobre casos reales (IVA por tipo,
+  exentos, rectificativas) antes de dar por bueno el módulo Informes.
 
 ---
 
-## Preguntas abiertas (no bloquean el diseño)
+## 17. Verificación (por módulo)
 
-1. **Verificación de email**: ¿proveedor real (SMTP/SendGrid/etc.) desde el inicio o *stub* en el
-   slice y proveedor real en el Incremento 2? (recomiendo stub ahora).
-2. **PDF**: ¿confirmas **QuestPDF** como librería (licencia gratuita para facturación pequeña)?
-3. **Recargo de equivalencia**: IVA e IRPF entran ya en el slice (decidido). El **recargo de
-   equivalencia** se deja como opción avanzada para el Incremento 3. ¿Conforme?
+Cada módulo se considera terminado cuando: `dotnet build` y `dotnet test` verdes (unit +
+integración con Testcontainers), contrato OpenAPI publicado, documentación del módulo escrita, y —en
+Facturacion/Tesoreria/Informes— se validan los criterios fiscales (numeración correlativa, cuadre de
+importes, factura inmutable, saldos, libros de IVA).
+
+---
+
+## 18. Preguntas abiertas (no bloquean el diseño)
+
+1. **Verificación de email**: ¿*stub* en el módulo Identidad y proveedor real (SMTP/SendGrid) en el
+   módulo Documentos? (recomendado).
+2. **PDF**: ¿confirmas **QuestPDF** (licencia gratuita para facturación pequeña) en Documentos?
+3. **Exportación gestoría**: ¿formato objetivo? Opciones: **CSV** simple del libro de IVA (rápido,
+   universal) ahora, y formatos de software contable (A3, Contasol, Sage…) más adelante. ¿Te vale
+   CSV en el MVP?
+4. **IRPF en facturas**: se incluye como **opción avanzada oculta** (autónomos que retienen).
+   ¿Correcto que por defecto una factura no muestre IRPF salvo que el cliente/producto lo requiera?
