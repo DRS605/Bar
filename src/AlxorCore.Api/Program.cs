@@ -9,6 +9,7 @@ using AlxorCore.Nucleo.Multiempresa;
 using AlxorCore.Organizacion.Infraestructura;
 using AlxorCore.Terceros.Infraestructura;
 using AlxorCore.Catalogo.Infraestructura;
+using AlxorCore.Facturacion.Infraestructura;
 using AlxorCore.Organizacion.Infraestructura.Persistencia;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -26,6 +27,7 @@ builder.Services.AgregarModuloIdentidad(builder.Configuration);
 builder.Services.AgregarModuloOrganizacion(builder.Configuration);
 builder.Services.AgregarModuloTerceros(builder.Configuration);
 builder.Services.AgregarModuloCatalogo(builder.Configuration);
+builder.Services.AgregarModuloFacturacion(builder.Configuration);
 
 // Los enumerados se serializan por nombre en la API.
 builder.Services.ConfigureHttpJsonOptions(opciones =>
@@ -90,6 +92,7 @@ if (app.Environment.IsDevelopment())
     await ambito.ServiceProvider.GetRequiredService<OrganizacionDbContext>().Database.MigrateAsync().ConfigureAwait(false);
     await ambito.ServiceProvider.GetRequiredService<AlxorCore.Terceros.Infraestructura.TercerosDbContext>().Database.MigrateAsync().ConfigureAwait(false);
     await ambito.ServiceProvider.GetRequiredService<AlxorCore.Catalogo.Infraestructura.CatalogoDbContext>().Database.MigrateAsync().ConfigureAwait(false);
+    await ambito.ServiceProvider.GetRequiredService<AlxorCore.Facturacion.Infraestructura.FacturacionDbContext>().Database.MigrateAsync().ConfigureAwait(false);
 
     app.UseSwagger();
     app.UseSwaggerUI();
@@ -107,6 +110,7 @@ app.MapearIdentidad();
 app.MapearOrganizacion();
 app.MapearTerceros();
 app.MapearCatalogo();
+app.MapearFacturacion();
 
 await app.RunAsync().ConfigureAwait(false);
 

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>AlxorCore.Facturacion</RootNamespace>
+    <AssemblyName>AlxorCore.Facturacion</AssemblyName>
+  </PropertyGroup>
+
+  <!--
+    Facturación compone otros módulos: clientes (Terceros), productos/impuestos (Catálogo) y la
+    numeración correlativa (Organización). Referencia sus capas de Aplicación (contratos), nunca
+    su infraestructura.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\AlxorCore.Nucleo\AlxorCore.Nucleo.csproj" />
+    <ProjectReference Include="..\AlxorCore.Terceros\AlxorCore.Terceros.csproj" />
+    <ProjectReference Include="..\AlxorCore.Catalogo\AlxorCore.Catalogo.csproj" />
+    <ProjectReference Include="..\AlxorCore.Organizacion\AlxorCore.Organizacion.csproj" />
+  </ItemGroup>
+
+</Project>

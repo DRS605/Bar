@@ -1,0 +1,187 @@
+using AlxorCore.Nucleo.Comun;
+using AlxorCore.Nucleo.Dominio;
+using AlxorCore.Nucleo.Resultados;
+using AlxorCore.Nucleo.Tiempo;
+
+namespace AlxorCore.Facturacion.Dominio;
+
+/// <summary>Número correlativo de una factura (prefijo + ejercicio + número).</summary>
+public sealed record NumeroFactura(string Prefijo, int Ejercicio, long Numero)
+{
+    public string Completo => $"{Prefijo}{Ejercicio}/{Numero:D6}";
+}
+
+/// <summary>
+/// Factura emitida. Es el agregado central de la fiscalidad de ALXOR Core. Una vez emitida es
+/// <b>inmutable</b> (invariante F2): no se edita ni se borra; su corrección se hará mediante una
+/// factura rectificativa. Los datos del cliente y de las líneas se "congelan" al emitir (F4).
+/// </summary>
+public sealed class Factura : RaizAgregadoEmpresa<Guid>
+{
+    public const decimal IrpfMaximo = 60m;
+
+    private readonly List<LineaFactura> _lineas = [];
+
+    private Factura(Guid id)
+        : base(id, Guid.Empty)
+    {
+        Prefijo = null!;
+        NumeroCompleto = null!;
+        ClienteNombre = null!;
+        Pais = null!;
+    }
+
+    private Factura(Guid id, Guid empresaId, NumeroFactura numero, DateOnly fechaEmision, DateOnly fechaOperacion, ClienteFacturado cliente, decimal porcentajeIrpf, DateTimeOffset ahora)
+        : base(id, empresaId)
+    {
+        Prefijo = numero.Prefijo;
+        Ejercicio = numero.Ejercicio;
+        Numero = numero.Numero;
+        NumeroCompleto = numero.Completo;
+        FechaEmision = fechaEmision;
+        FechaOperacion = fechaOperacion;
+        ClienteId = cliente.ClienteId;
+        ClienteNombre = cliente.Nombre;
+        ClienteNif = cliente.Nif;
+        ClienteCalle = cliente.Calle;
+        ClienteCodigoPostal = cliente.CodigoPostal;
+        ClientePoblacion = cliente.Poblacion;
+        ClienteProvincia = cliente.Provincia;
+        Pais = cliente.Pais;
+        PorcentajeIrpf = porcentajeIrpf;
+        Estado = EstadoFactura.Emitida;
+        TipoFactura = TipoFactura.Ordinaria;
+        CreadoEn = ahora;
+    }
+
+    // --- Numeración ---
+    public string Prefijo { get; private set; }
+    public int Ejercicio { get; private set; }
+    public long Numero { get; private set; }
+    public string NumeroCompleto { get; private set; }
+
+    // --- Fechas fiscales ---
+    public DateOnly FechaEmision { get; private set; }
+    public DateOnly FechaOperacion { get; private set; }
+
+    // --- Cliente (snapshot congelado) ---
+    public Guid ClienteId { get; private set; }
+    public string ClienteNombre { get; private set; }
+    public string? ClienteNif { get; private set; }
+    public string ClienteCalle { get; private set; } = string.Empty;
+    public string ClienteCodigoPostal { get; private set; } = string.Empty;
+    public string ClientePoblacion { get; private set; } = string.Empty;
+    public string ClienteProvincia { get; private set; } = string.Empty;
+    public string Pais { get; private set; }
+
+    // --- Importes ---
+    public decimal BaseImponible { get; private set; }
+    public decimal CuotaIva { get; private set; }
+    public decimal PorcentajeIrpf { get; private set; }
+    public decimal RetencionIrpf { get; private set; }
+    public decimal Total { get; private set; }
+
+    // --- Estado y tipo ---
+    public EstadoFactura Estado { get; private set; }
+    public TipoFactura TipoFactura { get; private set; }
+    public Guid? RectificaFacturaId { get; private set; }
+
+    public DateTimeOffset CreadoEn { get; private set; }
+
+    // --- Campos VeriFactu/SII reservados (no calculados en el MVP) ---
+    public string? Huella { get; private set; }
+    public string? HuellaAnterior { get; private set; }
+    public string? IdRegistro { get; private set; }
+    public string? TipoOperacion { get; private set; }
+    public string? EstadoEnvioAeat { get; private set; }
+
+    public IReadOnlyList<LineaFactura> Lineas => _lineas.AsReadOnly();
+
+    /// <summary>
+    /// Emite una factura ordinaria, calculando sus importes (IVA por línea + retención de IRPF) y
+    /// congelando los datos. El número debe haberse asignado antes de forma atómica y correlativa.
+    /// </summary>
+    public static Resultado<Factura> Emitir(
+        Guid empresaId,
+        NumeroFactura numero,
+        DateOnly fechaEmision,
+        DateOnly fechaOperacion,
+        ClienteFacturado cliente,
+        IReadOnlyList<NuevaLinea> lineas,
+        decimal porcentajeIrpf,
+        IReloj reloj)
+    {
+        ArgumentNullException.ThrowIfNull(numero);
+        ArgumentNullException.ThrowIfNull(cliente);
+        ArgumentNullException.ThrowIfNull(lineas);
+        ArgumentNullException.ThrowIfNull(reloj);
+
+        if (lineas.Count == 0)
+        {
+            return Resultado.Fallo<Factura>(Error.Validacion("factura.sin_lineas", "La factura debe tener al menos una línea."));
+        }
+
+        if (fechaOperacion > fechaEmision)
+        {
+            return Resultado.Fallo<Factura>(Error.Validacion("factura.fechas", "La fecha de operación no puede ser posterior a la de emisión."));
+        }
+
+        if (porcentajeIrpf is < 0 or > IrpfMaximo)
+        {
+            return Resultado.Fallo<Factura>(Error.Validacion("factura.irpf_invalido", "El porcentaje de IRPF no es válido."));
+        }
+
+        foreach (var linea in lineas)
+        {
+            var error = ValidarLinea(linea);
+            if (error is not null)
+            {
+                return Resultado.Fallo<Factura>(error);
+            }
+        }
+
+        var factura = new Factura(Guid.NewGuid(), empresaId, numero, fechaEmision, fechaOperacion, cliente, porcentajeIrpf, reloj.AhoraUtc);
+        foreach (var datos in lineas)
+        {
+            factura._lineas.Add(new LineaFactura(empresaId, datos));
+        }
+
+        factura.BaseImponible = Redondeo.Dos(factura._lineas.Sum(l => l.Base));
+        factura.CuotaIva = Redondeo.Dos(factura._lineas.Sum(l => l.CuotaIva));
+        factura.RetencionIrpf = Redondeo.Dos(factura.BaseImponible * porcentajeIrpf / 100m);
+        factura.Total = Redondeo.Dos(factura.BaseImponible + factura.CuotaIva - factura.RetencionIrpf);
+
+        factura.RegistrarEvento(new FacturaEmitida(factura.Id, empresaId, factura.NumeroCompleto, factura.Total, reloj.AhoraUtc));
+        return Resultado.Ok(factura);
+    }
+
+    private static Error? ValidarLinea(NuevaLinea linea)
+    {
+        if (string.IsNullOrWhiteSpace(linea.Descripcion))
+        {
+            return Error.Validacion("factura.linea_sin_descripcion", "Cada línea necesita una descripción.");
+        }
+
+        if (linea.Cantidad <= 0)
+        {
+            return Error.Validacion("factura.linea_cantidad", "La cantidad debe ser mayor que cero.");
+        }
+
+        if (linea.PrecioUnitario < 0)
+        {
+            return Error.Validacion("factura.linea_precio", "El precio no puede ser negativo.");
+        }
+
+        if (linea.PorcentajeDescuento is < 0 or > 100)
+        {
+            return Error.Validacion("factura.linea_descuento", "El descuento debe estar entre 0 y 100.");
+        }
+
+        if (linea.PorcentajeIva < 0)
+        {
+            return Error.Validacion("factura.linea_iva", "El IVA no puede ser negativo.");
+        }
+
+        return null;
+    }
+}
