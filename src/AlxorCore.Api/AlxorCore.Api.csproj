@@ -23,6 +23,8 @@
     <ProjectReference Include="..\AlxorCore.Tesoreria.Infraestructura\AlxorCore.Tesoreria.Infraestructura.csproj" />
     <ProjectReference Include="..\AlxorCore.Documentos\AlxorCore.Documentos.csproj" />
     <ProjectReference Include="..\AlxorCore.Documentos.Infraestructura\AlxorCore.Documentos.Infraestructura.csproj" />
+    <ProjectReference Include="..\AlxorCore.Informes\AlxorCore.Informes.csproj" />
+    <ProjectReference Include="..\AlxorCore.Informes.Infraestructura\AlxorCore.Informes.Infraestructura.csproj" />
   </ItemGroup>
 
   <ItemGroup>

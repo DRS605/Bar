@@ -51,7 +51,7 @@ internal sealed class ConfiguracionMovimiento : IEntityTypeConfiguration<Movimie
     }
 }
 
-internal sealed class RepositorioMovimientos : IRepositorioMovimientos
+internal sealed class RepositorioMovimientos : IRepositorioMovimientos, IConsultaTesoreria
 {
     private readonly TesoreriaDbContext _contexto;
 
@@ -72,6 +72,14 @@ internal sealed class RepositorioMovimientos : IRepositorioMovimientos
             .Where(m => m.TipoDocumento == tipo && m.DocumentoId == documentoId)
             .OrderBy(m => m.Fecha)
             .ToListAsync(ct).ConfigureAwait(false);
+
+    public async Task<decimal> TotalLiquidadoAsync(TipoDocumentoTesoreria tipo, CancellationToken ct = default)
+    {
+        var suma = await _contexto.Movimientos
+            .Where(m => m.TipoDocumento == tipo)
+            .SumAsync(m => (decimal?)m.Importe, ct).ConfigureAwait(false);
+        return suma ?? 0m;
+    }
 }
 
 /// <summary>Factoría en tiempo de diseño para migraciones.</summary>

@@ -32,6 +32,13 @@ public interface IRepositorioMovimientos
 /// <summary>Unidad de trabajo del módulo Tesorería.</summary>
 public interface IUnidadDeTrabajoTesoreria : IUnidadDeTrabajo;
 
+/// <summary>Consultas agregadas de tesorería (las usa Informes).</summary>
+public interface IConsultaTesoreria
+{
+    /// <summary>Total liquidado (cobrado o pagado) de todos los documentos de un tipo en la empresa activa.</summary>
+    Task<decimal> TotalLiquidadoAsync(TipoDocumentoTesoreria tipo, CancellationToken ct = default);
+}
+
 /// <summary>Datos para registrar un cobro contra una factura.</summary>
 public sealed record RegistrarCobroComando(Guid FacturaId, decimal Importe, DateOnly? Fecha = null, string? Metodo = null);
 

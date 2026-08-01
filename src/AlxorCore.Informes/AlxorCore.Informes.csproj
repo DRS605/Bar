@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>AlxorCore.Informes</RootNamespace>
+    <AssemblyName>AlxorCore.Informes</AssemblyName>
+  </PropertyGroup>
+
+  <!-- Informes compone lecturas de Facturación, Gastos y Tesorería. Solo lectura, sin persistencia. -->
+  <ItemGroup>
+    <ProjectReference Include="..\AlxorCore.Nucleo\AlxorCore.Nucleo.csproj" />
+    <ProjectReference Include="..\AlxorCore.Facturacion\AlxorCore.Facturacion.csproj" />
+    <ProjectReference Include="..\AlxorCore.Gastos\AlxorCore.Gastos.csproj" />
+    <ProjectReference Include="..\AlxorCore.Tesoreria\AlxorCore.Tesoreria.csproj" />
+  </ItemGroup>
+
+</Project>

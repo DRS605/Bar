@@ -124,7 +124,8 @@ internal sealed class RepositorioFacturas : IRepositorioFacturas, IConsultaFactu
             .ToListAsync(ct).ConfigureAwait(false);
 
         return facturas
-            .Select(f => new FacturaResumen(f.Id, f.NumeroCompleto, f.FechaEmision, f.ClienteNombre, f.Total, f.Estado.ToString()))
+            .Select(f => new FacturaResumen(
+                f.Id, f.NumeroCompleto, f.FechaEmision, f.ClienteNombre, f.ClienteNif, f.BaseImponible, f.CuotaIva, f.Total, f.Estado.ToString()))
             .ToList();
     }
 }

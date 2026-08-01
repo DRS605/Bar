@@ -98,6 +98,20 @@ dotnet ef migrations add <Nombre> \
 | **Gastos** | ✅ Terminado |
 | **Tesorería** (cobros y pagos) | ✅ Terminado |
 | **Documentos** (PDF y email) | ✅ Terminado |
-| Informes (dashboard, libros de IVA, gestoría) | ⏳ Último |
+| **Informes** (dashboard, libros de IVA, gestoría) | ✅ Terminado |
 
-El desarrollo avanza **módulo a módulo**: cada uno se entrega completo antes de empezar el siguiente.
+**MVP completo**: los 9 módulos están terminados (dominio · API · persistencia · tests · docs), con
+136 tests en verde. El desarrollo ha avanzado **módulo a módulo**, cada uno entregado por completo
+antes del siguiente.
+
+## Flujo de extremo a extremo (API)
+
+1. `POST /auth/registro` → `POST /auth/login` (JWT).
+2. `POST /empresas` → `POST /empresas/{id}/seleccionar` (token con empresa activa, rol y permisos).
+3. `POST /clientes`, `POST /productos`.
+4. `POST /facturas` (numeración correlativa, IVA + IRPF) → `GET /facturas/{id}/pdf` →
+   `POST /facturas/{id}/enviar`.
+5. `POST /cobros` / `POST /gastos` + `POST /pagos`.
+6. `GET /informes/dashboard`, `GET /informes/libro-iva`, `GET /informes/libro-iva/csv`.
+
+Documentación por módulo en [`docs/modulos/`](docs/modulos/).

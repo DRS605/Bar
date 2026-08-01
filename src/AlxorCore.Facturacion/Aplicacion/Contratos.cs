@@ -32,8 +32,10 @@ public sealed record FacturaDto(
             l.Descripcion, l.Cantidad, l.PrecioUnitario, l.PorcentajeDescuento, l.CodigoIva, l.PorcentajeIva, l.Base, l.CuotaIva)).ToList());
 }
 
-/// <summary>Resumen de factura para listados.</summary>
-public sealed record FacturaResumen(Guid Id, string NumeroCompleto, DateOnly FechaEmision, string ClienteNombre, decimal Total, string Estado);
+/// <summary>Resumen de factura para listados y libros de IVA.</summary>
+public sealed record FacturaResumen(
+    Guid Id, string NumeroCompleto, DateOnly FechaEmision, string ClienteNombre,
+    string? ClienteNif, decimal BaseImponible, decimal CuotaIva, decimal Total, string Estado);
 
 /// <summary>Repositorio de facturas (escritura).</summary>
 public interface IRepositorioFacturas
