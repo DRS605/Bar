@@ -1,4 +1,4 @@
-namespace AlxorCore.Organizacion.Dominio;
+namespace AlxorCore.Nucleo.Comun;
 
 /// <summary>Dirección postal. Value object sencillo; todos los campos son opcionales salvo el país (ES por defecto).</summary>
 public sealed record Direccion(string Calle, string CodigoPostal, string Poblacion, string Provincia, string Pais)

@@ -1,6 +1,6 @@
 using AlxorCore.Nucleo.Resultados;
 
-namespace AlxorCore.Organizacion.Dominio;
+namespace AlxorCore.Nucleo.Comun;
 
 /// <summary>
 /// Número de identificación fiscal español (NIF/DNI, NIE o CIF) válido y normalizado

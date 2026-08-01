@@ -1,3 +1,4 @@
+using AlxorCore.Nucleo.Comun;
 using AlxorCore.Organizacion.Dominio;
 using FluentAssertions;
 using Xunit;

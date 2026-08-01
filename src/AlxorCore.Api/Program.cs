@@ -7,6 +7,7 @@ using AlxorCore.Identidad.Infraestructura.Persistencia;
 using AlxorCore.Identidad.Infraestructura.Seguridad;
 using AlxorCore.Nucleo.Multiempresa;
 using AlxorCore.Organizacion.Infraestructura;
+using AlxorCore.Terceros.Infraestructura;
 using AlxorCore.Organizacion.Infraestructura.Persistencia;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +23,7 @@ builder.Services.AddScoped<IContextoEmpresa, ContextoEmpresaHttp>();
 // --- Módulos de ALXOR Core ---
 builder.Services.AgregarModuloIdentidad(builder.Configuration);
 builder.Services.AgregarModuloOrganizacion(builder.Configuration);
+builder.Services.AgregarModuloTerceros(builder.Configuration);
 
 // Los enumerados se serializan por nombre en la API.
 builder.Services.ConfigureHttpJsonOptions(opciones =>
@@ -84,6 +86,7 @@ if (app.Environment.IsDevelopment())
     using var ambito = app.Services.CreateScope();
     await ambito.ServiceProvider.GetRequiredService<IdentidadDbContext>().Database.MigrateAsync().ConfigureAwait(false);
     await ambito.ServiceProvider.GetRequiredService<OrganizacionDbContext>().Database.MigrateAsync().ConfigureAwait(false);
+    await ambito.ServiceProvider.GetRequiredService<AlxorCore.Terceros.Infraestructura.TercerosDbContext>().Database.MigrateAsync().ConfigureAwait(false);
 
     app.UseSwagger();
     app.UseSwaggerUI();
@@ -99,6 +102,7 @@ app.MapGet("/salud", () => Results.Ok(new { estado = "ok" }))
 
 app.MapearIdentidad();
 app.MapearOrganizacion();
+app.MapearTerceros();
 
 await app.RunAsync().ConfigureAwait(false);
 

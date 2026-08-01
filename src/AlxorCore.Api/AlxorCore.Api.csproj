@@ -11,6 +11,8 @@
     <ProjectReference Include="..\AlxorCore.Identidad.Infraestructura\AlxorCore.Identidad.Infraestructura.csproj" />
     <ProjectReference Include="..\AlxorCore.Organizacion\AlxorCore.Organizacion.csproj" />
     <ProjectReference Include="..\AlxorCore.Organizacion.Infraestructura\AlxorCore.Organizacion.Infraestructura.csproj" />
+    <ProjectReference Include="..\AlxorCore.Terceros\AlxorCore.Terceros.csproj" />
+    <ProjectReference Include="..\AlxorCore.Terceros.Infraestructura\AlxorCore.Terceros.Infraestructura.csproj" />
   </ItemGroup>
 
   <ItemGroup>
