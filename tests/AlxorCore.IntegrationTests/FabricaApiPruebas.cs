@@ -48,15 +48,17 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>, IAsyncLi
         var terceros = ambito.ServiceProvider.GetRequiredService<AlxorCore.Terceros.Infraestructura.TercerosDbContext>();
         var catalogo = ambito.ServiceProvider.GetRequiredService<AlxorCore.Catalogo.Infraestructura.CatalogoDbContext>();
         var facturacion = ambito.ServiceProvider.GetRequiredService<AlxorCore.Facturacion.Infraestructura.FacturacionDbContext>();
+        var gastos = ambito.ServiceProvider.GetRequiredService<AlxorCore.Gastos.Infraestructura.GastosDbContext>();
 
         await identidad.Database.MigrateAsync().ConfigureAwait(false);
         await organizacion.Database.MigrateAsync().ConfigureAwait(false);
         await terceros.Database.MigrateAsync().ConfigureAwait(false);
         await catalogo.Database.MigrateAsync().ConfigureAwait(false);
         await facturacion.Database.MigrateAsync().ConfigureAwait(false);
+        await gastos.Database.MigrateAsync().ConfigureAwait(false);
 
         await identidad.Database.ExecuteSqlRawAsync(
-            "TRUNCATE identidad.usuario, organizacion.empresa, organizacion.membresia, organizacion.serie_numeracion, terceros.cliente, catalogo.producto, facturacion.factura, facturacion.linea_factura")
+            "TRUNCATE identidad.usuario, organizacion.empresa, organizacion.membresia, organizacion.serie_numeracion, terceros.cliente, catalogo.producto, facturacion.factura, facturacion.linea_factura, gastos.gasto")
             .ConfigureAwait(false);
     }
 

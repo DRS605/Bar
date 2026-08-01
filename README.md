@@ -95,7 +95,8 @@ dotnet ef migrations add <Nombre> \
 | **Terceros** (Clientes) | ✅ Terminado |
 | **Catálogo** (Productos e Impuestos) | ✅ Terminado |
 | **Facturación** (facturas emitidas) | ✅ Terminado |
-| Gastos | ⏳ Siguiente |
-| Tesorería, Documentos, Informes | 🕓 Planificado |
+| **Gastos** | ✅ Terminado |
+| Tesorería (cobros y pagos) | ⏳ Siguiente |
+| Documentos, Informes | 🕓 Planificado |
 
 El desarrollo avanza **módulo a módulo**: cada uno se entrega completo antes de empezar el siguiente.
