@@ -31,7 +31,9 @@ public static class RegistroServicios
                 .AddInterceptors(sp.GetRequiredService<InterceptorEmpresa>()));
 
         servicios.AddScoped<IUnidadDeTrabajoOrganizacion>(sp => sp.GetRequiredService<OrganizacionDbContext>());
-        servicios.AddScoped<IRepositorioEmpresas, RepositorioEmpresas>();
+        servicios.AddScoped<RepositorioEmpresas>();
+        servicios.AddScoped<IRepositorioEmpresas>(sp => sp.GetRequiredService<RepositorioEmpresas>());
+        servicios.AddScoped<IConsultaEmpresas>(sp => sp.GetRequiredService<RepositorioEmpresas>());
         servicios.AddScoped<IRepositorioMembresias, RepositorioMembresias>();
         servicios.AddScoped<IRepositorioSeries, RepositorioSeries>();
         servicios.AddScoped<IConsultasOrganizacion, ConsultasOrganizacion>();

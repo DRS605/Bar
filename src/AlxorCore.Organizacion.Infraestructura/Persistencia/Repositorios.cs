@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AlxorCore.Organizacion.Infraestructura.Persistencia;
 
-internal sealed class RepositorioEmpresas : IRepositorioEmpresas
+internal sealed class RepositorioEmpresas : IRepositorioEmpresas, IConsultaEmpresas
 {
     private readonly OrganizacionDbContext _contexto;
 
@@ -22,6 +22,12 @@ internal sealed class RepositorioEmpresas : IRepositorioEmpresas
     }
 
     public void Agregar(Empresa empresa) => _contexto.Empresas.Add(empresa);
+
+    public async Task<EmpresaDto?> ObtenerAsync(Guid empresaId, CancellationToken ct = default)
+    {
+        var empresa = await _contexto.Empresas.SingleOrDefaultAsync(e => e.Id == empresaId, ct).ConfigureAwait(false);
+        return empresa is null ? null : EmpresaDto.Desde(empresa);
+    }
 }
 
 internal sealed class RepositorioMembresias : IRepositorioMembresias
