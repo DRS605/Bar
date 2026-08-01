@@ -1,0 +1,47 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+[*.{cs,csx}]
+indent_size = 4
+max_line_length = 120
+
+# --- Estilo de C# ---
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_prefer_braces = true:warning
+dotnet_sort_system_directives_first = true
+
+[*.cs]
+# ============================================================================
+#  Ajuste de analizadores (.NET analyzers)
+#  Mantenemos TreatWarningsAsErrors, pero desactivamos reglas que chocan con
+#  nuestra decisión de nombrar el dominio en español o que no aportan valor
+#  en este proyecto. Cada exclusión está justificada.
+# ============================================================================
+
+# El dominio se nombra en español; los sufijos/keywords en inglés no aplican.
+dotnet_diagnostic.CA1710.severity = none   # Sufijo esperado (p. ej. "Exception", "Collection")
+dotnet_diagnostic.CA1716.severity = none   # Nombre coincide con palabra reservada de VB (Error, Shared...)
+dotnet_diagnostic.CA1724.severity = none   # Nombre de tipo coincide con nombre de namespace
+
+# Excepciones: no exigimos el juego completo de constructores estándar.
+dotnet_diagnostic.CA1032.severity = none
+
+# Globalización: la app es es-ES; no forzamos overloads con IFormatProvider/StringComparison
+# en cada llamada. Se revisa de forma puntual donde importa (importes, fechas fiscales).
+dotnet_diagnostic.CA1305.severity = none
+dotnet_diagnostic.CA1304.severity = none
+dotnet_diagnostic.CA1310.severity = none
+dotnet_diagnostic.CA1311.severity = none
+
+# Permitimos miembros estáticos en genéricos y colecciones expuestas cuando el diseño lo pide.
+dotnet_diagnostic.CA1000.severity = none
+
+# Logging de alto rendimiento (delegados LoggerMessage): innecesario para logs de baja
+# frecuencia (stubs, publicación de eventos). Se revisará donde el volumen lo justifique.
+dotnet_diagnostic.CA1848.severity = none

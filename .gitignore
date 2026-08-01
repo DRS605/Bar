@@ -1,0 +1,26 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+artifacts/
+
+# Rider / VS
+.idea/
+*.DotSettings.user
+
+# Build / test output
+TestResults/
+coverage/
+*.trx
+*.coverage
+
+# Env / secrets
+*.env
+appsettings.*.local.json
+secrets.json
+
+# OS
+.DS_Store
+Thumbs.db

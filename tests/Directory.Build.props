@@ -1,0 +1,14 @@
+<Project>
+
+  <!-- Hereda los ajustes comunes de la raíz y relaja el rigor propio de los tests. -->
+  <Import Project="../Directory.Build.props" />
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <!-- En los tests permitimos nombres con guiones bajos y no tratamos avisos como errores. -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <RunAnalyzers>false</RunAnalyzers>
+    <NoWarn>$(NoWarn);CA1707;CA2007;CS1591</NoWarn>
+  </PropertyGroup>
+
+</Project>

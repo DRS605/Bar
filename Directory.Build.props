@@ -1,0 +1,25 @@
+<Project>
+
+  <!--
+    Ajustes comunes a todos los proyectos de ALXOR Core.
+    Objetivo: código limpio y estricto desde el primer día (mantenibilidad a 20 años).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!-- Calidad: los avisos son errores en compilación de release/CI. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+
+    <!-- Metadatos del producto. -->
+    <Product>ALXOR Core</Product>
+    <Company>ALXOR</Company>
+    <NeutralLanguage>es-ES</NeutralLanguage>
+  </PropertyGroup>
+
+</Project>

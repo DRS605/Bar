@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>AlxorCore.Nucleo</RootNamespace>
+    <AssemblyName>AlxorCore.Nucleo</AssemblyName>
+  </PropertyGroup>
+
+  <!--
+    El Núcleo (SharedKernel) NO depende de ningún framework de infraestructura.
+    Solo tipos y contratos comunes a todo el dominio de ALXOR Core.
+  -->
+
+</Project>

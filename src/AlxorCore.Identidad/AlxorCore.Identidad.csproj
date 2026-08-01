@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>AlxorCore.Identidad</RootNamespace>
+    <AssemblyName>AlxorCore.Identidad</AssemblyName>
+  </PropertyGroup>
+
+  <!--
+    Módulo Identidad: Dominio + Aplicación (núcleo puro, sin frameworks de infraestructura).
+    La persistencia, el hashing y los tokens viven en AlxorCore.Identidad.Infraestructura,
+    detrás de los puertos definidos aquí.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\AlxorCore.Nucleo\AlxorCore.Nucleo.csproj" />
+  </ItemGroup>
+
+</Project>
