@@ -9,6 +9,8 @@
     <ProjectReference Include="..\AlxorCore.Nucleo\AlxorCore.Nucleo.csproj" />
     <ProjectReference Include="..\AlxorCore.Identidad\AlxorCore.Identidad.csproj" />
     <ProjectReference Include="..\AlxorCore.Identidad.Infraestructura\AlxorCore.Identidad.Infraestructura.csproj" />
+    <ProjectReference Include="..\AlxorCore.Organizacion\AlxorCore.Organizacion.csproj" />
+    <ProjectReference Include="..\AlxorCore.Organizacion.Infraestructura\AlxorCore.Organizacion.Infraestructura.csproj" />
   </ItemGroup>
 
   <ItemGroup>

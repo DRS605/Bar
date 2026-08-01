@@ -90,8 +90,9 @@ dotnet ef migrations add <Nombre> \
 
 | Módulo | Estado |
 |---|---|
-| **Identidad** (registro, login, JWT, perfil, roles/permisos) | ✅ Terminado (dominio, API, persistencia, tests, documentación) |
-| Organización (empresas, series) | ⏳ Siguiente |
-| Terceros, Catálogo, Facturación, Gastos, Tesorería, Documentos, Informes | 🕓 Planificado |
+| **Identidad** (registro, login, JWT, perfil, roles/permisos) | ✅ Terminado |
+| **Organización** (empresas, membresías, series, multiempresa/RLS) | ✅ Terminado |
+| Terceros (Clientes) | ⏳ Siguiente |
+| Catálogo, Facturación, Gastos, Tesorería, Documentos, Informes | 🕓 Planificado |
 
 El desarrollo avanza **módulo a módulo**: cada uno se entrega completo antes de empezar el siguiente.

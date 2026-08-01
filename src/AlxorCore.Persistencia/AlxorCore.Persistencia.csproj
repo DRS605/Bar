@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>AlxorCore.Persistencia</RootNamespace>
+    <AssemblyName>AlxorCore.Persistencia</AssemblyName>
+  </PropertyGroup>
+
+  <!--
+    Infraestructura de persistencia compartida por todos los módulos: unidad de trabajo con
+    publicación de eventos, filtro global multiempresa y Row-Level Security. Evita repetir esta
+    lógica en cada módulo.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\AlxorCore.Nucleo\AlxorCore.Nucleo.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.10" />
+  </ItemGroup>
+
+</Project>

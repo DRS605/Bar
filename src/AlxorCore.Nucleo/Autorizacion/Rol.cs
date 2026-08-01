@@ -1,6 +1,6 @@
 using AlxorCore.Nucleo.Resultados;
 
-namespace AlxorCore.Identidad.Dominio;
+namespace AlxorCore.Nucleo.Autorizacion;
 
 /// <summary>
 /// Rol de negocio dentro de una empresa. Un rol es un conjunto fijo de <see cref="Permisos"/>.

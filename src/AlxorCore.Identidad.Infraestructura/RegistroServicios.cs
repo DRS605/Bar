@@ -5,6 +5,7 @@ using AlxorCore.Identidad.Infraestructura.Eventos;
 using AlxorCore.Identidad.Infraestructura.Persistencia;
 using AlxorCore.Identidad.Infraestructura.Seguridad;
 using AlxorCore.Nucleo.Aplicacion;
+using AlxorCore.Nucleo.Seguridad;
 using AlxorCore.Nucleo.Tiempo;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -35,7 +36,7 @@ public static class RegistroServicios
                 npgsql.MigrationsHistoryTable("__historial_migraciones", IdentidadDbContext.Esquema)));
 
         // Unidad de trabajo respaldada por el DbContext del módulo.
-        servicios.AddScoped<IUnidadDeTrabajo>(sp => sp.GetRequiredService<IdentidadDbContext>());
+        servicios.AddScoped<IUnidadDeTrabajoIdentidad>(sp => sp.GetRequiredService<IdentidadDbContext>());
         servicios.AddScoped<IRepositorioUsuarios, RepositorioUsuarios>();
         servicios.AddScoped<IPublicadorEventos, PublicadorEventosRegistro>();
         servicios.AddScoped<IServicioVerificacionEmail, ServicioVerificacionEmailStub>();

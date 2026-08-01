@@ -1,8 +1,13 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Text.Json.Serialization;
+using AlxorCore.Api.Comun;
 using AlxorCore.Api.Endpoints;
 using AlxorCore.Identidad.Infraestructura;
 using AlxorCore.Identidad.Infraestructura.Persistencia;
 using AlxorCore.Identidad.Infraestructura.Seguridad;
+using AlxorCore.Nucleo.Multiempresa;
+using AlxorCore.Organizacion.Infraestructura;
+using AlxorCore.Organizacion.Infraestructura.Persistencia;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -10,8 +15,17 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// --- Contexto de empresa (multiempresa) ---
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IContextoEmpresa, ContextoEmpresaHttp>();
+
 // --- Módulos de ALXOR Core ---
 builder.Services.AgregarModuloIdentidad(builder.Configuration);
+builder.Services.AgregarModuloOrganizacion(builder.Configuration);
+
+// Los enumerados se serializan por nombre en la API.
+builder.Services.ConfigureHttpJsonOptions(opciones =>
+    opciones.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 // --- Autenticación JWT ---
 // Conservamos los nombres originales de los claims (sub, email) sin remapearlos.
@@ -68,8 +82,8 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     using var ambito = app.Services.CreateScope();
-    var contexto = ambito.ServiceProvider.GetRequiredService<IdentidadDbContext>();
-    await contexto.Database.MigrateAsync().ConfigureAwait(false);
+    await ambito.ServiceProvider.GetRequiredService<IdentidadDbContext>().Database.MigrateAsync().ConfigureAwait(false);
+    await ambito.ServiceProvider.GetRequiredService<OrganizacionDbContext>().Database.MigrateAsync().ConfigureAwait(false);
 
     app.UseSwagger();
     app.UseSwaggerUI();
@@ -84,6 +98,7 @@ app.MapGet("/salud", () => Results.Ok(new { estado = "ok" }))
     .AllowAnonymous();
 
 app.MapearIdentidad();
+app.MapearOrganizacion();
 
 await app.RunAsync().ConfigureAwait(false);
 

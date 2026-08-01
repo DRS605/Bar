@@ -1,4 +1,4 @@
-namespace AlxorCore.Identidad.Dominio;
+namespace AlxorCore.Nucleo.Autorizacion;
 
 /// <summary>
 /// Catálogo de permisos granulares de ALXOR Core. Son códigos estables (no datos editables):

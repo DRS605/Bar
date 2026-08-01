@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
+using AlxorCore.Nucleo.Seguridad;
 
 namespace AlxorCore.Api.Comun;
 
@@ -15,5 +16,23 @@ public static class ClaimsUsuario
             ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
 
         return Guid.TryParse(valor, out var id) ? id : null;
+    }
+
+    /// <summary>Construye la identidad mínima del usuario a partir de sus claims.</summary>
+    public static IdentidadUsuario? ObtenerIdentidad(this ClaimsPrincipal principal)
+    {
+        ArgumentNullException.ThrowIfNull(principal);
+
+        var id = principal.ObtenerUsuarioId();
+        if (id is null)
+        {
+            return null;
+        }
+
+        var email = principal.FindFirstValue(JwtRegisteredClaimNames.Email) ?? string.Empty;
+        var nombre = principal.FindFirstValue("nombre") ?? string.Empty;
+        var verificado = string.Equals(principal.FindFirstValue("email_verificado"), "true", StringComparison.OrdinalIgnoreCase);
+
+        return new IdentidadUsuario(id.Value, email, nombre, verificado);
     }
 }

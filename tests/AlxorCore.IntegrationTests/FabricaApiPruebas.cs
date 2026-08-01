@@ -1,4 +1,5 @@
 using AlxorCore.Identidad.Infraestructura.Persistencia;
+using AlxorCore.Organizacion.Infraestructura.Persistencia;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -42,9 +43,15 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>, IAsyncLi
         await AsegurarBaseDatosAsync().ConfigureAwait(false);
 
         using var ambito = Services.CreateScope();
-        var contexto = ambito.ServiceProvider.GetRequiredService<IdentidadDbContext>();
-        await contexto.Database.MigrateAsync().ConfigureAwait(false);
-        await contexto.Database.ExecuteSqlRawAsync("TRUNCATE identidad.usuario").ConfigureAwait(false);
+        var identidad = ambito.ServiceProvider.GetRequiredService<IdentidadDbContext>();
+        var organizacion = ambito.ServiceProvider.GetRequiredService<OrganizacionDbContext>();
+
+        await identidad.Database.MigrateAsync().ConfigureAwait(false);
+        await organizacion.Database.MigrateAsync().ConfigureAwait(false);
+
+        await identidad.Database.ExecuteSqlRawAsync(
+            "TRUNCATE identidad.usuario, organizacion.empresa, organizacion.membresia, organizacion.serie_numeracion")
+            .ConfigureAwait(false);
     }
 
     public new async Task DisposeAsync() => await base.DisposeAsync().ConfigureAwait(false);

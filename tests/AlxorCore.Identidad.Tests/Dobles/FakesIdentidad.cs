@@ -1,4 +1,5 @@
 using AlxorCore.Identidad.Aplicacion.Puertos;
+using AlxorCore.Nucleo.Seguridad;
 using AlxorCore.Identidad.Dominio;
 using AlxorCore.Nucleo.Aplicacion;
 
@@ -15,7 +16,7 @@ public sealed class FakeHasherContrasena : IHasherContrasena
 /// <summary>Proveedor de tokens de prueba.</summary>
 public sealed class FakeProveedorTokens : IProveedorTokens
 {
-    public TokenAcceso GenerarToken(Usuario usuario)
+    public TokenAcceso GenerarToken(IdentidadUsuario usuario, AlcanceEmpresa? alcance = null)
     {
         ArgumentNullException.ThrowIfNull(usuario);
         return new TokenAcceso("token-" + usuario.Id, new DateTimeOffset(2026, 1, 1, 13, 0, 0, TimeSpan.Zero));
@@ -35,7 +36,7 @@ public sealed class FakeServicioVerificacionEmail : IServicioVerificacionEmail
 }
 
 /// <summary>Unidad de trabajo de prueba: cuenta las confirmaciones.</summary>
-public sealed class FakeUnidadDeTrabajo : IUnidadDeTrabajo
+public sealed class FakeUnidadDeTrabajo : AlxorCore.Identidad.Aplicacion.Puertos.IUnidadDeTrabajoIdentidad
 {
     public int Confirmaciones { get; private set; }
 

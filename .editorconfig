@@ -45,3 +45,7 @@ dotnet_diagnostic.CA1000.severity = none
 # Logging de alto rendimiento (delegados LoggerMessage): innecesario para logs de baja
 # frecuencia (stubs, publicación de eventos). Se revisará donde el volumen lo justifique.
 dotnet_diagnostic.CA1848.severity = none
+
+# Arrays constantes como argumentos: el código de migraciones que genera EF Core usa
+# `new[] { ... }` para las columnas de los índices. No merece la pena reescribirlo.
+dotnet_diagnostic.CA1861.severity = none

@@ -1,5 +1,4 @@
 using AlxorCore.Identidad.Aplicacion.Puertos;
-using AlxorCore.Nucleo.Aplicacion;
 using AlxorCore.Nucleo.Resultados;
 using AlxorCore.Nucleo.Tiempo;
 
@@ -13,10 +12,10 @@ namespace AlxorCore.Identidad.Aplicacion.CasosDeUso;
 public sealed class VerificarEmail
 {
     private readonly IRepositorioUsuarios _usuarios;
-    private readonly IUnidadDeTrabajo _unidadDeTrabajo;
+    private readonly IUnidadDeTrabajoIdentidad _unidadDeTrabajo;
     private readonly IReloj _reloj;
 
-    public VerificarEmail(IRepositorioUsuarios usuarios, IUnidadDeTrabajo unidadDeTrabajo, IReloj reloj)
+    public VerificarEmail(IRepositorioUsuarios usuarios, IUnidadDeTrabajoIdentidad unidadDeTrabajo, IReloj reloj)
     {
         _usuarios = usuarios;
         _unidadDeTrabajo = unidadDeTrabajo;

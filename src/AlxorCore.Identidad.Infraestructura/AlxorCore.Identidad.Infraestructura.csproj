@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AlxorCore.Nucleo\AlxorCore.Nucleo.csproj" />
+    <ProjectReference Include="..\AlxorCore.Persistencia\AlxorCore.Persistencia.csproj" />
     <ProjectReference Include="..\AlxorCore.Identidad\AlxorCore.Identidad.csproj" />
   </ItemGroup>
 

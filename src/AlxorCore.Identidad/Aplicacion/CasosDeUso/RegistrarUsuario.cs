@@ -1,7 +1,6 @@
 using AlxorCore.Identidad.Aplicacion.Modelos;
 using AlxorCore.Identidad.Aplicacion.Puertos;
 using AlxorCore.Identidad.Dominio;
-using AlxorCore.Nucleo.Aplicacion;
 using AlxorCore.Nucleo.Resultados;
 using AlxorCore.Nucleo.Tiempo;
 
@@ -26,14 +25,14 @@ public sealed class RegistrarUsuario
     private readonly IRepositorioUsuarios _usuarios;
     private readonly IHasherContrasena _hasher;
     private readonly IServicioVerificacionEmail _verificacionEmail;
-    private readonly IUnidadDeTrabajo _unidadDeTrabajo;
+    private readonly IUnidadDeTrabajoIdentidad _unidadDeTrabajo;
     private readonly IReloj _reloj;
 
     public RegistrarUsuario(
         IRepositorioUsuarios usuarios,
         IHasherContrasena hasher,
         IServicioVerificacionEmail verificacionEmail,
-        IUnidadDeTrabajo unidadDeTrabajo,
+        IUnidadDeTrabajoIdentidad unidadDeTrabajo,
         IReloj reloj)
     {
         _usuarios = usuarios;

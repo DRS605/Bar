@@ -1,5 +1,6 @@
 using AlxorCore.Identidad.Aplicacion.Modelos;
 using AlxorCore.Identidad.Aplicacion.Puertos;
+using AlxorCore.Nucleo.Seguridad;
 using AlxorCore.Identidad.Dominio;
 using AlxorCore.Nucleo.Resultados;
 
@@ -50,7 +51,8 @@ public sealed class IniciarSesion
                 Error.Prohibido("auth.cuenta_suspendida", "La cuenta está suspendida."));
         }
 
-        var token = _tokens.GenerarToken(usuario);
+        var identidad = new IdentidadUsuario(usuario.Id, usuario.Email.Valor, usuario.Nombre, usuario.EmailVerificado);
+        var token = _tokens.GenerarToken(identidad);
         var resultado = new ResultadoAutenticacion(token.Token, token.ExpiraEn, PerfilUsuario.Desde(usuario));
         return Resultado.Ok(resultado);
     }

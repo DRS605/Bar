@@ -1,8 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using AlxorCore.Identidad.Aplicacion.Puertos;
-using AlxorCore.Identidad.Dominio;
+using AlxorCore.Nucleo.Seguridad;
 using AlxorCore.Nucleo.Tiempo;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -21,7 +20,7 @@ internal sealed class ProveedorTokensJwt : IProveedorTokens
         _reloj = reloj;
     }
 
-    public TokenAcceso GenerarToken(Usuario usuario)
+    public TokenAcceso GenerarToken(IdentidadUsuario usuario, AlcanceEmpresa? alcance = null)
     {
         ArgumentNullException.ThrowIfNull(usuario);
 
@@ -31,11 +30,18 @@ internal sealed class ProveedorTokensJwt : IProveedorTokens
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, usuario.Id.ToString()),
-            new(JwtRegisteredClaimNames.Email, usuario.Email.Valor),
+            new(JwtRegisteredClaimNames.Email, usuario.Email),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new("nombre", usuario.Nombre),
             new("email_verificado", usuario.EmailVerificado ? "true" : "false"),
         };
+
+        if (alcance is not null)
+        {
+            claims.Add(new Claim(ClaimsAlxor.EmpresaId, alcance.EmpresaId.ToString()));
+            claims.Add(new Claim(ClaimsAlxor.Rol, alcance.RolCodigo));
+            claims.AddRange(alcance.Permisos.Select(p => new Claim(ClaimsAlxor.Permiso, p)));
+        }
 
         var clave = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_opciones.ClaveSecreta));
         var credenciales = new SigningCredentials(clave, SecurityAlgorithms.HmacSha256);

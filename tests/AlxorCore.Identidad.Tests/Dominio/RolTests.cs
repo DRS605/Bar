@@ -1,4 +1,4 @@
-using AlxorCore.Identidad.Dominio;
+using AlxorCore.Nucleo.Autorizacion;
 using FluentAssertions;
 using Xunit;
 
