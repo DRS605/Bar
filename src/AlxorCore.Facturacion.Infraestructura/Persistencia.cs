@@ -4,6 +4,7 @@ using AlxorCore.Nucleo.Aplicacion;
 using AlxorCore.Nucleo.Dominio;
 using AlxorCore.Nucleo.Multiempresa;
 using AlxorCore.Persistencia;
+using AlxorCore.Terceros.Aplicacion;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -21,6 +22,8 @@ public sealed class FacturacionDbContext : DbContextEmpresaBase, IUnidadDeTrabaj
     public const string Esquema = "facturacion";
 
     public DbSet<Factura> Facturas => Set<Factura>();
+
+    public DbSet<FacturaRecurrente> FacturasRecurrentes => Set<FacturaRecurrente>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -96,6 +99,118 @@ internal sealed class ConfiguracionFactura : IEntityTypeConfiguration<Factura>
             linea.Property(l => l.Base).HasColumnName("base").HasColumnType("numeric(14,2)").IsRequired();
             linea.Property(l => l.CuotaIva).HasColumnName("cuota_iva").HasColumnType("numeric(14,2)").IsRequired();
         });
+    }
+}
+
+internal sealed class ConfiguracionFacturaRecurrente : IEntityTypeConfiguration<FacturaRecurrente>
+{
+    public void Configure(EntityTypeBuilder<FacturaRecurrente> builder)
+    {
+        builder.ToTable("factura_recurrente");
+        builder.HasKey(r => r.Id);
+        builder.Property(r => r.Id).HasColumnName("id");
+        builder.Property(r => r.EmpresaId).HasColumnName("empresa_id").IsRequired();
+
+        builder.Property(r => r.Nombre).HasColumnName("nombre").HasMaxLength(200).IsRequired();
+        builder.Property(r => r.ClienteId).HasColumnName("cliente_id").IsRequired();
+        builder.Property(r => r.Periodicidad).HasColumnName("periodicidad").HasMaxLength(20).HasConversion<string>().IsRequired();
+        builder.Property(r => r.ProximaEmision).HasColumnName("proxima_emision").IsRequired();
+        builder.Property(r => r.FechaFin).HasColumnName("fecha_fin");
+        builder.Property(r => r.PorcentajeIrpf).HasColumnName("porcentaje_irpf").HasColumnType("numeric(5,2)").IsRequired();
+        builder.Property(r => r.Activa).HasColumnName("activa").IsRequired();
+        builder.Property(r => r.FacturasGeneradas).HasColumnName("facturas_generadas").IsRequired();
+        builder.Property(r => r.UltimaEmision).HasColumnName("ultima_emision");
+        builder.Property(r => r.CreadoEn).HasColumnName("creado_en").IsRequired();
+
+        builder.HasIndex(r => new { r.EmpresaId, r.Activa, r.ProximaEmision }).HasDatabaseName("ix_recurrente_vencidas");
+
+        builder.Ignore(r => r.EventosDominio);
+
+        builder.OwnsMany(r => r.Lineas, linea =>
+        {
+            linea.ToTable("linea_recurrente");
+            linea.WithOwner().HasForeignKey("factura_recurrente_id");
+            linea.HasKey(l => l.Id);
+            linea.Property(l => l.Id).HasColumnName("id");
+            linea.Property(l => l.EmpresaId).HasColumnName("empresa_id").IsRequired();
+            linea.Property(l => l.ProductoId).HasColumnName("producto_id");
+            linea.Property(l => l.Descripcion).HasColumnName("descripcion").HasMaxLength(300).IsRequired();
+            linea.Property(l => l.Cantidad).HasColumnName("cantidad").HasColumnType("numeric(14,3)").IsRequired();
+            linea.Property(l => l.PrecioUnitario).HasColumnName("precio_unitario").HasColumnType("numeric(14,4)").IsRequired();
+            linea.Property(l => l.PorcentajeDescuento).HasColumnName("descuento").HasColumnType("numeric(5,2)").IsRequired();
+            linea.Property(l => l.CodigoIva).HasColumnName("codigo_iva").HasMaxLength(10).IsRequired();
+            linea.Property(l => l.PorcentajeIva).HasColumnName("porcentaje_iva").HasColumnType("numeric(5,2)").IsRequired();
+            linea.Property(l => l.Base).HasColumnName("base").HasColumnType("numeric(14,2)").IsRequired();
+            linea.Property(l => l.CuotaIva).HasColumnName("cuota_iva").HasColumnType("numeric(14,2)").IsRequired();
+        });
+    }
+}
+
+internal sealed class RepositorioFacturasRecurrentes : IRepositorioFacturasRecurrentes, IConsultaFacturasRecurrentes
+{
+    private readonly FacturacionDbContext _contexto;
+    private readonly IConsultaClientes _clientes;
+
+    public RepositorioFacturasRecurrentes(FacturacionDbContext contexto, IConsultaClientes clientes)
+    {
+        _contexto = contexto;
+        _clientes = clientes;
+    }
+
+    public void Agregar(FacturaRecurrente recurrente) => _contexto.FacturasRecurrentes.Add(recurrente);
+
+    public Task<FacturaRecurrente?> ObtenerPorIdAsync(Guid id, CancellationToken ct = default) =>
+        _contexto.FacturasRecurrentes.SingleOrDefaultAsync(r => r.Id == id, ct);
+
+    public async Task<IReadOnlyList<FacturaRecurrente>> ListarVencidasAsync(DateOnly hoy, CancellationToken ct = default)
+    {
+        return await _contexto.FacturasRecurrentes
+            .Where(r => r.Activa && r.ProximaEmision <= hoy && (r.FechaFin == null || r.ProximaEmision <= r.FechaFin))
+            .OrderBy(r => r.ProximaEmision)
+            .ToListAsync(ct).ConfigureAwait(false);
+    }
+
+    // Recorre TODAS las empresas: ignora el filtro multiempresa a propósito (solo lo usa el proceso
+    // automático en segundo plano, que luego opera empresa por empresa con su contexto fijado).
+    public async Task<IReadOnlyList<Guid>> EmpresasConVencidasAsync(DateOnly hoy, CancellationToken ct = default)
+    {
+        return await _contexto.FacturasRecurrentes
+            .IgnoreQueryFilters()
+            .Where(r => r.Activa && r.ProximaEmision <= hoy && (r.FechaFin == null || r.ProximaEmision <= r.FechaFin))
+            .Select(r => r.EmpresaId)
+            .Distinct()
+            .ToListAsync(ct).ConfigureAwait(false);
+    }
+
+    public async Task<FacturaRecurrenteDto?> ObtenerAsync(Guid id, CancellationToken ct = default)
+    {
+        var recurrente = await _contexto.FacturasRecurrentes.SingleOrDefaultAsync(r => r.Id == id, ct).ConfigureAwait(false);
+        return recurrente is null ? null : FacturaRecurrenteDto.Desde(recurrente);
+    }
+
+    public async Task<IReadOnlyList<FacturaRecurrenteResumen>> ListarAsync(Guid empresaId, CancellationToken ct = default)
+    {
+        var recurrentes = await _contexto.FacturasRecurrentes
+            .Where(r => r.EmpresaId == empresaId)
+            .OrderByDescending(r => r.Activa).ThenBy(r => r.ProximaEmision)
+            .ToListAsync(ct).ConfigureAwait(false);
+
+        var nombresCliente = new Dictionary<Guid, string>();
+        var resumenes = new List<FacturaRecurrenteResumen>(recurrentes.Count);
+        foreach (var r in recurrentes)
+        {
+            if (!nombresCliente.TryGetValue(r.ClienteId, out var nombre))
+            {
+                var cliente = await _clientes.ObtenerAsync(r.ClienteId, ct).ConfigureAwait(false);
+                nombre = cliente?.Nombre ?? "—";
+                nombresCliente[r.ClienteId] = nombre;
+            }
+
+            var dto = FacturaRecurrenteDto.Desde(r);
+            resumenes.Add(new FacturaRecurrenteResumen(r.Id, r.Nombre, nombre, r.Periodicidad.ToString(), r.ProximaEmision, r.Activa, dto.Total));
+        }
+
+        return resumenes;
     }
 }
 

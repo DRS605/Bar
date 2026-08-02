@@ -24,7 +24,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 // --- Contexto de empresa (multiempresa) ---
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<IContextoEmpresa, ContextoEmpresaHttp>();
+builder.Services.AddScoped<ContextoEmpresaHttp>();
+builder.Services.AddScoped<IContextoEmpresa>(sp => sp.GetRequiredService<ContextoEmpresaHttp>());
+builder.Services.AddScoped<IContextoEmpresaMutable>(sp => sp.GetRequiredService<ContextoEmpresaHttp>());
 
 // --- Módulos de ALXOR Core ---
 builder.Services.AgregarModuloIdentidad(builder.Configuration);
@@ -36,6 +38,11 @@ builder.Services.AgregarModuloGastos(builder.Configuration);
 builder.Services.AgregarModuloTesoreria(builder.Configuration);
 builder.Services.AgregarModuloDocumentos();
 builder.Services.AgregarModuloInformes();
+
+// --- Facturación automática periódica (proceso en segundo plano) ---
+builder.Services.Configure<AlxorCore.Api.Servicios.OpcionesFacturacionRecurrente>(
+    builder.Configuration.GetSection(AlxorCore.Api.Servicios.OpcionesFacturacionRecurrente.Seccion));
+builder.Services.AddHostedService<AlxorCore.Api.Servicios.ServicioFacturacionRecurrente>();
 
 // Los enumerados se serializan por nombre en la API.
 builder.Services.ConfigureHttpJsonOptions(opciones =>

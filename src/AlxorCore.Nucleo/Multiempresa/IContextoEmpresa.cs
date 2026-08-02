@@ -18,3 +18,14 @@ public interface IContextoEmpresa
     Guid EmpresaRequerida => EmpresaId
         ?? throw new InvalidOperationException("La operación requiere una empresa activa y no hay ninguna en el contexto.");
 }
+
+/// <summary>
+/// Contexto de empresa cuya empresa activa puede <b>fijarse por código</b>. Lo usan los procesos en
+/// segundo plano (sin petición HTTP), como la facturación automática periódica, para recorrer varias
+/// empresas: crean un ámbito por empresa y fijan la suya antes de operar, manteniendo el aislamiento.
+/// </summary>
+public interface IContextoEmpresaMutable : IContextoEmpresa
+{
+    /// <summary>Fija la empresa activa del ámbito actual. Tiene prioridad sobre cualquier otra fuente.</summary>
+    void Fijar(Guid empresaId);
+}

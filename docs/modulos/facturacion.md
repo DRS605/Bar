@@ -43,10 +43,37 @@ y el envío a la AEAT sin rehacer el núcleo.
 | `GET` | `/facturas` | permiso `factura.leer` | Lista de facturas de la empresa. |
 | `GET` | `/facturas/{id}` | permiso `factura.leer` | Factura con sus líneas. |
 
+## Facturación automática periódica
+
+Una **factura recurrente** (`factura_recurrente`) es la plantilla de una suscripción/contrato:
+cliente, líneas, **periodicidad** (semanal, mensual, trimestral, semestral o anual), fecha de la
+próxima emisión, fecha de fin opcional e IRPF. No es una factura fiscal: cuando llega su fecha, el
+sistema **emite automáticamente** una factura ordinaria real (con su número correlativo y todos los
+invariantes F1–F5) reutilizando el caso de uso de emisión.
+
+- **Proceso en segundo plano** (`ServicioFacturacionRecurrente`): recorre a diario **todas las
+  empresas** con recurrencias vencidas; para cada una abre su ámbito con la empresa fijada
+  (`IContextoEmpresaMutable`, aislamiento multiempresa) y emite. Tolerante a fallos: un error en una
+  empresa no detiene al resto. Se configura en la sección `FacturacionRecurrente`
+  (`Activo`, `RetardoInicial`, `Intervalo`).
+- **Sin backfill sorpresa**: cada pasada emite **una sola** factura por recurrencia y avanza la
+  próxima fecha a la siguiente ocurrencia posterior a hoy (no genera de golpe los periodos pasados).
+
+| Método | Ruta | Auth | Descripción |
+|---|---|---|---|
+| `GET` | `/facturas-recurrentes` | permiso `factura.leer` | Lista las recurrencias de la empresa. |
+| `GET` | `/facturas-recurrentes/{id}` | permiso `factura.leer` | Recurrencia con su plantilla. |
+| `POST` | `/facturas-recurrentes` | permiso `factura.emitir` | Crea una recurrencia. **201** |
+| `PUT` | `/facturas-recurrentes/{id}` | permiso `factura.emitir` | Actualiza una recurrencia. |
+| `POST` | `/facturas-recurrentes/{id}/estado` | permiso `factura.emitir` | Activa o pausa. |
+| `POST` | `/facturas-recurrentes/procesar` | permiso `factura.emitir` | Emite ahora las vencidas. |
+
 ## Persistencia
 
-- Esquema **`facturacion`**: `factura` y `linea_factura` (ambas con RLS por empresa).
+- Esquema **`facturacion`**: `factura` y `linea_factura`; `factura_recurrente` y `linea_recurrente`
+  para las suscripciones (todas con RLS por empresa).
 - Índice único de número: `(empresa_id, prefijo, ejercicio, numero)`.
+- Índice de barrido de vencidas: `(empresa_id, activa, proxima_emision)`.
 - El repositorio ofrece escritura (`IRepositorioFacturas`) y consultas (`IConsultaFacturas`), que
   usarán Tesorería e Informes.
 
@@ -58,7 +85,11 @@ numeración 100 % sin huecos ante fallos (misma transacción factura + serie) es
 
 ## Tests
 
-- **Unitarios** (11): cálculo de base/IVA/IRPF, redondeo, descuentos, varias líneas, y las
-  validaciones (sin líneas, fechas, cantidad, IRPF), congelado de cliente.
+- **Unitarios**: cálculo de base/IVA/IRPF, redondeo, descuentos, varias líneas, y las
+  validaciones (sin líneas, fechas, cantidad, IRPF), congelado de cliente. En recurrentes:
+  validaciones, avance de la próxima fecha por periodicidad, autodesactivación al superar el fin y
+  paso "vencida".
 - **Integración**: emisión de extremo a extremo, numeración correlativa, IRPF del cliente,
-  listar/obtener, cliente inexistente (404) y aislamiento por empresa.
+  listar/obtener, cliente inexistente (404) y aislamiento por empresa. En recurrentes: crear/listar,
+  `procesar` emite una factura y avanza la fecha, recurrencia pausada no emite, y aislamiento por
+  empresa.

@@ -34,6 +34,8 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>, IAsyncLi
                 ["Jwt:Audiencia"] = "alxor-core",
                 ["Jwt:ClaveSecreta"] = "clave-de-pruebas-de-integracion-con-mas-de-32-caracteres",
                 ["Jwt:MinutosExpiracion"] = "60",
+                // El proceso automático se prueba de forma determinista con /procesar; se apaga aquí.
+                ["FacturacionRecurrente:Activo"] = "false",
             });
         });
     }
@@ -60,7 +62,7 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>, IAsyncLi
         await tesoreria.Database.MigrateAsync().ConfigureAwait(false);
 
         await identidad.Database.ExecuteSqlRawAsync(
-            "TRUNCATE identidad.usuario, organizacion.empresa, organizacion.membresia, organizacion.serie_numeracion, terceros.cliente, terceros.proveedor, catalogo.producto, facturacion.factura, facturacion.linea_factura, gastos.gasto, tesoreria.movimiento")
+            "TRUNCATE identidad.usuario, organizacion.empresa, organizacion.membresia, organizacion.serie_numeracion, terceros.cliente, terceros.proveedor, catalogo.producto, facturacion.factura, facturacion.linea_factura, facturacion.factura_recurrente, facturacion.linea_recurrente, gastos.gasto, tesoreria.movimiento")
             .ConfigureAwait(false);
     }
 

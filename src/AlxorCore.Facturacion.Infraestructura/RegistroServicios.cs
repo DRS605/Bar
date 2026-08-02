@@ -35,6 +35,17 @@ public static class RegistroServicios
         servicios.AddScoped<ListarFacturas>();
         servicios.AddScoped<ObtenerFactura>();
 
+        // Facturación automática periódica.
+        servicios.AddScoped<RepositorioFacturasRecurrentes>();
+        servicios.AddScoped<IRepositorioFacturasRecurrentes>(sp => sp.GetRequiredService<RepositorioFacturasRecurrentes>());
+        servicios.AddScoped<IConsultaFacturasRecurrentes>(sp => sp.GetRequiredService<RepositorioFacturasRecurrentes>());
+        servicios.AddScoped<CrearFacturaRecurrente>();
+        servicios.AddScoped<ActualizarFacturaRecurrente>();
+        servicios.AddScoped<CambiarEstadoFacturaRecurrente>();
+        servicios.AddScoped<ListarFacturasRecurrentes>();
+        servicios.AddScoped<ObtenerFacturaRecurrente>();
+        servicios.AddScoped<EmitirFacturasRecurrentesVencidas>();
+
         return servicios;
     }
 }
