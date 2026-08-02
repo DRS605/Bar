@@ -513,13 +513,29 @@
     }
     async function vCobros() {
       view('<div class="muted">Cargando…</div>');
-      const fs=await api("/facturas");
+      const fs=(await api("/facturas")).filter(f=>f.estado!=="Rectificada"&&f.estado!=="Anulada");
       const saldos=await Promise.all(fs.map(f=>api("/facturas/"+f.id+"/saldo").catch(()=>null)));
-      const filas=fs.map((f,i)=>{const s=saldos[i]||{}; const est=s.estado||"Pendiente"; const p=est==="Liquidado"?"ok":(est==="Parcial"?"part":"wait");
-        return `<tr><td><strong>${f.numeroCompleto}</strong></td><td>${f.clienteNombre}</td><td class="num">${eur(f.total)}</td><td class="num">${eur(s.liquidado||0)}</td><td class="num">${eur(s.pendiente??f.total)}</td><td class="right"><span class="pill ${p}">${est}</span></td></tr>`;}).join("");
-      const cuerpo=fs.length?`<table><thead><tr><th>Factura</th><th>Cliente</th><th class="num">Total</th><th class="num">Cobrado</th><th class="num">Pendiente</th><th class="right">Estado</th></tr></thead><tbody>${filas}</tbody></table>`:vacio("cobros","Nada que cobrar aún","Cuando emitas facturas verás aquí su estado de cobro.");
-      view(panel("Cobros de facturas",cuerpo));
+      const hoy=new Date().toISOString().slice(0,10);
+      let totalPend=0,totalVenc=0,nVenc=0;
+      const filas=fs.map((f,i)=>{const s=saldos[i]||{}; const pend=s.pendiente??f.total; const liq=s.liquidado||0; const est=s.estado||"Pendiente";
+        const cobrada=est==="Liquidado"; const vencida=!cobrada&&pend>0&&f.fechaVencimiento<hoy;
+        if(!cobrada){ totalPend+=pend; if(vencida){ totalVenc+=pend; nVenc++; } }
+        const pill=cobrada?'<span class="pill ok">Cobrada</span>':(est==="Parcial"?'<span class="pill part">Parcial</span>':'<span class="pill wait">Pendiente</span>');
+        const venc=vencida?` <span class="pill" style="background:#fdecea;color:var(--neg)">Vencida</span>`:"";
+        const cobrar=!cobrada?`<button class="btn small secondary" onclick="modalCobro('${f.id}','${f.numeroCompleto}',${pend})">Cobrar</button>`:"";
+        return `<tr><td><strong>${f.numeroCompleto}</strong></td><td>${f.clienteNombre}</td><td class="muted">${f.fechaVencimiento}${venc}</td><td class="num">${eur(f.total)}</td><td class="num">${eur(liq)}</td><td class="num"><strong>${eur(pend)}</strong></td><td class="right">${pill}</td><td class="right">${cobrar}</td></tr>`;}).join("");
+      const kpis=`<div class="kpis" style="grid-template-columns:repeat(2,1fr);max-width:560px">
+        <div class="kpi"><div class="lbl">Pendiente de cobro</div><div class="val">${eur(totalPend)}</div></div>
+        <div class="kpi ${totalVenc>0?'warn':''}"><div class="lbl">Vencido${nVenc?` · ${nVenc} factura${nVenc>1?'s':''}`:''}</div><div class="val ${totalVenc>0?'neg':''}">${eur(totalVenc)}</div></div></div>`;
+      const cuerpo=fs.length?`<table><thead><tr><th>Factura</th><th>Cliente</th><th>Vencimiento</th><th class="num">Total</th><th class="num">Cobrado</th><th class="num">Pendiente</th><th class="right">Estado</th><th></th></tr></thead><tbody>${filas}</tbody></table>`:vacio("cobros","Nada que cobrar aún","Cuando emitas facturas verás aquí tu cartera de cobro.");
+      view(kpis+panel("Cartera de cobro",cuerpo));
     }
+    function modalCobro(id,numero,pendiente){
+      const hoy=new Date().toISOString().slice(0,10);
+      const metodos=["Efectivo","Transferencia","Tarjeta","Bizum","Domiciliación"].map(m=>`<option>${m}</option>`).join("");
+      abrir(`Registrar cobro · ${numero}`,`<div class="grid2"><div><label>Importe (€)</label><input id="cb_imp" type="number" value="${pendiente}"/></div><div><label>Fecha</label><input id="cb_fecha" type="date" value="${hoy}"/></div></div>
+        <label>Método de cobro</label><select id="cb_met">${metodos}</select>`,
+        async()=>{ await api("/cobros",{method:"POST",body:JSON.stringify({facturaId:id,importe:Number(val("cb_imp")),fecha:val("cb_fecha"),metodo:val("cb_met")})}); vCobros(); }); }
     async function vInformes() {
       view('<div class="muted">Cargando…</div>');
       const anio=new Date().getFullYear();
@@ -577,11 +593,13 @@
     async function modalFactura(){ const [cs,series]=await Promise.all([api("/clientes"),api("/series").catch(()=>[])]);
       const opts=cs.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join("");
       const prefijos=[...new Set(["FA",...series.map(s=>s.prefijo)])];
-      const serieSel=prefijos.length>1?`<div><label>Serie</label><select id="f_serie">${prefijos.map(p=>`<option value="${p}">${p}</option>`).join("")}</select></div>`:"";
-      abrir("Nueva factura",`<div class="grid2"><div><label>Cliente</label><select id="f_cli">${opts}</select></div>${serieSel}</div>
+      const serieBox=prefijos.length>1?`<div><label>Serie</label><select id="f_serie">${prefijos.map(p=>`<option value="${p}">${p}</option>`).join("")}</select></div>`:`<div></div>`;
+      const vencSel=`<select id="f_venc"><option value="0">Contado</option><option value="15">15 días</option><option value="30">30 días</option><option value="60">60 días</option><option value="90">90 días</option></select>`;
+      abrir("Nueva factura",`<div class="grid2"><div><label>Cliente</label><select id="f_cli">${opts}</select></div><div><label>Vencimiento</label>${vencSel}</div></div>
+        <div class="grid2">${serieBox}<div></div></div>
         <label style="margin-top:16px">Concepto</label>
         <div class="row"><div><input id="f_desc" placeholder="Descripción"/></div><div><label>Cant.</label><input id="f_cant" type="number" value="1"/></div><div><label>Precio €</label><input id="f_prec" type="number" value="0"/></div><div><label>IVA</label>${ivaSel("f_iva")}</div></div>`,
-        async()=>{ const serie=document.getElementById("f_serie")?document.getElementById("f_serie").value:null; await api("/facturas",{method:"POST",body:JSON.stringify({clienteId:val("f_cli"),serie,lineas:[{descripcion:val("f_desc"),cantidad:Number(val("f_cant")),precioUnitario:Number(val("f_prec")),codigoIva:val("f_iva")}]})}); vFacturas(); }); }
+        async()=>{ const serie=document.getElementById("f_serie")?document.getElementById("f_serie").value:null; await api("/facturas",{method:"POST",body:JSON.stringify({clienteId:val("f_cli"),serie,diasVencimiento:Number(val("f_venc")),lineas:[{descripcion:val("f_desc"),cantidad:Number(val("f_cant")),precioUnitario:Number(val("f_prec")),codigoIva:val("f_iva")}]})}); vFacturas(); }); }
     async function modalRectificar(id){ const f=await api("/facturas/"+id);
       const l=f.lineas[0]||{descripcion:"",cantidad:1,precioUnitario:0,codigoIva:"IVA21"};
       abrir(`Rectificar ${f.numeroCompleto}`,`<p class="muted" style="margin:0 0 14px">Se emitirá una <strong>factura rectificativa (R1)</strong> para ${f.clienteNombre}, con su propia numeración y encadenada en VeriFactu. La original quedará marcada como <em>rectificada</em>.</p>

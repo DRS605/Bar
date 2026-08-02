@@ -38,7 +38,7 @@ public sealed class Factura : RaizAgregadoEmpresa<Guid>
         Pais = null!;
     }
 
-    private Factura(Guid id, Guid empresaId, NumeroFactura numero, DateOnly fechaEmision, DateOnly fechaOperacion, ClienteFacturado cliente, decimal porcentajeIrpf, DateTimeOffset ahora)
+    private Factura(Guid id, Guid empresaId, NumeroFactura numero, DateOnly fechaEmision, DateOnly fechaOperacion, DateOnly fechaVencimiento, ClienteFacturado cliente, decimal porcentajeIrpf, DateTimeOffset ahora)
         : base(id, empresaId)
     {
         Prefijo = numero.Prefijo;
@@ -47,6 +47,7 @@ public sealed class Factura : RaizAgregadoEmpresa<Guid>
         NumeroCompleto = numero.Completo;
         FechaEmision = fechaEmision;
         FechaOperacion = fechaOperacion;
+        FechaVencimiento = fechaVencimiento;
         ClienteId = cliente.ClienteId;
         ClienteNombre = cliente.Nombre;
         ClienteNif = cliente.Nif;
@@ -70,6 +71,9 @@ public sealed class Factura : RaizAgregadoEmpresa<Guid>
     // --- Fechas fiscales ---
     public DateOnly FechaEmision { get; private set; }
     public DateOnly FechaOperacion { get; private set; }
+
+    /// <summary>Fecha de vencimiento del cobro (plazo de pago). Por defecto, la de emisión (contado).</summary>
+    public DateOnly FechaVencimiento { get; private set; }
 
     // --- Cliente (snapshot congelado); nulo en tickets sin cliente identificado ---
     public Guid? ClienteId { get; private set; }
@@ -137,7 +141,8 @@ public sealed class Factura : RaizAgregadoEmpresa<Guid>
         ClienteFacturado cliente,
         IReadOnlyList<NuevaLinea> lineas,
         decimal porcentajeIrpf,
-        IReloj reloj)
+        IReloj reloj,
+        DateOnly? fechaVencimiento = null)
     {
         ArgumentNullException.ThrowIfNull(numero);
         ArgumentNullException.ThrowIfNull(cliente);
@@ -154,6 +159,11 @@ public sealed class Factura : RaizAgregadoEmpresa<Guid>
             return Resultado.Fallo<Factura>(Error.Validacion("factura.fechas", "La fecha de operación no puede ser posterior a la de emisión."));
         }
 
+        if (fechaVencimiento is not null && fechaVencimiento < fechaEmision)
+        {
+            return Resultado.Fallo<Factura>(Error.Validacion("factura.vencimiento", "El vencimiento no puede ser anterior a la emisión."));
+        }
+
         if (porcentajeIrpf is < 0 or > IrpfMaximo)
         {
             return Resultado.Fallo<Factura>(Error.Validacion("factura.irpf_invalido", "El porcentaje de IRPF no es válido."));
@@ -168,7 +178,7 @@ public sealed class Factura : RaizAgregadoEmpresa<Guid>
             }
         }
 
-        var factura = new Factura(Guid.NewGuid(), empresaId, numero, fechaEmision, fechaOperacion, cliente, porcentajeIrpf, reloj.AhoraUtc);
+        var factura = new Factura(Guid.NewGuid(), empresaId, numero, fechaEmision, fechaOperacion, fechaVencimiento ?? fechaEmision, cliente, porcentajeIrpf, reloj.AhoraUtc);
         foreach (var datos in lineas)
         {
             factura._lineas.Add(new LineaFactura(empresaId, datos));
@@ -215,7 +225,7 @@ public sealed class Factura : RaizAgregadoEmpresa<Guid>
             }
         }
 
-        var factura = new Factura(Guid.NewGuid(), empresaId, numero, fecha, fecha, cliente, 0m, reloj.AhoraUtc)
+        var factura = new Factura(Guid.NewGuid(), empresaId, numero, fecha, fecha, fecha, cliente, 0m, reloj.AhoraUtc)
         {
             TipoFactura = TipoFactura.Simplificada,
         };
@@ -285,7 +295,7 @@ public sealed class Factura : RaizAgregadoEmpresa<Guid>
             }
         }
 
-        var factura = new Factura(Guid.NewGuid(), empresaId, numero, fechaEmision, fechaEmision, cliente, porcentajeIrpf, reloj.AhoraUtc)
+        var factura = new Factura(Guid.NewGuid(), empresaId, numero, fechaEmision, fechaEmision, fechaEmision, cliente, porcentajeIrpf, reloj.AhoraUtc)
         {
             TipoFactura = TipoFactura.Rectificativa,
             RectificaFacturaId = facturaOriginalId,

@@ -18,14 +18,15 @@ public sealed record LineaComando(
     decimal PorcentajeDescuento = 0m,
     Guid? ProductoId = null);
 
-/// <summary>Datos para emitir una factura.</summary>
+/// <summary>Datos para emitir una factura. <c>DiasVencimiento</c> es el plazo de pago (0 = contado).</summary>
 public sealed record EmitirFacturaComando(
     Guid ClienteId,
     IReadOnlyList<LineaComando> Lineas,
     DateOnly? FechaEmision = null,
     DateOnly? FechaOperacion = null,
     decimal? PorcentajeIrpf = null,
-    string? Serie = null);
+    string? Serie = null,
+    int? DiasVencimiento = null);
 
 /// <summary>
 /// Caso de uso estrella: emitir una factura. Compone cliente (Terceros), productos/impuestos
@@ -85,6 +86,7 @@ public sealed class EmitirFactura
         var hoy = DateOnly.FromDateTime(_reloj.AhoraUtc.UtcDateTime);
         var fechaEmision = comando.FechaEmision ?? hoy;
         var fechaOperacion = comando.FechaOperacion ?? fechaEmision;
+        var fechaVencimiento = fechaEmision.AddDays(Math.Max(0, comando.DiasVencimiento ?? 0));
         var porcentajeIrpf = comando.PorcentajeIrpf ?? cliente.PorcentajeIrpfDefecto;
 
         var clienteFacturado = new ClienteFacturado(
@@ -99,7 +101,7 @@ public sealed class EmitirFactura
         }
 
         var numeroFactura = new NumeroFactura(numero.Valor.Prefijo, numero.Valor.Ejercicio, numero.Valor.Numero);
-        var factura = Factura.Emitir(empresaId, numeroFactura, fechaEmision, fechaOperacion, clienteFacturado, lineas, porcentajeIrpf, _reloj);
+        var factura = Factura.Emitir(empresaId, numeroFactura, fechaEmision, fechaOperacion, clienteFacturado, lineas, porcentajeIrpf, _reloj, fechaVencimiento);
         if (factura.EsFallo)
         {
             return Resultado.Fallo<FacturaDto>(factura.Error);

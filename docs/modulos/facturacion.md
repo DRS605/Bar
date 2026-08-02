@@ -12,6 +12,11 @@ Cada línea puede indicar un `ProductoId` (toma nombre, precio e IVA por defecto
 escribirse a mano (`Descripcion`, `PrecioUnitario`, `CodigoIva`). El IRPF por defecto se toma del
 cliente si no se indica.
 
+**Vencimiento**: la factura guarda su `fecha_vencimiento` (plazo de pago). El comando admite
+`DiasVencimiento` (0 = contado, 30, 60…) y se calcula sobre la fecha de emisión. La **cartera de
+cobro** de la interfaz cruza el vencimiento con el saldo de Tesorería para marcar las facturas
+**vencidas** y totalizar el importe vencido.
+
 ## Cálculo de importes
 
 - Por línea: `base = redondeo(cantidad × precio × (1 − descuento%))`, `cuota = redondeo(base × IVA%)`.

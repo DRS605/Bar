@@ -14,6 +14,7 @@ public sealed record FacturaDto(
     string NumeroCompleto,
     DateOnly FechaEmision,
     DateOnly FechaOperacion,
+    DateOnly FechaVencimiento,
     Guid? ClienteId,
     string ClienteNombre,
     string? ClienteNif,
@@ -31,7 +32,7 @@ public sealed record FacturaDto(
     IReadOnlyList<LineaFacturaDto> Lineas)
 {
     public static FacturaDto Desde(Factura f) => new(
-        f.Id, f.NumeroCompleto, f.FechaEmision, f.FechaOperacion, f.ClienteId, f.ClienteNombre, f.ClienteNif,
+        f.Id, f.NumeroCompleto, f.FechaEmision, f.FechaOperacion, f.FechaVencimiento, f.ClienteId, f.ClienteNombre, f.ClienteNif,
         f.BaseImponible, f.CuotaIva, f.PorcentajeIrpf, f.RetencionIrpf, f.Total, f.Estado.ToString(), f.TipoFactura.ToString(), f.Huella, f.HuellaAnterior,
         f.RectificaFacturaId, f.MotivoRectificacion,
         f.Lineas.Select(l => new LineaFacturaDto(
@@ -40,7 +41,7 @@ public sealed record FacturaDto(
 
 /// <summary>Resumen de factura para listados y libros de IVA.</summary>
 public sealed record FacturaResumen(
-    Guid Id, string NumeroCompleto, DateOnly FechaEmision, string ClienteNombre,
+    Guid Id, string NumeroCompleto, DateOnly FechaEmision, DateOnly FechaVencimiento, string ClienteNombre,
     string? ClienteNif, decimal BaseImponible, decimal CuotaIva, decimal Total, string Estado, string Tipo);
 
 /// <summary>Repositorio de facturas (escritura).</summary>
