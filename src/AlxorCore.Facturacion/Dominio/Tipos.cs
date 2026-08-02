@@ -17,18 +17,30 @@ public enum TipoFactura
 {
     Ordinaria = 1,
     Rectificativa = 2,
+
+    /// <summary>Factura simplificada (ticket): sin datos completos del destinatario y con tope de importe.</summary>
+    Simplificada = 3,
 }
 
-/// <summary>Datos del cliente que se "congelan" en la factura al emitirla (invariante fiscal F4).</summary>
+/// <summary>
+/// Datos del cliente que se "congelan" en la factura al emitirla (invariante fiscal F4). En una
+/// factura simplificada (ticket) el destinatario puede no estar identificado; en ese caso
+/// <see cref="ClienteId"/> es nulo y el nombre es genérico ("Cliente de contado").
+/// </summary>
 public sealed record ClienteFacturado(
-    Guid ClienteId,
+    Guid? ClienteId,
     string Nombre,
     string? Nif,
     string Calle,
     string CodigoPostal,
     string Poblacion,
     string Provincia,
-    string Pais);
+    string Pais)
+{
+    /// <summary>Destinatario genérico para tickets sin cliente identificado.</summary>
+    public static ClienteFacturado Contado { get; } =
+        new(null, "Cliente de contado", null, string.Empty, string.Empty, string.Empty, string.Empty, "ES");
+}
 
 /// <summary>Datos de una línea nueva al emitir (entrada del caso de uso).</summary>
 public sealed record NuevaLinea(

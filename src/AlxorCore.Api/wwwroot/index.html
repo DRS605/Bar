@@ -141,6 +141,37 @@
     .pill.ok { background:#e7f6ee; color:var(--pos); } .pill.wait { background:#fdf2e3; color:var(--warn); } .pill.part { background: var(--accent-soft); color: var(--accent); }
     .muted { color: var(--muted); } .right { text-align:right; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; letter-spacing:.2px; }
+
+    /* ---------- TPV / Tickets ---------- */
+    .tpv { display:grid; grid-template-columns: 1fr 380px; gap: 20px; align-items:start; }
+    @media (max-width: 980px){ .tpv { grid-template-columns: 1fr; } }
+    .tpv-cart { position: sticky; top: 20px; }
+    .scanbar { display:flex; gap:10px; margin-bottom:14px; }
+    .scanbar input { flex:1; }
+    #tpvVideoWrap { display:none; margin-bottom:14px; border-radius:14px; overflow:hidden; background:#04121e; position:relative; }
+    #tpvVideo { width:100%; max-height:280px; object-fit:cover; display:block; }
+    .scanline { position:absolute; left:7%; right:7%; height:2px; background:var(--brand1); box-shadow:0 0 12px var(--brand1); animation:scan 1.7s ease-in-out infinite; }
+    @keyframes scan { 0%,100%{ top:18% } 50%{ top:82% } }
+    .scanhint { position:absolute; left:0; right:0; bottom:0; padding:8px 12px; font-size:12px; color:#fff; background:linear-gradient(transparent, rgba(0,0,0,.55)); }
+    .tpv-res { display:grid; grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:10px; }
+    .tpv-card { border:1px solid var(--line); border-radius:12px; padding:12px; cursor:pointer; background:var(--surface); transition:border-color .15s, transform .1s, box-shadow .15s; }
+    .tpv-card:hover { border-color:var(--accent); transform:translateY(-1px); box-shadow: var(--shadow); }
+    .tpv-card .n { font-weight:650; font-size:13.5px; color:var(--ink); }
+    .tpv-card .c { font-size:11.5px; color:var(--muted); }
+    .tpv-card .p { margin-top:6px; font-weight:750; color:var(--accent); }
+    .cart-line { display:flex; align-items:center; gap:8px; padding:9px 0; border-bottom:1px solid var(--line); }
+    .cart-line .cl-n { flex:1; font-size:13.5px; }
+    .cart-line .cl-n small { color:var(--muted); }
+    .step { display:inline-flex; align-items:center; gap:7px; }
+    .step button { width:25px; height:25px; border-radius:7px; border:1px solid var(--line); background:#fff; font-weight:700; line-height:1; color:var(--ink); }
+    .step button:hover { border-color:var(--accent); color:var(--accent); }
+    .cart-tot { display:flex; justify-content:space-between; padding:5px 0; font-size:14px; color:var(--muted); }
+    .cart-tot span:last-child { color:var(--ink); font-weight:600; }
+    .cart-tot.big { font-size:21px; font-weight:760; color:var(--ink); border-top:2px solid var(--line); margin-top:8px; padding-top:12px; }
+    .cart-tot.big span:last-child { font-weight:760; }
+    .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:12px 20px; border-radius:12px; font-weight:600; font-size:14px; box-shadow:0 10px 30px rgba(0,0,0,.25); z-index:50; opacity:0; transition:opacity .2s, transform .2s; }
+    .toast.show { opacity:1; transform:translateX(-50%) translateY(-4px); }
+    .toast.ok { background:var(--pos); } .toast.err { background:var(--neg); }
     .avatar.mini { width:26px; height:26px; font-size:11px; border-radius: 8px; display:inline-grid; vertical-align:middle; margin-right:8px; }
     .empty { padding: 46px 20px; text-align:center; color: var(--muted); }
     .empty .big { width:52px; height:52px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); display:grid; place-items:center; margin: 0 auto 14px; }
@@ -231,6 +262,7 @@
       cobros:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 12h6M12 9v6"/></svg>',
       informes:'<svg viewBox="0 0 24 24"><path d="M4 20V4M4 20h16"/><path d="M8 16v-5M13 16V8M18 16v-9"/></svg>',
       recurrentes:'<svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13-6l3 2"/><path d="M20 4v4h-4"/><path d="M20 12a8 8 0 0 1-13 6l-3-2"/><path d="M4 20v-4h4"/></svg>',
+      tpv:'<svg viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg>',
       ajustes:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 0 1-4 0v-.1A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H1a2 2 0 0 1 0-4h.1A1.7 1.7 0 0 0 2.6 7a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 9 1.6V1a2 2 0 0 1 4 0v.1A1.7 1.7 0 0 0 17 2.6a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>'
     };
     ICON.ventas = '<svg viewBox="0 0 24 24"><path d="M3 6h18l-1.5 9H4.5z"/><circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/><path d="M3 6L2 3"/></svg>';
@@ -241,13 +273,13 @@
     // Menú agrupado en carpetas: Ventas, Compras y Artículos.
     const NAV = [
       { t:"item", k:"inicio", l:"Inicio" },
-      { t:"grupo", k:"ventas", l:"Ventas", items:[["facturas","Facturas"],["recurrentes","Periódicas"],["clientes","Clientes"],["cobros","Cobros"]] },
+      { t:"grupo", k:"ventas", l:"Ventas", items:[["facturas","Facturas"],["tpv","TPV · Tickets"],["recurrentes","Periódicas"],["clientes","Clientes"],["cobros","Cobros"]] },
       { t:"grupo", k:"compras", l:"Compras", items:[["gastos","Gastos"],["proveedores","Proveedores"],["pagos","Pagos"]] },
       { t:"grupo", k:"articulos", l:"Artículos", items:[["productos","Productos"]] },
       { t:"item", k:"informes", l:"Informes" },
       { t:"item", k:"ajustes", l:"Ajustes" },
     ];
-    const TITULOS = { inicio:"Inicio", facturas:"Facturas", recurrentes:"Facturación periódica", clientes:"Clientes", cobros:"Cobros", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", productos:"Artículos", informes:"Informes", ajustes:"Ajustes" };
+    const TITULOS = { inicio:"Inicio", facturas:"Facturas", tpv:"TPV · Tickets", recurrentes:"Facturación periódica", clientes:"Clientes", cobros:"Cobros", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", productos:"Artículos", informes:"Informes", ajustes:"Ajustes" };
     function renderNav() {
       return NAV.map(n => {
         if (n.t === "item") return `<a class="navitem" data-k="${n.k}" onclick="ir('${n.k}')">${ICON[n.k]}<span>${n.l}</span></a>`;
@@ -291,10 +323,10 @@
       ir("inicio");
     }
 
-    function ir(k){ vista=k;
+    function ir(k){ if(vista==="tpv" && k!=="tpv" && typeof tpvParar==="function") tpvParar(); vista=k;
       document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("active",a.dataset.k===k));
       document.getElementById("viewTitle").textContent=TITULOS[k]||k;
-      ({inicio:vInicio,facturas:vFacturas,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,pagos:vPagos,informes:vInformes,ajustes:vAjustes}[k])();
+      ({inicio:vInicio,facturas:vFacturas,tpv:vTpv,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,pagos:vPagos,informes:vInformes,ajustes:vAjustes}[k])();
     }
     const view = h => document.getElementById("view").innerHTML=h;
     const panel = (t,c,a="") => `<div class="panel"><div class="panel-head"><h2>${t}</h2>${a}</div>${c}</div>`;
@@ -353,6 +385,68 @@
     async function toggleRecurrente(id,activa){ try{ await api(`/facturas-recurrentes/${id}/estado`,{method:"POST",body:JSON.stringify({activa})}); vRecurrentes(); }catch(e){ alert(e.message);} }
     async function procesarRecurrentes(){ try{ const r=await api("/facturas-recurrentes/procesar",{method:"POST"});
       alert(r.emitidas?`Se ${r.emitidas===1?"ha emitido 1 factura":"han emitido "+r.emitidas+" facturas"} automáticamente.`:"No había facturas periódicas vencidas."); vRecurrentes(); }catch(e){ alert(e.message);} }
+    /* ---------- TPV / Tickets ---------- */
+    let tpvProductos=[], tpvCart=[], tpvStream=null, tpvTimer=null, tpvDetector=null, tpvUltimo=0;
+    async function vTpv() {
+      view('<div class="muted">Cargando artículos…</div>');
+      tpvProductos = await api("/productos");
+      tpvCart=[];
+      const soporta = ('BarcodeDetector' in window);
+      const scanBtn = soporta
+        ? `<button class="btn small" onclick="tpvEscanear()" id="tpvScanBtn">📷 Escanear con cámara</button>`
+        : `<button class="btn small secondary" onclick="tpvSinCamara()">📷 Escáner de cámara</button>`;
+      const izq=`<div class="panel"><div class="panel-head"><h2>Punto de venta</h2>${scanBtn}</div>
+        <div style="padding:16px 18px">
+          <div id="tpvVideoWrap"><video id="tpvVideo" playsinline muted></video><div class="scanline"></div><div class="scanhint">Apunta al código de barras del artículo · <a href="#" onclick="tpvParar();return false" style="color:#7fe3f7">detener</a></div></div>
+          <div class="scanbar"><input id="tpvBuscar" placeholder="Escanea (lector USB) o busca por código / nombre…" oninput="tpvPintarResultados()" onkeydown="tpvBuscarKey(event)" autofocus/></div>
+          <div class="tpv-res" id="tpvResultados"></div>
+        </div></div>`;
+      const der=`<div class="panel tpv-cart"><div class="panel-head"><h2>Ticket</h2><span class="pill part">Serie T</span></div>
+        <div style="padding:14px 18px"><div id="tpvCart"></div></div></div>`;
+      view(`<div class="tpv">${izq}${der}</div>`);
+      tpvPintarResultados(); tpvPintarCarrito();
+    }
+    function tpvSinCamara(){ toast("Tu navegador no permite escáner de cámara aquí. Usa un lector USB o el buscador.","err"); }
+    function tpvBuscarKey(e){ if(e.key!=="Enter")return; const q=e.target.value.trim(); if(!q)return;
+      const p=tpvProductos.find(x=>x.referencia&&x.referencia.toLowerCase()===q.toLowerCase());
+      if(p){ tpvAdd(p.id); e.target.value=""; tpvPintarResultados(); } }
+    function tpvPintarResultados(){ const q=(document.getElementById("tpvBuscar")?.value||"").toLowerCase().trim();
+      const lista=tpvProductos.filter(p=>!q||(p.nombre+" "+(p.referencia||"")).toLowerCase().includes(q)).slice(0,12);
+      const html=lista.map(p=>`<div class="tpv-card" onclick="tpvAdd('${p.id}')"><div class="n">${p.nombre}</div><div class="c mono">${p.referencia||"—"}</div><div class="p">${eur(p.precioUnitario)}</div></div>`).join("");
+      const el=document.getElementById("tpvResultados"); if(el) el.innerHTML=html||`<div class="muted" style="padding:10px">Sin artículos. Créalos en Artículos con su código.</div>`; }
+    function tpvAdd(id){ const p=tpvProductos.find(x=>x.id===id); if(!p)return;
+      const ex=tpvCart.find(l=>l.productoId===id); if(ex) ex.cantidad++; else tpvCart.push({productoId:id,descripcion:p.nombre,referencia:p.referencia,precioUnitario:p.precioUnitario,codigoIva:p.codigoIva,porcentajeIva:p.porcentajeIva,cantidad:1});
+      tpvPintarCarrito(); }
+    function tpvPaso(i,d){ tpvCart[i].cantidad+=d; if(tpvCart[i].cantidad<=0) tpvCart.splice(i,1); tpvPintarCarrito(); }
+    function tpvPintarCarrito(){ const el=document.getElementById("tpvCart"); if(!el)return;
+      if(!tpvCart.length){ el.innerHTML=`<div class="empty" style="padding:28px 6px"><div class="big">${ICON.tpv}</div><h3>Ticket vacío</h3><p>Escanea o toca un artículo para añadirlo.</p></div>`; return; }
+      let base=0,iva=0;
+      const filas=tpvCart.map((l,i)=>{ const b=l.cantidad*l.precioUnitario; base+=b; iva+=b*l.porcentajeIva/100;
+        return `<div class="cart-line"><div class="cl-n">${l.descripcion}<br><small>${eur(l.precioUnitario)} · IVA ${l.porcentajeIva}%</small></div><div class="step"><button onclick="tpvPaso(${i},-1)">−</button><b>${l.cantidad}</b><button onclick="tpvPaso(${i},1)">+</button></div><div class="num" style="width:74px;text-align:right"><strong>${eur(b)}</strong></div></div>`; }).join("");
+      const total=base+iva;
+      el.innerHTML=filas+`<div style="margin-top:12px">
+        <div class="cart-tot"><span>Base</span><span>${eur(base)}</span></div>
+        <div class="cart-tot"><span>IVA</span><span>${eur(iva)}</span></div>
+        <div class="cart-tot big"><span>Total</span><span>${eur(total)}</span></div>
+        <button class="btn" style="margin-top:14px" onclick="tpvCobrar()">Cobrar y emitir ticket · ${eur(total)}</button></div>`; }
+    async function tpvCobrar(){ if(!tpvCart.length){ toast("Añade artículos al ticket.","err"); return; }
+      const lineas=tpvCart.map(l=>({descripcion:l.descripcion,cantidad:l.cantidad,precioUnitario:l.precioUnitario,codigoIva:l.codigoIva}));
+      try{ const t=await api("/tickets",{method:"POST",body:JSON.stringify({lineas})});
+        tpvCart=[]; tpvPintarCarrito(); toast(`Ticket ${t.numeroCompleto} emitido · ${eur(t.total)}`,"ok"); }
+      catch(e){ toast(e.message,"err"); } }
+    async function tpvEscanear(){ if(!('BarcodeDetector' in window)){ tpvSinCamara(); return; }
+      try{ tpvStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+        const v=document.getElementById("tpvVideo"); v.srcObject=tpvStream; await v.play();
+        document.getElementById("tpvVideoWrap").style.display="block";
+        tpvDetector=new BarcodeDetector({formats:["ean_13","ean_8","upc_a","upc_e","code_128","qr_code"]});
+        tpvTimer=setInterval(async()=>{ try{ const cs=await tpvDetector.detect(v); if(cs&&cs.length) tpvPorCodigo(cs[0].rawValue); }catch{} },350);
+      }catch(e){ toast("No se pudo abrir la cámara: "+e.message,"err"); } }
+    function tpvParar(){ if(tpvTimer){clearInterval(tpvTimer);tpvTimer=null;} if(tpvStream){tpvStream.getTracks().forEach(t=>t.stop());tpvStream=null;} const w=document.getElementById("tpvVideoWrap"); if(w)w.style.display="none"; }
+    function tpvPorCodigo(code){ const now=Date.now(); if(now-tpvUltimo<1200)return;
+      const p=tpvProductos.find(x=>x.referencia&&x.referencia===code); if(p){ tpvUltimo=now; tpvAdd(p.id); toast("Añadido: "+p.nombre,"ok"); } else { tpvUltimo=now; toast("Código "+code+" no encontrado en Artículos","err"); } }
+    let toastT=null;
+    function toast(msg,tipo=""){ let el=document.getElementById("toast"); if(!el){ el=document.createElement("div"); el.id="toast"; el.className="toast"; document.body.appendChild(el);} el.className="toast "+tipo; el.textContent=msg; requestAnimationFrame(()=>el.classList.add("show")); clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove("show"),2600); }
+
     async function vClientes() {
       view('<div class="muted">Cargando…</div>');
       const cs=await api("/clientes");

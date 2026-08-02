@@ -43,6 +43,22 @@ y el envío a la AEAT sin rehacer el núcleo.
 | `GET` | `/facturas` | permiso `factura.leer` | Lista de facturas de la empresa. |
 | `GET` | `/facturas/{id}` | permiso `factura.leer` | Factura con sus líneas. |
 
+## Tickets (factura simplificada) — TPV
+
+Un **ticket** es una **factura simplificada** (art. 4/7 RD 1619/2012): misma tabla `factura` con
+`tipo_factura = Simplificada`, **sin retención de IRPF**, con el **destinatario opcional** (si no se
+identifica se congela como *"Cliente de contado"* y `cliente_id` queda nulo) y con **tope de importe**
+(`Factura.TicketImporteMaximo` = 3.000 €; por encima obliga a factura ordinaria). Usa su propia
+**serie** (`T` por defecto) y, al ser una factura más, aparece en listados, cobros y libros de IVA.
+
+El caso de uso `EmitirTicket` comparte con la emisión ordinaria la resolución de líneas y la
+numeración correlativa. El TPV de la interfaz añade artículos por **código de barras** (cámara del
+móvil vía `BarcodeDetector`, o lector USB / buscador) y cobra en un toque.
+
+| Método | Ruta | Auth | Descripción |
+|---|---|---|---|
+| `POST` | `/tickets` | permiso `factura.emitir` | Emite un ticket (factura simplificada). **201** |
+
 ## Facturación automática periódica
 
 Una **factura recurrente** (`factura_recurrente`) es la plantilla de una suscripción/contrato:

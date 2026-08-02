@@ -72,18 +72,13 @@ public sealed class EmitirFactura
             return Resultado.Fallo<FacturaDto>(Error.NoEncontrado("cliente.no_encontrado", "El cliente no existe."));
         }
 
-        var lineas = new List<NuevaLinea>(comando.Lineas.Count);
-        foreach (var linea in comando.Lineas)
+        var resolucion = await ResolucionLineasFactura.ResolverAsync(comando.Lineas, _productos, ct).ConfigureAwait(false);
+        if (resolucion.EsFallo)
         {
-            var resuelta = await ResolverLineaAsync(linea, ct).ConfigureAwait(false);
-            if (resuelta.EsFallo)
-            {
-                return Resultado.Fallo<FacturaDto>(resuelta.Error);
-            }
-
-            lineas.Add(resuelta.Valor);
+            return Resultado.Fallo<FacturaDto>(resolucion.Error);
         }
 
+        var lineas = resolucion.Valor;
         var hoy = DateOnly.FromDateTime(_reloj.AhoraUtc.UtcDateTime);
         var fechaEmision = comando.FechaEmision ?? hoy;
         var fechaOperacion = comando.FechaOperacion ?? fechaEmision;
@@ -111,44 +106,59 @@ public sealed class EmitirFactura
         await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
         return Resultado.Ok(FacturaDto.Desde(factura.Valor));
     }
+}
 
-    private async Task<Resultado<NuevaLinea>> ResolverLineaAsync(LineaComando linea, CancellationToken ct)
+/// <summary>
+/// Resuelve las líneas de comando a líneas de dominio (<see cref="NuevaLinea"/>), tomando los datos
+/// por defecto del producto cuando se indica <c>ProductoId</c>. Lo comparten la emisión de facturas
+/// y de tickets.
+/// </summary>
+internal static class ResolucionLineasFactura
+{
+    public static async Task<Resultado<List<NuevaLinea>>> ResolverAsync(
+        IReadOnlyList<LineaComando> lineas, IConsultaProductos productos, CancellationToken ct)
     {
-        string? descripcion = linea.Descripcion;
-        decimal? precio = linea.PrecioUnitario;
-        string? codigoIva = linea.CodigoIva;
-
-        if (linea.ProductoId is not null)
+        var resueltas = new List<NuevaLinea>(lineas.Count);
+        foreach (var linea in lineas)
         {
-            var producto = await _productos.ObtenerAsync(linea.ProductoId.Value, ct).ConfigureAwait(false);
-            if (producto is null)
+            string? descripcion = linea.Descripcion;
+            decimal? precio = linea.PrecioUnitario;
+            string? codigoIva = linea.CodigoIva;
+
+            if (linea.ProductoId is not null)
             {
-                return Resultado.Fallo<NuevaLinea>(Error.NoEncontrado("producto.no_encontrado", "El producto de una línea no existe."));
+                var producto = await productos.ObtenerAsync(linea.ProductoId.Value, ct).ConfigureAwait(false);
+                if (producto is null)
+                {
+                    return Resultado.Fallo<List<NuevaLinea>>(Error.NoEncontrado("producto.no_encontrado", "El producto de una línea no existe."));
+                }
+
+                descripcion ??= producto.Nombre;
+                precio ??= producto.PrecioUnitario;
+                codigoIva ??= producto.CodigoIva;
             }
 
-            descripcion ??= producto.Nombre;
-            precio ??= producto.PrecioUnitario;
-            codigoIva ??= producto.CodigoIva;
+            if (string.IsNullOrWhiteSpace(descripcion))
+            {
+                return Resultado.Fallo<List<NuevaLinea>>(Error.Validacion("factura.linea_sin_descripcion", "Cada línea necesita una descripción."));
+            }
+
+            if (precio is null)
+            {
+                return Resultado.Fallo<List<NuevaLinea>>(Error.Validacion("factura.linea_sin_precio", "Cada línea necesita un precio."));
+            }
+
+            var impuesto = Impuesto.PorCodigoImpuesto(codigoIva ?? Impuesto.IvaGeneral.Codigo);
+            if (impuesto.EsFallo)
+            {
+                return Resultado.Fallo<List<NuevaLinea>>(impuesto.Error);
+            }
+
+            resueltas.Add(new NuevaLinea(
+                descripcion, linea.Cantidad, precio.Value, impuesto.Valor.Codigo, impuesto.Valor.Porcentaje, linea.PorcentajeDescuento, linea.ProductoId));
         }
 
-        if (string.IsNullOrWhiteSpace(descripcion))
-        {
-            return Resultado.Fallo<NuevaLinea>(Error.Validacion("factura.linea_sin_descripcion", "Cada línea necesita una descripción."));
-        }
-
-        if (precio is null)
-        {
-            return Resultado.Fallo<NuevaLinea>(Error.Validacion("factura.linea_sin_precio", "Cada línea necesita un precio."));
-        }
-
-        var impuesto = Impuesto.PorCodigoImpuesto(codigoIva ?? Impuesto.IvaGeneral.Codigo);
-        if (impuesto.EsFallo)
-        {
-            return Resultado.Fallo<NuevaLinea>(impuesto.Error);
-        }
-
-        return Resultado.Ok(new NuevaLinea(
-            descripcion, linea.Cantidad, precio.Value, impuesto.Valor.Codigo, impuesto.Valor.Porcentaje, linea.PorcentajeDescuento, linea.ProductoId));
+        return Resultado.Ok(resueltas);
     }
 }
 

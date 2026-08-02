@@ -20,6 +20,13 @@ public sealed class Factura : RaizAgregadoEmpresa<Guid>
 {
     public const decimal IrpfMaximo = 60m;
 
+    /// <summary>
+    /// Importe total máximo de una factura simplificada (ticket). Se usa el límite de 3.000 € que la
+    /// normativa (art. 4 RD 1619/2012) permite en sectores como comercio minorista y hostelería, que
+    /// son el caso de uso del TPV. Por encima de ese importe debe emitirse factura ordinaria.
+    /// </summary>
+    public const decimal TicketImporteMaximo = 3000m;
+
     private readonly List<LineaFactura> _lineas = [];
 
     private Factura(Guid id)
@@ -64,8 +71,8 @@ public sealed class Factura : RaizAgregadoEmpresa<Guid>
     public DateOnly FechaEmision { get; private set; }
     public DateOnly FechaOperacion { get; private set; }
 
-    // --- Cliente (snapshot congelado) ---
-    public Guid ClienteId { get; private set; }
+    // --- Cliente (snapshot congelado); nulo en tickets sin cliente identificado ---
+    public Guid? ClienteId { get; private set; }
     public string ClienteNombre { get; private set; }
     public string? ClienteNif { get; private set; }
     public string ClienteCalle { get; private set; } = string.Empty;
@@ -150,6 +157,63 @@ public sealed class Factura : RaizAgregadoEmpresa<Guid>
         factura.CuotaIva = Redondeo.Dos(factura._lineas.Sum(l => l.CuotaIva));
         factura.RetencionIrpf = Redondeo.Dos(factura.BaseImponible * porcentajeIrpf / 100m);
         factura.Total = Redondeo.Dos(factura.BaseImponible + factura.CuotaIva - factura.RetencionIrpf);
+
+        factura.RegistrarEvento(new FacturaEmitida(factura.Id, empresaId, factura.NumeroCompleto, factura.Total, reloj.AhoraUtc));
+        return Resultado.Ok(factura);
+    }
+
+    /// <summary>
+    /// Emite una <b>factura simplificada</b> (ticket): igual que una ordinaria pero sin retención de
+    /// IRPF, admitiendo un destinatario sin identificar y con el tope de importe
+    /// <see cref="TicketImporteMaximo"/>. Comparte el cálculo de importes y el congelado de datos.
+    /// </summary>
+    public static Resultado<Factura> EmitirSimplificada(
+        Guid empresaId,
+        NumeroFactura numero,
+        DateOnly fecha,
+        ClienteFacturado cliente,
+        IReadOnlyList<NuevaLinea> lineas,
+        IReloj reloj)
+    {
+        ArgumentNullException.ThrowIfNull(numero);
+        ArgumentNullException.ThrowIfNull(cliente);
+        ArgumentNullException.ThrowIfNull(lineas);
+        ArgumentNullException.ThrowIfNull(reloj);
+
+        if (lineas.Count == 0)
+        {
+            return Resultado.Fallo<Factura>(Error.Validacion("factura.sin_lineas", "El ticket debe tener al menos una línea."));
+        }
+
+        foreach (var linea in lineas)
+        {
+            var error = ValidarLinea(linea);
+            if (error is not null)
+            {
+                return Resultado.Fallo<Factura>(error);
+            }
+        }
+
+        var factura = new Factura(Guid.NewGuid(), empresaId, numero, fecha, fecha, cliente, 0m, reloj.AhoraUtc)
+        {
+            TipoFactura = TipoFactura.Simplificada,
+        };
+        foreach (var datos in lineas)
+        {
+            factura._lineas.Add(new LineaFactura(empresaId, datos));
+        }
+
+        factura.BaseImponible = Redondeo.Dos(factura._lineas.Sum(l => l.Base));
+        factura.CuotaIva = Redondeo.Dos(factura._lineas.Sum(l => l.CuotaIva));
+        factura.RetencionIrpf = 0m;
+        factura.Total = Redondeo.Dos(factura.BaseImponible + factura.CuotaIva);
+
+        if (factura.Total > TicketImporteMaximo)
+        {
+            return Resultado.Fallo<Factura>(Error.Validacion(
+                "ticket.importe_excedido",
+                $"Un ticket (factura simplificada) no puede superar {TicketImporteMaximo:0} €. Emite una factura ordinaria."));
+        }
 
         factura.RegistrarEvento(new FacturaEmitida(factura.Id, empresaId, factura.NumeroCompleto, factura.Total, reloj.AhoraUtc));
         return Resultado.Ok(factura);

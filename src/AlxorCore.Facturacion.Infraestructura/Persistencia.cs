@@ -52,7 +52,7 @@ internal sealed class ConfiguracionFactura : IEntityTypeConfiguration<Factura>
         builder.Property(f => f.FechaEmision).HasColumnName("fecha_emision").IsRequired();
         builder.Property(f => f.FechaOperacion).HasColumnName("fecha_operacion").IsRequired();
 
-        builder.Property(f => f.ClienteId).HasColumnName("cliente_id").IsRequired();
+        builder.Property(f => f.ClienteId).HasColumnName("cliente_id");
         builder.Property(f => f.ClienteNombre).HasColumnName("cliente_nombre").HasMaxLength(200).IsRequired();
         builder.Property(f => f.ClienteNif).HasColumnName("cliente_nif").HasMaxLength(20);
         builder.Property(f => f.ClienteCalle).HasColumnName("cliente_calle").HasMaxLength(200);
@@ -240,7 +240,7 @@ internal sealed class RepositorioFacturas : IRepositorioFacturas, IConsultaFactu
 
         return facturas
             .Select(f => new FacturaResumen(
-                f.Id, f.NumeroCompleto, f.FechaEmision, f.ClienteNombre, f.ClienteNif, f.BaseImponible, f.CuotaIva, f.Total, f.Estado.ToString()))
+                f.Id, f.NumeroCompleto, f.FechaEmision, f.ClienteNombre, f.ClienteNif, f.BaseImponible, f.CuotaIva, f.Total, f.Estado.ToString(), f.TipoFactura.ToString()))
             .ToList();
     }
 }

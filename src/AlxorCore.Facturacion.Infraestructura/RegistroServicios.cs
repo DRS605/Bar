@@ -32,6 +32,7 @@ public static class RegistroServicios
         servicios.AddScoped<IConsultaFacturas>(sp => sp.GetRequiredService<RepositorioFacturas>());
 
         servicios.AddScoped<EmitirFactura>();
+        servicios.AddScoped<EmitirTicket>();
         servicios.AddScoped<ListarFacturas>();
         servicios.AddScoped<ObtenerFactura>();
 
