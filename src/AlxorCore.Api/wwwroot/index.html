@@ -6,11 +6,13 @@
   <title>ALXOR · Core One</title>
   <style>
     :root {
-      --ink: #0e1116; --muted: #6b7280; --line: #ebedf0; --bg: #f4f5f8; --surface: #ffffff;
-      --brand1: #5b5bd6; --brand2: #8b5cf6; --accent: #5b5bd6; --accent-soft: #eef0fe;
+      /* Paleta: cian de acento contrastado con azul marino en el texto. */
+      --ink: #0b2a4a; --muted: #5c7186; --line: #e5ebf1; --bg: #f1f6f9; --surface: #ffffff;
+      --brand1: #17b6d6; --brand2: #0b6ea4; --accent: #0d94ba; --accent-soft: #e2f5fb;
+      --navy: #0b2a4a;
       --pos: #0f9d58; --neg: #e0533d; --warn: #c07d1a;
-      --radius: 16px; --shadow: 0 1px 2px rgba(16,24,40,.04), 0 4px 16px rgba(16,24,40,.05);
-      --grad: linear-gradient(135deg, var(--brand1), var(--brand2));
+      --radius: 16px; --shadow: 0 1px 2px rgba(11,42,74,.05), 0 6px 18px rgba(11,42,74,.06);
+      --grad: linear-gradient(135deg, #1cbcda, #0b5f96);
     }
     * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; }
@@ -65,6 +67,14 @@
     nav a:hover { background:#f5f6f8; color: var(--ink); }
     nav a.active { background: var(--accent-soft); color: var(--accent); }
     nav a.active::before { content:""; position:absolute; left: -14px; top: 8px; bottom: 8px; width: 3px; background: var(--grad); border-radius: 0 3px 3px 0; }
+    .navhead { display:flex; align-items:center; gap:11px; padding: 9px 12px; border-radius: 11px; color: var(--muted); font-weight: 650; cursor: pointer; user-select:none; }
+    .navhead > svg:first-child { width:18px; height:18px; stroke: currentColor; fill:none; stroke-width:1.8; }
+    .navhead:hover { background:#f0f5f8; color: var(--ink); }
+    .navhead .chev { width:15px; height:15px; margin-left:auto; stroke: currentColor; fill:none; stroke-width:2; opacity:.55; transition: transform .18s; }
+    .navgroup.closed .chev { transform: rotate(-90deg); }
+    .subnav { overflow:hidden; max-height: 320px; transition: max-height .2s ease; }
+    .navgroup.closed .subnav { max-height: 0; }
+    nav a.navsub { padding: 8px 12px 8px 40px; font-weight: 540; margin-bottom: 1px; }
     .sidebar .spacer { flex:1; }
     .userbox { display:flex; align-items:center; gap:10px; padding: 10px; border-top: 1px solid var(--line); }
     .userbox .avatar { width:34px; height:34px; }
@@ -108,6 +118,7 @@
     .pill { display:inline-block; padding: 3px 10px; border-radius:999px; font-size:11.5px; font-weight:650; }
     .pill.ok { background:#e7f6ee; color:var(--pos); } .pill.wait { background:#fdf2e3; color:var(--warn); } .pill.part { background: var(--accent-soft); color: var(--accent); }
     .muted { color: var(--muted); } .right { text-align:right; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; letter-spacing:.2px; }
     .avatar.mini { width:26px; height:26px; font-size:11px; border-radius: 8px; display:inline-grid; vertical-align:middle; margin-right:8px; }
     .empty { padding: 46px 20px; text-align:center; color: var(--muted); }
     .empty .big { width:52px; height:52px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); display:grid; place-items:center; margin: 0 auto 14px; }
@@ -198,7 +209,28 @@
       cobros:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 12h6M12 9v6"/></svg>',
       informes:'<svg viewBox="0 0 24 24"><path d="M4 20V4M4 20h16"/><path d="M8 16v-5M13 16V8M18 16v-9"/></svg>'
     };
-    const MENU = [["inicio","Inicio"],["facturas","Facturas"],["clientes","Clientes"],["productos","Productos"],["gastos","Gastos"],["proveedores","Proveedores"],["cobros","Cobros y pagos"],["informes","Informes"]];
+    ICON.ventas = '<svg viewBox="0 0 24 24"><path d="M3 6h18l-1.5 9H4.5z"/><circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/><path d="M3 6L2 3"/></svg>';
+    ICON.compras = '<svg viewBox="0 0 24 24"><path d="M6 7V6a3 3 0 0 1 6 0v1"/><path d="M4 7h16l-1 13H5z"/></svg>';
+    ICON.articulos = '<svg viewBox="0 0 24 24"><path d="M4 5v14M8 5v14M12 5v14M16 5v14M20 5v14"/></svg>';
+    ICON.pagos = '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>';
+
+    // Menú agrupado en carpetas: Ventas, Compras y Artículos.
+    const NAV = [
+      { t:"item", k:"inicio", l:"Inicio" },
+      { t:"grupo", k:"ventas", l:"Ventas", items:[["facturas","Facturas"],["clientes","Clientes"],["cobros","Cobros"]] },
+      { t:"grupo", k:"compras", l:"Compras", items:[["gastos","Gastos"],["proveedores","Proveedores"],["pagos","Pagos"]] },
+      { t:"grupo", k:"articulos", l:"Artículos", items:[["productos","Productos"]] },
+      { t:"item", k:"informes", l:"Informes" },
+    ];
+    const TITULOS = { inicio:"Inicio", facturas:"Facturas", clientes:"Clientes", cobros:"Cobros", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", productos:"Artículos", informes:"Informes" };
+    function renderNav() {
+      return NAV.map(n => {
+        if (n.t === "item") return `<a class="navitem" data-k="${n.k}" onclick="ir('${n.k}')">${ICON[n.k]}<span>${n.l}</span></a>`;
+        const links = n.items.map(([k,l]) => `<a class="navsub" data-k="${k}" onclick="ir('${k}')"><span>${l}</span></a>`).join("");
+        return `<div class="navgroup" data-g="${n.k}"><div class="navhead" onclick="toggleGrupo('${n.k}')">${ICON[n.k]}<span>${n.l}</span><svg class="chev" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6"/></svg></div><div class="subnav">${links}</div></div>`;
+      }).join("");
+    }
+    function toggleGrupo(g){ document.querySelector(`.navgroup[data-g="${g}"]`).classList.toggle("closed"); }
 
     async function api(path, opts={}) {
       const h = Object.assign({ "Content-Type":"application/json" }, opts.headers||{});
@@ -230,14 +262,14 @@
       document.getElementById("sideNombre").textContent=usuario?.nombre||"Usuario";
       document.getElementById("sideEmpresa").textContent=empresa.razonSocial;
       document.getElementById("empresaChip").innerHTML=`<span class="avatar mini">${empresa.razonSocial.slice(0,1)}</span>${empresa.razonSocial}`;
-      document.getElementById("nav").innerHTML=MENU.map(([k,l])=>`<a data-k="${k}" onclick="ir('${k}')">${ICON[k]}<span>${l}</span></a>`).join("");
+      document.getElementById("nav").innerHTML=renderNav();
       ir("inicio");
     }
 
     function ir(k){ vista=k;
       document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("active",a.dataset.k===k));
-      document.getElementById("viewTitle").textContent=MENU.find(m=>m[0]===k)[1];
-      ({inicio:vInicio,facturas:vFacturas,clientes:vClientes,productos:vProductos,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,informes:vInformes}[k])();
+      document.getElementById("viewTitle").textContent=TITULOS[k]||k;
+      ({inicio:vInicio,facturas:vFacturas,clientes:vClientes,productos:vProductos,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,pagos:vPagos,informes:vInformes}[k])();
     }
     const view = h => document.getElementById("view").innerHTML=h;
     const panel = (t,c,a="") => `<div class="panel"><div class="panel-head"><h2>${t}</h2>${a}</div>${c}</div>`;
@@ -287,9 +319,22 @@
     async function vProductos() {
       view('<div class="muted">Cargando…</div>');
       const ps=await api("/productos");
-      const filas=ps.map(p=>`<tr><td><strong>${p.nombre}</strong></td><td class="muted">${p.tipo}</td><td class="num">${eur(p.precioUnitario)}</td><td class="num">${p.porcentajeIva}%</td></tr>`).join("");
-      const cuerpo=ps.length?`<table><thead><tr><th>Nombre</th><th>Tipo</th><th class="num">Precio</th><th class="num">IVA</th></tr></thead><tbody>${filas}</tbody></table>`:vacio("productos","Sin productos todavía","Crea productos o servicios para reutilizarlos al facturar.",`<button class="btn small" onclick="modalProducto()">+ Nuevo producto</button>`);
-      view(panel("Productos y servicios",cuerpo,`<button class="btn small" onclick="modalProducto()">+ Nuevo producto</button>`));
+      const filas=ps.map(p=>`<tr data-b="${(p.nombre+' '+(p.referencia||'')).toLowerCase()}"><td><strong>${p.nombre}</strong></td><td class="muted mono">${p.referencia||"—"}</td><td class="muted">${p.tipo}</td><td class="num">${eur(p.precioUnitario)}</td><td class="num">${p.porcentajeIva}%</td></tr>`).join("");
+      const acciones=`<div style="display:flex;gap:10px;align-items:center"><input id="prodBuscar" placeholder="Buscar por nombre o código…" style="max-width:240px;padding:8px 12px" oninput="filtrarProductos()"/><button class="btn small" onclick="modalProducto()">+ Nuevo</button></div>`;
+      const cuerpo=ps.length?`<table><thead><tr><th>Artículo</th><th>Código / EAN</th><th>Tipo</th><th class="num">Precio</th><th class="num">IVA</th></tr></thead><tbody id="prodBody">${filas}</tbody></table>`:vacio("articulos","Sin artículos todavía","Crea productos o servicios con su código para reutilizarlos al facturar.",`<button class="btn small" onclick="modalProducto()">+ Nuevo artículo</button>`);
+      view(panel("Artículos",cuerpo,acciones));
+    }
+    function filtrarProductos(){ const q=document.getElementById("prodBuscar").value.toLowerCase().trim();
+      document.querySelectorAll("#prodBody tr").forEach(tr=>{ tr.style.display=tr.dataset.b.includes(q)?"":"none"; }); }
+
+    async function vPagos() {
+      view('<div class="muted">Cargando…</div>');
+      const gs=await api("/gastos");
+      const saldos=await Promise.all(gs.map(g=>api("/gastos/"+g.id+"/saldo").catch(()=>null)));
+      const filas=gs.map((g,i)=>{const s=saldos[i]||{}; const est=s.estado||"Pendiente"; const p=est==="Liquidado"?"ok":(est==="Parcial"?"part":"wait");
+        return `<tr><td><strong>${g.concepto}</strong></td><td>${g.proveedorTexto||"—"}</td><td class="num">${eur(g.total)}</td><td class="num">${eur(s.liquidado||0)}</td><td class="num">${eur(s.pendiente??g.total)}</td><td class="right"><span class="pill ${p}">${est}</span></td></tr>`;}).join("");
+      const cuerpo=gs.length?`<table><thead><tr><th>Concepto</th><th>Proveedor</th><th class="num">Total</th><th class="num">Pagado</th><th class="num">Pendiente</th><th class="right">Estado</th></tr></thead><tbody>${filas}</tbody></table>`:vacio("pagos","Nada que pagar aún","Cuando registres gastos verás aquí su estado de pago.");
+      view(panel("Pagos a proveedores",cuerpo));
     }
     async function vGastos() {
       view('<div class="muted">Cargando…</div>');
@@ -332,8 +377,10 @@
       async()=>{ await api("/clientes",{method:"POST",body:JSON.stringify({nombre:val("c_nombre"),nifFiscal:val("c_nif")||null,email:val("c_email")||null})}); vClientes(); }); }
     function modalProveedor(){ abrir("Nuevo proveedor",`<label>Nombre</label><input id="pr_nombre" placeholder="Nombre o razón social"/><div class="grid2"><div><label>NIF (opcional)</label><input id="pr_nif"/></div><div><label>IRPF (opcional)</label><input id="pr_irpf" type="number" value="0"/></div></div>`,
       async()=>{ await api("/proveedores",{method:"POST",body:JSON.stringify({nombre:val("pr_nombre"),nifFiscal:val("pr_nif")||null,porcentajeIrpfDefecto:Number(val("pr_irpf"))})}); vProveedores(); }); }
-    function modalProducto(){ abrir("Nuevo producto",`<label>Nombre</label><input id="p_nombre"/><div class="grid2"><div><label>Precio (€)</label><input id="p_precio" type="number" value="0"/></div><div><label>IVA</label>${ivaSel("p_iva")}</div></div>`,
-      async()=>{ await api("/productos",{method:"POST",body:JSON.stringify({nombre:val("p_nombre"),precioUnitario:Number(val("p_precio")),codigoIva:val("p_iva"),tipo:"Servicio"})}); vProductos(); }); }
+    function modalProducto(){ abrir("Nuevo artículo",`<label>Nombre</label><input id="p_nombre" placeholder="Nombre del producto o servicio"/>
+      <div class="grid2"><div><label>Código / EAN (opcional)</label><input id="p_ref" placeholder="Ej. 8412345678901"/></div><div><label>Precio (€)</label><input id="p_precio" type="number" value="0"/></div></div>
+      <label>IVA</label>${ivaSel("p_iva")}`,
+      async()=>{ await api("/productos",{method:"POST",body:JSON.stringify({nombre:val("p_nombre"),referencia:val("p_ref")||null,precioUnitario:Number(val("p_precio")),codigoIva:val("p_iva"),tipo:"Servicio"})}); vProductos(); }); }
     async function modalGasto(){ const provs=await api("/proveedores");
       const opts=`<option value="">— Sin proveedor —</option>`+provs.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join("");
       abrir("Nuevo gasto",`<label>Concepto</label><input id="g_conc" placeholder="Ej. Alquiler, suministros…"/>
