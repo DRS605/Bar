@@ -40,7 +40,18 @@ public static class RegistroServicios
         servicios.AddScoped<IRepositorioUsuarios, RepositorioUsuarios>();
         servicios.AddScoped<IConsultaUsuarios, ConsultaUsuarios>();
         servicios.AddScoped<IPublicadorEventos, PublicadorEventosRegistro>();
-        servicios.AddScoped<IServicioVerificacionEmail, ServicioVerificacionEmailStub>();
+        // Correo: SMTP real si está configurado; si no, el stub (registra el enlace en el log).
+        servicios.AddOptions<Correo.OpcionesCorreo>().Bind(configuracion.GetSection(Correo.OpcionesCorreo.Seccion));
+        var opcionesCorreo = new Correo.OpcionesCorreo();
+        configuracion.GetSection(Correo.OpcionesCorreo.Seccion).Bind(opcionesCorreo);
+        if (opcionesCorreo.Configurado)
+        {
+            servicios.AddScoped<IServicioVerificacionEmail, Correo.ServicioCorreoSmtp>();
+        }
+        else
+        {
+            servicios.AddScoped<IServicioVerificacionEmail, ServicioVerificacionEmailStub>();
+        }
 
         // Seguridad.
         servicios.AddOptions<OpcionesJwt>()

@@ -30,6 +30,14 @@ para poder continuar sin correo real, nunca en producción).
 | `POST` | `/auth/recuperar` | Solicita el enlace de restablecimiento (respuesta uniforme, no revela si el correo existe). |
 | `POST` | `/auth/restablecer` | Fija la nueva contraseña con `{ token, nuevaContrasena }`. |
 
+### Envío de correo (SMTP)
+
+El puerto `IServicioVerificacionEmail` tiene dos implementaciones: un **stub** (registra el enlace en
+el log) y un **adaptador SMTP** (`ServicioCorreoSmtp`, `System.Net.Mail`). Se elige por configuración:
+si la sección `Correo` tiene `Host`, se envían correos reales (verificación, restablecimiento e
+invitación) con enlaces construidos sobre `Correo:BaseUrl`; si no, se usa el stub. Ajustes:
+`Host`, `Puerto`, `UsarStartTls`, `Usuario`, `Clave`, `Remitente`, `RemitenteNombre`, `BaseUrl`.
+
 ## Estructura (Clean Architecture ligera)
 
 ```
