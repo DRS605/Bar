@@ -79,6 +79,7 @@ internal sealed class ConfiguracionFactura : IEntityTypeConfiguration<Factura>
         builder.Property(f => f.IdRegistro).HasColumnName("id_registro").HasMaxLength(64);
         builder.Property(f => f.TipoOperacion).HasColumnName("tipo_operacion").HasMaxLength(20);
         builder.Property(f => f.EstadoEnvioAeat).HasColumnName("estado_envio_aeat").HasMaxLength(20);
+        builder.Property(f => f.FechaHoraGenRegistro).HasColumnName("fecha_hora_gen_registro");
 
         builder.Ignore(f => f.EventosDominio);
 
@@ -224,6 +225,13 @@ internal sealed class RepositorioFacturas : IRepositorioFacturas, IConsultaFactu
         _contexto.Facturas.SingleOrDefaultAsync(f => f.Id == id, ct);
 
     public void Agregar(Factura factura) => _contexto.Facturas.Add(factura);
+
+    public Task<string?> UltimaHuellaAsync(Guid empresaId, CancellationToken ct = default) =>
+        _contexto.Facturas
+            .Where(f => f.EmpresaId == empresaId && f.Huella != null)
+            .OrderByDescending(f => f.FechaHoraGenRegistro).ThenByDescending(f => f.Numero)
+            .Select(f => f.Huella)
+            .FirstOrDefaultAsync(ct);
 
     public async Task<FacturaDto?> ObtenerAsync(Guid facturaId, CancellationToken ct = default)
     {

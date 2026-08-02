@@ -24,11 +24,13 @@ public sealed record FacturaDto(
     decimal Total,
     string Estado,
     string Tipo,
+    string? Huella,
+    string? HuellaAnterior,
     IReadOnlyList<LineaFacturaDto> Lineas)
 {
     public static FacturaDto Desde(Factura f) => new(
         f.Id, f.NumeroCompleto, f.FechaEmision, f.FechaOperacion, f.ClienteId, f.ClienteNombre, f.ClienteNif,
-        f.BaseImponible, f.CuotaIva, f.PorcentajeIrpf, f.RetencionIrpf, f.Total, f.Estado.ToString(), f.TipoFactura.ToString(),
+        f.BaseImponible, f.CuotaIva, f.PorcentajeIrpf, f.RetencionIrpf, f.Total, f.Estado.ToString(), f.TipoFactura.ToString(), f.Huella, f.HuellaAnterior,
         f.Lineas.Select(l => new LineaFacturaDto(
             l.Descripcion, l.Cantidad, l.PrecioUnitario, l.PorcentajeDescuento, l.CodigoIva, l.PorcentajeIva, l.Base, l.CuotaIva)).ToList());
 }
@@ -44,6 +46,9 @@ public interface IRepositorioFacturas
     Task<Factura?> ObtenerPorIdAsync(Guid id, CancellationToken ct = default);
 
     void Agregar(Factura factura);
+
+    /// <summary>Huella del último registro VeriFactu de la empresa (para el encadenamiento), o null si es el primero.</summary>
+    Task<string?> UltimaHuellaAsync(Guid empresaId, CancellationToken ct = default);
 }
 
 /// <summary>Consultas de lectura de facturas (las usan la API, Tesorería e Informes).</summary>

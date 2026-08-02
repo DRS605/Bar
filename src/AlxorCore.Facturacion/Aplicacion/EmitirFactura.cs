@@ -38,6 +38,7 @@ public sealed class EmitirFactura
     private readonly IConsultaProductos _productos;
     private readonly IServicioNumeracion _numeracion;
     private readonly IRepositorioFacturas _facturas;
+    private readonly IConsultaEmpresas _empresas;
     private readonly IUnidadDeTrabajoFacturacion _unidadDeTrabajo;
     private readonly IReloj _reloj;
 
@@ -46,6 +47,7 @@ public sealed class EmitirFactura
         IConsultaProductos productos,
         IServicioNumeracion numeracion,
         IRepositorioFacturas facturas,
+        IConsultaEmpresas empresas,
         IUnidadDeTrabajoFacturacion unidadDeTrabajo,
         IReloj reloj)
     {
@@ -53,6 +55,7 @@ public sealed class EmitirFactura
         _productos = productos;
         _numeracion = numeracion;
         _facturas = facturas;
+        _empresas = empresas;
         _unidadDeTrabajo = unidadDeTrabajo;
         _reloj = reloj;
     }
@@ -102,9 +105,31 @@ public sealed class EmitirFactura
             return Resultado.Fallo<FacturaDto>(factura.Error);
         }
 
+        await RegistroVerifactu.AplicarAsync(empresaId, factura.Valor, _empresas, _facturas, _reloj, ct).ConfigureAwait(false);
         _facturas.Agregar(factura.Valor);
         await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
         return Resultado.Ok(FacturaDto.Desde(factura.Valor));
+    }
+}
+
+/// <summary>
+/// Genera el registro VeriFactu de una factura recién emitida: obtiene la huella del registro
+/// anterior de la empresa (encadenamiento) y el NIF del emisor, y calcula la huella. Lo comparten la
+/// emisión de facturas y de tickets.
+/// </summary>
+/// <remarks>
+/// La huella anterior se lee justo antes de calcular; se asume emisión secuencial por empresa (misma
+/// premisa que la numeración). Endurecer la cadena con un bloqueo por empresa ante emisión concurrente
+/// es una mejora futura documentada.
+/// </remarks>
+internal static class RegistroVerifactu
+{
+    public static async Task AplicarAsync(
+        Guid empresaId, Factura factura, IConsultaEmpresas empresas, IRepositorioFacturas facturas, IReloj reloj, CancellationToken ct)
+    {
+        var emisor = await empresas.ObtenerAsync(empresaId, ct).ConfigureAwait(false);
+        var huellaAnterior = await facturas.UltimaHuellaAsync(empresaId, ct).ConfigureAwait(false);
+        factura.RegistrarVerifactu(emisor?.Nif ?? string.Empty, huellaAnterior, reloj.AhoraUtc);
     }
 }
 

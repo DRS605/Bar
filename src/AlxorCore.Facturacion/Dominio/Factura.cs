@@ -95,12 +95,30 @@ public sealed class Factura : RaizAgregadoEmpresa<Guid>
 
     public DateTimeOffset CreadoEn { get; private set; }
 
-    // --- Campos VeriFactu/SII reservados (no calculados en el MVP) ---
+    // --- Campos VeriFactu/SII ---
     public string? Huella { get; private set; }
     public string? HuellaAnterior { get; private set; }
     public string? IdRegistro { get; private set; }
     public string? TipoOperacion { get; private set; }
     public string? EstadoEnvioAeat { get; private set; }
+
+    /// <summary>Instante de generación del registro VeriFactu (con huso), parte de la huella.</summary>
+    public DateTimeOffset? FechaHoraGenRegistro { get; private set; }
+
+    /// <summary>
+    /// Genera el <b>registro de alta VeriFactu</b> de la factura: calcula su huella encadenándola con
+    /// la del registro anterior de la empresa y deja el registro almacenado localmente (pendiente de
+    /// envío a la AEAT). Se invoca una sola vez, al emitir.
+    /// </summary>
+    public void RegistrarVerifactu(string nifEmisor, string? huellaAnterior, DateTimeOffset generadoEn)
+    {
+        HuellaAnterior = huellaAnterior;
+        FechaHoraGenRegistro = generadoEn;
+        Huella = Verifactu.CalcularHuella(
+            nifEmisor, NumeroCompleto, FechaEmision, Verifactu.TipoCodigo(TipoFactura), CuotaIva, Total, huellaAnterior, generadoEn);
+        IdRegistro = Id.ToString("N");
+        EstadoEnvioAeat = "Registrado";
+    }
 
     public IReadOnlyList<LineaFactura> Lineas => _lineas.AsReadOnly();
 

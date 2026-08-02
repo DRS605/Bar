@@ -29,6 +29,7 @@ public sealed class EmitirTicket
     private readonly IConsultaProductos _productos;
     private readonly IServicioNumeracion _numeracion;
     private readonly IRepositorioFacturas _facturas;
+    private readonly IConsultaEmpresas _empresas;
     private readonly IUnidadDeTrabajoFacturacion _unidadDeTrabajo;
     private readonly IReloj _reloj;
 
@@ -37,6 +38,7 @@ public sealed class EmitirTicket
         IConsultaProductos productos,
         IServicioNumeracion numeracion,
         IRepositorioFacturas facturas,
+        IConsultaEmpresas empresas,
         IUnidadDeTrabajoFacturacion unidadDeTrabajo,
         IReloj reloj)
     {
@@ -44,6 +46,7 @@ public sealed class EmitirTicket
         _productos = productos;
         _numeracion = numeracion;
         _facturas = facturas;
+        _empresas = empresas;
         _unidadDeTrabajo = unidadDeTrabajo;
         _reloj = reloj;
     }
@@ -94,6 +97,7 @@ public sealed class EmitirTicket
             return Resultado.Fallo<FacturaDto>(ticket.Error);
         }
 
+        await RegistroVerifactu.AplicarAsync(empresaId, ticket.Valor, _empresas, _facturas, _reloj, ct).ConfigureAwait(false);
         _facturas.Agregar(ticket.Valor);
         await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
         return Resultado.Ok(FacturaDto.Desde(ticket.Valor));

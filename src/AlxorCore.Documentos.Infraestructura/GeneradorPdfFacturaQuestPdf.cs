@@ -1,7 +1,9 @@
 using AlxorCore.Documentos.Aplicacion;
 using AlxorCore.Facturacion.Aplicacion;
+using AlxorCore.Facturacion.Dominio;
 using AlxorCore.Nucleo.Comun;
 using AlxorCore.Organizacion.Aplicacion.Modelos;
+using QRCoder;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -20,6 +22,20 @@ internal sealed class GeneradorPdfFacturaQuestPdf : IGeneradorPdfFactura
         return string.Equals(factura.Tipo, "Simplificada", StringComparison.OrdinalIgnoreCase)
             ? GenerarTicket(factura, emisor)
             : GenerarFacturaA4(factura, emisor);
+    }
+
+    /// <summary>Genera el PNG del QR de cotejo VeriFactu, o null si la factura aún no tiene huella.</summary>
+    private static byte[]? GenerarQr(FacturaDto factura, EmpresaDto emisor)
+    {
+        if (string.IsNullOrEmpty(factura.Huella))
+        {
+            return null;
+        }
+
+        var url = Verifactu.UrlCotejo(emisor.Nif, factura.NumeroCompleto, factura.FechaEmision, factura.Total);
+        using var generador = new QRCodeGenerator();
+        var datos = generador.CreateQrCode(url, QRCodeGenerator.ECCLevel.M);
+        return new PngByteQRCode(datos).GetGraphic(12);
     }
 
     private static byte[] GenerarFacturaA4(FacturaDto factura, EmpresaDto emisor)
@@ -100,6 +116,21 @@ internal sealed class GeneradorPdfFacturaQuestPdf : IGeneradorPdfFactura
 
                         totales.Item().Text($"TOTAL: {Redondeo.Formatear(factura.Total)} €").Bold().FontSize(13);
                     });
+
+                    var qr = GenerarQr(factura, emisor);
+                    if (qr is not null)
+                    {
+                        col.Item().PaddingTop(20).Row(fila =>
+                        {
+                            fila.ConstantItem(90).Image(qr);
+                            fila.RelativeItem().PaddingLeft(12).AlignBottom().Column(vf =>
+                            {
+                                vf.Item().Text("Factura verificable en la sede electrónica de la AEAT").FontSize(8).FontColor(Colors.Grey.Darken1);
+                                vf.Item().Text("VERI*FACTU").Bold().FontSize(9);
+                                vf.Item().Text($"Huella: {factura.Huella![..16]}…").FontSize(7).FontColor(Colors.Grey.Medium);
+                            });
+                        });
+                    }
                 });
 
                 pagina.Footer().AlignCenter().Text(texto =>
@@ -157,6 +188,14 @@ internal sealed class GeneradorPdfFacturaQuestPdf : IGeneradorPdfFactura
                         f.ConstantItem(80).AlignRight().Text($"{Redondeo.Formatear(factura.Total)} €").Bold().FontSize(11);
                     });
                     col.Item().AlignCenter().PaddingTop(2).Text("IVA incluido").FontColor(Colors.Grey.Darken1);
+
+                    var qr = GenerarQr(factura, emisor);
+                    if (qr is not null)
+                    {
+                        col.Item().PaddingTop(6).AlignCenter().Width(90).Image(qr);
+                        col.Item().AlignCenter().Text("VERI*FACTU").Bold().FontSize(8);
+                        col.Item().AlignCenter().Text("Verificable en la sede de la AEAT").FontSize(7).FontColor(Colors.Grey.Darken1);
+                    }
 
                     col.Item().PaddingVertical(4).LineHorizontal(0.5f).LineColor(Colors.Grey.Medium);
                     col.Item().AlignCenter().Text("¡Gracias por su compra!").Bold();

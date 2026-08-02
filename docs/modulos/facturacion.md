@@ -29,11 +29,27 @@ cliente si no se indica.
   líneas (descripción, precio, IVA).
 - **F5 — Fechas coherentes**: `fecha_operación ≤ fecha_emisión`; el ejercicio se deriva de la emisión.
 
-## Campos VeriFactu/SII reservados
+## VeriFactu (huella, encadenamiento y QR)
 
-`factura` incluye columnas `huella`, `huella_anterior`, `id_registro`, `tipo_operacion`,
-`estado_envio_aeat` (nullable, sin lógica en el MVP): permitirán activar el registro de facturación
-y el envío a la AEAT sin rehacer el núcleo.
+Al emitir cualquier factura o ticket se genera su **registro de alta VeriFactu** (RD 1007/2023,
+Orden HAC/1177/2024):
+
+- **Huella** = `SHA-256` (hex mayúsculas) de la cadena canónica de campos en el orden que fija la
+  AEAT: `IDEmisorFactura`, `NumSerieFactura`, `FechaExpedicionFactura`, `TipoFactura` (F1 ordinaria /
+  F2 simplificada / R1 rectificativa), `CuotaTotal`, `ImporteTotal`, `Huella` (la anterior) y
+  `FechaHoraHusoGenRegistro`. El cálculo vive en `AlxorCore.Facturacion.Dominio.Verifactu`.
+- **Encadenamiento**: cada registro incluye la **huella del registro anterior** de la empresa
+  (`huella_anterior`), formando una cadena inalterable. La huella anterior se lee justo antes de
+  calcular (se asume emisión secuencial por empresa; el bloqueo por empresa ante concurrencia es una
+  mejora futura documentada, misma premisa que la numeración).
+- **QR de cotejo** en el PDF (A4 y ticket de 80 mm) con la URL de verificación de la AEAT y la
+  leyenda **VERI\*FACTU**.
+- Campos en `factura`: `huella`, `huella_anterior`, `id_registro`, `fecha_hora_gen_registro`,
+  `estado_envio_aeat` (`Registrado` = generado y almacenado localmente).
+
+> **Fuera de alcance por ahora**: el **envío en vivo del registro al servicio web de la AEAT**
+> (requiere certificado electrónico y entorno real). El registro queda generado y encadenado; activar
+> el envío es aditivo y no rehace el núcleo.
 
 ## API
 
