@@ -32,6 +32,7 @@ public static class RegistroServicios
         servicios.AddScoped<IConsultaProductos>(sp => sp.GetRequiredService<RepositorioProductos>());
 
         servicios.AddScoped<CrearProducto>();
+        servicios.AddScoped<ImportarProductos>();
         servicios.AddScoped<ActualizarProducto>();
         servicios.AddScoped<ListarProductos>();
         servicios.AddScoped<ObtenerProducto>();

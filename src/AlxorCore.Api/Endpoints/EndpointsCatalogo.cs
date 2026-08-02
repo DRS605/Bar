@@ -1,5 +1,6 @@
 using AlxorCore.Api.Comun;
 using AlxorCore.Catalogo.Aplicacion;
+using AlxorCore.Catalogo.Dominio;
 using AlxorCore.Nucleo.Autorizacion;
 using AlxorCore.Nucleo.Multiempresa;
 using AlxorCore.Nucleo.Resultados;
@@ -29,6 +30,10 @@ public static class EndpointsCatalogo
 
         productos.MapPut("/{id:guid}", ActualizarAsync)
             .WithSummary("Actualiza un producto.")
+            .RequierePermiso(Permisos.ProductoGestionar);
+
+        productos.MapPost("/importar", ImportarAsync)
+            .WithSummary("Importa productos desde CSV (previsualiza o confirma).")
             .RequierePermiso(Permisos.ProductoGestionar);
 
         rutas.MapGet("/impuestos", () => Results.Ok(ListarImpuestos.Ejecutar()))
@@ -65,4 +70,30 @@ public static class EndpointsCatalogo
 
     private static async Task<IResult> ActualizarAsync(Guid id, DatosProducto datos, ActualizarProducto caso, CancellationToken ct) =>
         (await caso.EjecutarAsync(id, datos, ct).ConfigureAwait(false)).AOk();
+
+    private static async Task<IResult> ImportarAsync(ImportarCsvPeticion peticion, IContextoEmpresa contexto, ImportarProductos caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var filas = new List<FilaImportacionProducto>();
+        foreach (var fila in LectorCsv.Parsear(peticion.Contenido ?? string.Empty))
+        {
+            var tipoTexto = LectorCsv.Normalizar(fila.Campo("tipo") ?? string.Empty);
+            var tipo = tipoTexto is "bien" or "producto" or "articulo" ? TipoProducto.Bien : TipoProducto.Servicio;
+            var datos = new DatosProducto(
+                Nombre: fila.Campo("nombre", "producto", "articulo", "descripcion") ?? string.Empty,
+                PrecioUnitario: ImportacionCsv.Numero(fila.Campo("precio", "precio unitario", "importe", "pvp")),
+                Referencia: fila.Campo("referencia", "codigo", "ean", "sku", "código"),
+                Tipo: tipo,
+                CodigoIva: ImportacionCsv.CodigoIva(fila.Campo("iva", "codigo iva", "tipo iva")),
+                Unidad: fila.Campo("unidad"));
+            filas.Add(new FilaImportacionProducto(fila.Numero, datos));
+        }
+
+        var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, filas, peticion.Previsualizar, ct).ConfigureAwait(false);
+        return Results.Ok(resultado);
+    }
 }

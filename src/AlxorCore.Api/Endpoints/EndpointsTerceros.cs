@@ -31,6 +31,10 @@ public static class EndpointsTerceros
             .WithSummary("Actualiza un cliente.")
             .RequierePermiso(Permisos.ClienteGestionar);
 
+        clientes.MapPost("/importar", ImportarClientesAsync)
+            .WithSummary("Importa clientes desde CSV (previsualiza o confirma).")
+            .RequierePermiso(Permisos.ClienteGestionar);
+
         var proveedores = rutas.MapGroup("/proveedores").WithTags("Proveedores");
 
         proveedores.MapGet("", ListarProvAsync)
@@ -101,6 +105,32 @@ public static class EndpointsTerceros
 
         var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, datos, ct).ConfigureAwait(false);
         return resultado.EsCorrecto ? resultado.ACreado($"/clientes/{resultado.Valor.Id}") : ResultadosHttp.AProblema(resultado.Error);
+    }
+
+    private static async Task<IResult> ImportarClientesAsync(ImportarCsvPeticion peticion, IContextoEmpresa contexto, ImportarClientes caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var filas = new List<FilaImportacionCliente>();
+        foreach (var fila in LectorCsv.Parsear(peticion.Contenido ?? string.Empty))
+        {
+            var datos = new DatosCliente(
+                Nombre: fila.Campo("nombre", "razon social", "cliente") ?? string.Empty,
+                NifFiscal: fila.Campo("nif", "cif", "dni", "nif fiscal"),
+                Email: fila.Campo("email", "correo", "e-mail"),
+                Calle: fila.Campo("direccion", "calle"),
+                CodigoPostal: fila.Campo("cp", "codigo postal"),
+                Poblacion: fila.Campo("poblacion", "ciudad", "localidad"),
+                Provincia: fila.Campo("provincia"),
+                PorcentajeIrpfDefecto: ImportacionCsv.Numero(fila.Campo("irpf")));
+            filas.Add(new FilaImportacionCliente(fila.Numero, datos));
+        }
+
+        var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, filas, peticion.Previsualizar, ct).ConfigureAwait(false);
+        return Results.Ok(resultado);
     }
 
     private static async Task<IResult> ActualizarAsync(Guid id, DatosCliente datos, ActualizarCliente caso, CancellationToken ct) =>

@@ -18,6 +18,16 @@ Direccion, PorcentajeIrpfDefecto (0–60 %, se prerrellena al facturar), Activo 
 | `GET` | `/clientes/{id}` | JWT + empresa | Obtiene un cliente. |
 | `POST` | `/clientes` | permiso `cliente.gestionar` | Crea un cliente. **201** |
 | `PUT` | `/clientes/{id}` | permiso `cliente.gestionar` | Actualiza un cliente. |
+| `POST` | `/clientes/importar` | permiso `cliente.gestionar` | Importa clientes desde CSV. |
+
+## Importación CSV
+
+`POST /clientes/importar` con `{ contenido, previsualizar }` da de alta clientes por lotes. El lector
+(`AlxorCore.Api.Comun.LectorCsv`) detecta el separador (`;`, `,` o tabulador) y respeta los campos
+entrecomillados; las columnas se reconocen por nombre (p. ej. *nombre/razón social*, *nif/cif/dni*,
+*email*, *irpf*). En **previsualización** valida sin crear y devuelve las filas con error (número de
+línea + motivo); al **confirmar** crea las válidas en una transacción. Productos usa el mismo patrón
+en `/productos/importar` (columnas *nombre*, *código/ean*, *precio*, *iva*, *tipo*).
 
 ## Persistencia
 
