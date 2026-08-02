@@ -69,14 +69,24 @@ Con la API arrancada, rellena una empresa con clientes, artículos, facturas rep
 cobros (alguno parcial), gastos y una factura recurrente, para ver el panel y los informes con
 contenido desde el primer momento:
 
+**Windows (PowerShell)** — no necesitas instalar nada más:
+
+```powershell
+.\scripts\datos-demo.ps1                             # contra http://localhost:3400
+.\scripts\datos-demo.ps1 -BaseUrl http://localhost:8080
+```
+
+**macOS / Linux (Python)**:
+
 ```bash
 python3 scripts/datos-demo.py                       # contra http://localhost:3400
 python3 scripts/datos-demo.py http://localhost:8080 # otra URL base
 ```
 
-Solo usa la biblioteca estándar de Python (sin dependencias). Crea la cuenta `demo@alxorcore.es`
-(contraseña `Demo1234!`) y no vuelve a sembrar si la empresa ya tiene facturas. Pensado para bases
-de datos de desarrollo/demo, no para producción.
+Ambos usan solo lo que ya trae el sistema (Invoke-RestMethod en Windows; la biblioteca estándar de
+Python en macOS/Linux). Crean la cuenta `demo@alxorcore.es` (contraseña `Demo1234!`) y **no vuelven a
+sembrar** si la empresa ya tiene facturas. Pensados para bases de datos de desarrollo/demo, no para
+producción.
 
 ## Puesta en marcha (desarrollo con SDK)
 
