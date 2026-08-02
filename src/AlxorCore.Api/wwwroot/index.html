@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ALXOR Core</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --surface: #ffffff;
+      --border: #e8eaed;
+      --text: #14171a;
+      --muted: #6b7280;
+      --accent: #4f46e5;
+      --accent-soft: #eef0fe;
+      --pos: #0f9d58;
+      --neg: #d64545;
+      --radius: 14px;
+      --shadow: 0 1px 2px rgba(16,24,40,.04), 0 1px 3px rgba(16,24,40,.06);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 14px; -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    button { font-family: inherit; cursor: pointer; }
+
+    /* ---------- Login ---------- */
+    .login-wrap { min-height: 100%; display: grid; place-items: center; padding: 24px; }
+    .login-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+      box-shadow: var(--shadow); width: 100%; max-width: 380px; padding: 36px 32px;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 20px; letter-spacing: -.02em; }
+    .brand .dot { width: 26px; height: 26px; border-radius: 8px; background: var(--accent); display:grid; place-items:center; color:#fff; font-size:13px; }
+    .login-card h1 { font-size: 18px; margin: 22px 0 4px; letter-spacing: -.01em; }
+    .login-card p.sub { color: var(--muted); margin: 0 0 22px; }
+    label { display:block; font-size: 12.5px; color: var(--muted); margin: 14px 0 6px; }
+    input, select {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
+      background: #fff; font-size: 14px; color: var(--text); outline: none; transition: border-color .15s, box-shadow .15s;
+    }
+    input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .btn {
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 11px 16px;
+      font-weight: 600; font-size: 14px; width: 100%; margin-top: 22px;
+    }
+    .btn.secondary { background: #fff; color: var(--text); border: 1px solid var(--border); width: auto; margin: 0; padding: 9px 14px; }
+    .btn.small { width:auto; margin:0; padding: 8px 14px; }
+    .error { color: var(--neg); font-size: 12.5px; margin-top: 12px; min-height: 16px; }
+
+    /* ---------- App shell ---------- */
+    .app { display: none; grid-template-columns: 240px 1fr; min-height: 100vh; }
+    .sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 20px 14px; display:flex; flex-direction:column; }
+    .sidebar .brand { padding: 6px 8px 18px; }
+    nav a {
+      display:flex; align-items:center; gap:11px; padding: 9px 10px; border-radius: 10px; color: var(--muted);
+      font-weight: 500; margin-bottom: 2px;
+    }
+    nav a svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+    nav a:hover { background: #f3f4f6; color: var(--text); }
+    nav a.active { background: var(--accent-soft); color: var(--accent); }
+    .sidebar .spacer { flex: 1; }
+    .side-foot { padding: 10px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
+
+    .main { display:flex; flex-direction: column; min-width: 0; }
+    .topbar { height: 64px; border-bottom: 1px solid var(--border); background: var(--surface); display:flex; align-items:center; justify-content: space-between; padding: 0 28px; }
+    .topbar .title { font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
+    .company { display:flex; align-items:center; gap:10px; color: var(--muted); }
+    .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color:#fff; display:grid; place-items:center; font-weight:600; font-size:13px; }
+    .content { padding: 28px; max-width: 1080px; width: 100%; }
+
+    /* ---------- Cards / KPIs ---------- */
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 26px; }
+    .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 18px 16px; box-shadow: var(--shadow); }
+    .kpi .lbl { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    .kpi .val { font-size: 26px; font-weight: 700; letter-spacing: -.02em; margin-top: 8px; }
+    .kpi .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .kpi .val.pos { color: var(--pos); } .kpi .val.neg { color: var(--neg); }
+
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    .panel-head { display:flex; align-items:center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+    .panel-head h2 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 12px 18px; font-size: 13.5px; }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; border-bottom: 1px solid var(--border); }
+    tbody tr { border-bottom: 1px solid #f1f2f4; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #fafbfc; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .pill { display:inline-block; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
+    .pill.ok { background: #e7f6ee; color: var(--pos); }
+    .pill.wait { background: #fdf2e3; color: #b8791b; }
+    .pill.part { background: #eef0fe; color: var(--accent); }
+    .muted { color: var(--muted); }
+    .right { text-align: right; }
+    .empty { padding: 40px; text-align:center; color: var(--muted); }
+
+    /* ---------- Modal ---------- */
+    .modal-bg { position: fixed; inset: 0; background: rgba(16,24,40,.35); display:none; place-items:center; padding: 24px; z-index: 20; }
+    .modal { background:#fff; border-radius: 16px; width: 100%; max-width: 560px; box-shadow: 0 20px 40px rgba(16,24,40,.2); }
+    .modal-head { padding: 18px 22px; border-bottom: 1px solid var(--border); font-weight: 650; font-size: 16px; }
+    .modal-body { padding: 20px 22px; max-height: 62vh; overflow:auto; }
+    .modal-foot { padding: 16px 22px; border-top: 1px solid var(--border); display:flex; justify-content: flex-end; gap: 10px; }
+    .row { display:grid; grid-template-columns: 1fr 90px 110px 100px; gap: 10px; align-items:end; }
+    .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  </style>
+</head>
+<body>
+  <!-- LOGIN -->
+  <div id="login" class="login-wrap">
+    <div class="login-card">
+      <div class="brand"><span class="dot">A</span> ALXOR Core</div>
+      <h1>Entra en tu cuenta</h1>
+      <p class="sub">La gestión de tu negocio, sin complicaciones.</p>
+      <label>Correo electrónico</label>
+      <input id="email" type="email" value="" autocomplete="username" />
+      <label>Contraseña</label>
+      <input id="pass" type="password" value="" autocomplete="current-password" />
+      <button class="btn" onclick="entrar()">Entrar</button>
+      <div class="error" id="loginError"></div>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="app" class="app">
+    <aside class="sidebar">
+      <div class="brand"><span class="dot">A</span> ALXOR</div>
+      <nav id="nav"></nav>
+      <div class="spacer"></div>
+      <div class="side-foot">ALXOR Core · MVP</div>
+    </aside>
+    <div class="main">
+      <header class="topbar">
+        <div class="title" id="viewTitle">Inicio</div>
+        <div class="company">
+          <span id="empresaNombre" class="muted"></span>
+          <div class="avatar" id="avatar">U</div>
+        </div>
+      </header>
+      <div class="content" id="view"></div>
+    </div>
+  </div>
+
+  <!-- MODAL -->
+  <div class="modal-bg" id="modalBg">
+    <div class="modal">
+      <div class="modal-head" id="modalTitle">Nueva factura</div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-foot">
+        <button class="btn secondary" onclick="cerrarModal()">Cancelar</button>
+        <button class="btn small" id="modalOk" onclick="guardarModal()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = ""; // mismo origen que la API
+    let token = null, empresa = null, usuario = null, vista = "inicio";
+    const eur = n => (Number(n)||0).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+
+    const ICON = {
+      inicio: '<svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>',
+      facturas: '<svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>',
+      clientes: '<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>',
+      productos: '<svg viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/></svg>',
+      gastos: '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>',
+      cobros: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 12h6M12 9v6"/></svg>',
+      informes: '<svg viewBox="0 0 24 24"><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 16v-5M13 16V8M18 16v-9"/></svg>'
+    };
+    const MENU = [
+      ["inicio","Inicio"], ["facturas","Facturas"], ["clientes","Clientes"],
+      ["productos","Productos"], ["gastos","Gastos"], ["cobros","Cobros y pagos"], ["informes","Informes"]
+    ];
+
+    async function api(path, opts={}) {
+      const h = Object.assign({ "Content-Type": "application/json" }, opts.headers||{});
+      if (token) h["Authorization"] = "Bearer " + token;
+      const r = await fetch(API + path, Object.assign({}, opts, { headers: h }));
+      if (!r.ok) { let m=""; try{ m=(await r.json()).title||"" }catch{}; throw new Error(m||("HTTP "+r.status)); }
+      const ct = r.headers.get("content-type")||"";
+      return ct.includes("json") ? r.json() : r.text();
+    }
+
+    async function entrar() {
+      const email = document.getElementById("email").value.trim();
+      const pass = document.getElementById("pass").value;
+      const err = document.getElementById("loginError"); err.textContent = "";
+      try {
+        const login = await api("/auth/login", { method:"POST", body: JSON.stringify({ email, contrasena: pass }) });
+        token = login.token; usuario = login.usuario;
+        const empresas = await api("/empresas");
+        if (!empresas.length) { err.textContent = "Tu usuario no tiene ninguna empresa."; return; }
+        const sel = await api("/empresas/" + empresas[0].id + "/seleccionar", { method:"POST" });
+        token = sel.token; empresa = empresas[0];
+        arrancarApp();
+      } catch(e) { err.textContent = e.message || "No se pudo iniciar sesión."; }
+    }
+
+    function arrancarApp() {
+      document.getElementById("login").style.display = "none";
+      document.getElementById("app").style.display = "grid";
+      document.getElementById("empresaNombre").textContent = empresa.razonSocial;
+      document.getElementById("avatar").textContent = (usuario?.nombre||"U").slice(0,1).toUpperCase();
+      const nav = document.getElementById("nav");
+      nav.innerHTML = MENU.map(([k,l]) => `<a data-k="${k}" onclick="ir('${k}')">${ICON[k]}<span>${l}</span></a>`).join("");
+      ir("inicio");
+    }
+
+    function ir(k) {
+      vista = k;
+      document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("active", a.dataset.k===k));
+      document.getElementById("viewTitle").textContent = MENU.find(m=>m[0]===k)[1];
+      ({ inicio: vInicio, facturas: vFacturas, clientes: vClientes, productos: vProductos, gastos: vGastos, cobros: vCobros, informes: vInformes }[k])();
+    }
+
+    const view = html => document.getElementById("view").innerHTML = html;
+    const panel = (titulo, cuerpo, accion="") =>
+      `<div class="panel"><div class="panel-head"><h2>${titulo}</h2>${accion}</div>${cuerpo}</div>`;
+
+    async function vInicio() {
+      view('<div class="muted">Cargando…</div>');
+      const [d, facturas] = await Promise.all([ api("/informes/dashboard"), api("/facturas") ]);
+      const kpis = `<div class="kpis">
+        <div class="kpi"><div class="lbl">Facturado este mes</div><div class="val">${eur(d.facturadoMes)}</div><div class="hint">${d.numeroFacturasMes} factura(s)</div></div>
+        <div class="kpi"><div class="lbl">Pendiente de cobro</div><div class="val ${d.pendienteCobro>0?'neg':'pos'}">${eur(d.pendienteCobro)}</div><div class="hint">de clientes</div></div>
+        <div class="kpi"><div class="lbl">Gastos este mes</div><div class="val">${eur(d.gastadoMes)}</div><div class="hint">registrados</div></div>
+        <div class="kpi"><div class="lbl">Pendiente de pago</div><div class="val ${d.pendientePago>0?'neg':'pos'}">${eur(d.pendientePago)}</div><div class="hint">a proveedores</div></div>
+      </div>`;
+      const filas = facturas.slice(0,6).map(f => `<tr>
+        <td><strong>${f.numeroCompleto}</strong></td><td>${f.clienteNombre}</td>
+        <td class="muted">${f.fechaEmision}</td><td class="num">${eur(f.total)}</td>
+        <td class="right"><span class="pill ok">${f.estado}</span></td></tr>`).join("");
+      const tabla = facturas.length ? `<table><thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th class="num">Total</th><th class="right">Estado</th></tr></thead><tbody>${filas}</tbody></table>`
+        : `<div class="empty">Aún no has emitido facturas.</div>`;
+      view(kpis + panel("Últimas facturas", tabla));
+    }
+
+    async function vFacturas() {
+      view('<div class="muted">Cargando…</div>');
+      const facturas = await api("/facturas");
+      const filas = facturas.map(f => `<tr>
+        <td><strong>${f.numeroCompleto}</strong></td><td>${f.clienteNombre}</td>
+        <td class="muted">${f.fechaEmision}</td><td class="num">${eur(f.baseImponible)}</td>
+        <td class="num">${eur(f.cuotaIva)}</td><td class="num"><strong>${eur(f.total)}</strong></td>
+        <td class="right"><span class="pill ok">${f.estado}</span></td></tr>`).join("");
+      const cuerpo = facturas.length ? `<table><thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th class="num">Base</th><th class="num">IVA</th><th class="num">Total</th><th class="right">Estado</th></tr></thead><tbody>${filas}</tbody></table>`
+        : `<div class="empty">Aún no hay facturas. Emite la primera.</div>`;
+      view(panel("Facturas emitidas", cuerpo, `<button class="btn small" onclick="modalFactura()">+ Nueva factura</button>`));
+    }
+
+    async function vClientes() {
+      view('<div class="muted">Cargando…</div>');
+      const cs = await api("/clientes");
+      const filas = cs.map(c => `<tr><td><strong>${c.nombre}</strong></td><td class="muted">${c.nifFiscal||"—"}</td><td class="muted">${c.email||"—"}</td><td class="num">${c.porcentajeIrpfDefecto>0? c.porcentajeIrpfDefecto+"%":"—"}</td></tr>`).join("");
+      const cuerpo = cs.length ? `<table><thead><tr><th>Nombre</th><th>NIF</th><th>Email</th><th class="num">IRPF</th></tr></thead><tbody>${filas}</tbody></table>` : `<div class="empty">Sin clientes todavía.</div>`;
+      view(panel("Clientes", cuerpo, `<button class="btn small" onclick="modalCliente()">+ Nuevo cliente</button>`));
+    }
+
+    async function vProductos() {
+      view('<div class="muted">Cargando…</div>');
+      const ps = await api("/productos");
+      const filas = ps.map(p => `<tr><td><strong>${p.nombre}</strong></td><td class="muted">${p.tipo}</td><td class="num">${eur(p.precioUnitario)}</td><td class="num">${p.porcentajeIva}%</td></tr>`).join("");
+      const cuerpo = ps.length ? `<table><thead><tr><th>Nombre</th><th>Tipo</th><th class="num">Precio</th><th class="num">IVA</th></tr></thead><tbody>${filas}</tbody></table>` : `<div class="empty">Sin productos todavía.</div>`;
+      view(panel("Productos y servicios", cuerpo, `<button class="btn small" onclick="modalProducto()">+ Nuevo producto</button>`));
+    }
+
+    async function vGastos() {
+      view('<div class="muted">Cargando…</div>');
+      const gs = await api("/gastos");
+      const filas = gs.map(g => `<tr><td><strong>${g.concepto}</strong></td><td class="muted">${g.proveedorTexto||"—"}</td><td class="muted">${g.fecha}</td><td class="num">${eur(g.baseImponible)}</td><td class="num"><strong>${eur(g.total)}</strong></td></tr>`).join("");
+      const cuerpo = gs.length ? `<table><thead><tr><th>Concepto</th><th>Proveedor</th><th>Fecha</th><th class="num">Base</th><th class="num">Total</th></tr></thead><tbody>${filas}</tbody></table>` : `<div class="empty">Sin gastos todavía.</div>`;
+      view(panel("Gastos", cuerpo, `<button class="btn small" onclick="modalGasto()">+ Nuevo gasto</button>`));
+    }
+
+    async function vCobros() {
+      view('<div class="muted">Cargando…</div>');
+      const facturas = await api("/facturas");
+      const saldos = await Promise.all(facturas.map(f => api("/facturas/"+f.id+"/saldo").catch(()=>null)));
+      const filas = facturas.map((f,i) => { const s = saldos[i]||{}; const est = s.estado||"Pendiente";
+        const pill = est==="Liquidado"?"ok":(est==="Parcial"?"part":"wait");
+        return `<tr><td><strong>${f.numeroCompleto}</strong></td><td>${f.clienteNombre}</td>
+          <td class="num">${eur(f.total)}</td><td class="num">${eur(s.liquidado||0)}</td>
+          <td class="num">${eur(s.pendiente??f.total)}</td><td class="right"><span class="pill ${pill}">${est}</span></td></tr>`; }).join("");
+      const cuerpo = facturas.length ? `<table><thead><tr><th>Factura</th><th>Cliente</th><th class="num">Total</th><th class="num">Cobrado</th><th class="num">Pendiente</th><th class="right">Estado</th></tr></thead><tbody>${filas}</tbody></table>` : `<div class="empty">Sin documentos que cobrar.</div>`;
+      view(panel("Cobros de facturas", cuerpo));
+    }
+
+    async function vInformes() {
+      view('<div class="muted">Cargando…</div>');
+      const anio = new Date().getFullYear();
+      const libro = await api(`/informes/libro-iva?tipo=Repercutido&desde=${anio}-01-01&hasta=${anio}-12-31`);
+      const filas = libro.asientos.map(a => `<tr><td class="muted">${a.fecha}</td><td><strong>${a.documento}</strong></td><td>${a.tercero}</td><td class="num">${eur(a.base)}</td><td class="num">${eur(a.cuota)}</td></tr>`).join("");
+      const total = `<tr><td colspan="3" class="right"><strong>Totales</strong></td><td class="num"><strong>${eur(libro.totalBase)}</strong></td><td class="num"><strong>${eur(libro.totalCuota)}</strong></td></tr>`;
+      const cuerpo = libro.asientos.length ? `<table><thead><tr><th>Fecha</th><th>Documento</th><th>Cliente</th><th class="num">Base</th><th class="num">Cuota IVA</th></tr></thead><tbody>${filas}${total}</tbody></table>` : `<div class="empty">Sin movimientos en el periodo.</div>`;
+      const accion = `<button class="btn small" onclick="descargarCsv()">Exportar CSV (gestoría)</button>`;
+      view(panel(`Libro de IVA repercutido · ${anio}`, cuerpo, accion));
+    }
+
+    async function descargarCsv() {
+      const anio = new Date().getFullYear();
+      const r = await fetch(`/informes/libro-iva/csv?tipo=Repercutido&desde=${anio}-01-01&hasta=${anio}-12-31`, { headers: { Authorization: "Bearer "+token } });
+      const blob = await r.blob(); const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = "libro-iva.csv"; a.click(); URL.revokeObjectURL(url);
+    }
+
+    /* ---------- Modales ---------- */
+    let modalSave = null;
+    function abrirModal(titulo, body, onSave) { document.getElementById("modalTitle").textContent = titulo; document.getElementById("modalBody").innerHTML = body; modalSave = onSave; document.getElementById("modalBg").style.display = "grid"; }
+    function cerrarModal() { document.getElementById("modalBg").style.display = "none"; modalSave = null; }
+    async function guardarModal() { if (modalSave) { try { await modalSave(); cerrarModal(); } catch(e){ alert(e.message); } } }
+    const val = id => document.getElementById(id).value;
+
+    function modalCliente() {
+      abrirModal("Nuevo cliente", `
+        <label>Nombre</label><input id="c_nombre" />
+        <div class="grid2"><div><label>NIF (opcional)</label><input id="c_nif" /></div><div><label>Email (opcional)</label><input id="c_email" /></div></div>`,
+        async () => { await api("/clientes", { method:"POST", body: JSON.stringify({ nombre: val("c_nombre"), nifFiscal: val("c_nif")||null, email: val("c_email")||null }) }); vClientes(); });
+    }
+    function modalProducto() {
+      abrirModal("Nuevo producto", `
+        <label>Nombre</label><input id="p_nombre" />
+        <div class="grid2"><div><label>Precio (€)</label><input id="p_precio" type="number" value="0" /></div>
+        <div><label>IVA</label><select id="p_iva"><option value="IVA21">21%</option><option value="IVA10">10%</option><option value="IVA4">4%</option><option value="IVA0">Exento</option></select></div></div>`,
+        async () => { await api("/productos", { method:"POST", body: JSON.stringify({ nombre: val("p_nombre"), precioUnitario: Number(val("p_precio")), codigoIva: val("p_iva"), tipo:"Servicio" }) }); vProductos(); });
+    }
+    function modalGasto() {
+      abrirModal("Nuevo gasto", `
+        <label>Concepto</label><input id="g_conc" />
+        <div class="grid2"><div><label>Proveedor (opcional)</label><input id="g_prov" /></div>
+        <div><label>Base (€)</label><input id="g_base" type="number" value="0" /></div></div>
+        <label>IVA</label><select id="g_iva"><option value="IVA21">21%</option><option value="IVA10">10%</option><option value="IVA4">4%</option><option value="IVA0">Exento</option></select>`,
+        async () => { await api("/gastos", { method:"POST", body: JSON.stringify({ concepto: val("g_conc"), proveedorTexto: val("g_prov")||null, baseImponible: Number(val("g_base")), codigoIva: val("g_iva") }) }); vGastos(); });
+    }
+    async function modalFactura() {
+      const clientes = await api("/clientes");
+      const opts = clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join("");
+      abrirModal("Nueva factura", `
+        <label>Cliente</label><select id="f_cli">${opts}</select>
+        <label style="margin-top:16px">Concepto</label>
+        <div class="row">
+          <div><input id="f_desc" placeholder="Descripción" /></div>
+          <div><label>Cantidad</label><input id="f_cant" type="number" value="1" /></div>
+          <div><label>Precio €</label><input id="f_prec" type="number" value="0" /></div>
+          <div><label>IVA</label><select id="f_iva"><option value="IVA21">21%</option><option value="IVA10">10%</option><option value="IVA4">4%</option><option value="IVA0">Exento</option></select></div>
+        </div>`,
+        async () => {
+          const body = { clienteId: val("f_cli"), lineas: [{ descripcion: val("f_desc"), cantidad: Number(val("f_cant")), precioUnitario: Number(val("f_prec")), codigoIva: val("f_iva") }] };
+          await api("/facturas", { method:"POST", body: JSON.stringify(body) }); vFacturas();
+        });
+    }
+
+    // Prefill de demo para el login (se puede borrar).
+    document.getElementById("email").value = new URLSearchParams(location.search).get("email") || "";
+  </script>
+</body>
+</html>

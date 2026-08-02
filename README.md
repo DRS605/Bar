@@ -43,6 +43,12 @@ docs/
   modulos/identidad.md                 # Documentación del módulo Identidad
 ```
 
+## Interfaz web
+
+La API sirve también una **interfaz web** (SPA) en la raíz (`/`), en el mismo origen que la API. Con
+`docker compose up` la tienes en `http://localhost:8080`: login, panel con KPIs, facturas, clientes,
+productos, gastos, cobros e informes. Diseño limpio, pocos colores y pocos clics.
+
 ## Arranque rápido (Docker)
 
 Con Docker basta un comando para levantar la API + PostgreSQL:

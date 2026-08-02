@@ -108,6 +108,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// Sirve la interfaz web (SPA) desde wwwroot, en el mismo origen que la API (sin CORS).
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -125,6 +129,9 @@ app.MapearGastos();
 app.MapearTesoreria();
 app.MapearDocumentos();
 app.MapearInformes();
+
+// Cualquier ruta no-API devuelve la SPA (enrutado en el cliente).
+app.MapFallbackToFile("index.html");
 
 await app.RunAsync().ConfigureAwait(false);
 
