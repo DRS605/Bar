@@ -26,11 +26,14 @@ public sealed record FacturaDto(
     string Tipo,
     string? Huella,
     string? HuellaAnterior,
+    Guid? RectificaFacturaId,
+    string? MotivoRectificacion,
     IReadOnlyList<LineaFacturaDto> Lineas)
 {
     public static FacturaDto Desde(Factura f) => new(
         f.Id, f.NumeroCompleto, f.FechaEmision, f.FechaOperacion, f.ClienteId, f.ClienteNombre, f.ClienteNif,
         f.BaseImponible, f.CuotaIva, f.PorcentajeIrpf, f.RetencionIrpf, f.Total, f.Estado.ToString(), f.TipoFactura.ToString(), f.Huella, f.HuellaAnterior,
+        f.RectificaFacturaId, f.MotivoRectificacion,
         f.Lineas.Select(l => new LineaFacturaDto(
             l.Descripcion, l.Cantidad, l.PrecioUnitario, l.PorcentajeDescuento, l.CodigoIva, l.PorcentajeIva, l.Base, l.CuotaIva)).ToList());
 }

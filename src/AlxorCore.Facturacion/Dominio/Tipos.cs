@@ -10,6 +10,9 @@ public enum EstadoFactura
 
     /// <summary>Anulada mediante una factura rectificativa total.</summary>
     Anulada = 2,
+
+    /// <summary>Corregida por una factura rectificativa (por sustitución).</summary>
+    Rectificada = 3,
 }
 
 /// <summary>Tipo de factura.</summary>

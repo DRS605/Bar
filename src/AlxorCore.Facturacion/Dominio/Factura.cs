@@ -93,6 +93,9 @@ public sealed class Factura : RaizAgregadoEmpresa<Guid>
     public TipoFactura TipoFactura { get; private set; }
     public Guid? RectificaFacturaId { get; private set; }
 
+    /// <summary>Motivo de la rectificación (obligatorio en las rectificativas).</summary>
+    public string? MotivoRectificacion { get; private set; }
+
     public DateTimeOffset CreadoEn { get; private set; }
 
     // --- Campos VeriFactu/SII ---
@@ -235,6 +238,83 @@ public sealed class Factura : RaizAgregadoEmpresa<Guid>
 
         factura.RegistrarEvento(new FacturaEmitida(factura.Id, empresaId, factura.NumeroCompleto, factura.Total, reloj.AhoraUtc));
         return Resultado.Ok(factura);
+    }
+
+    /// <summary>
+    /// Emite una <b>factura rectificativa</b> (por sustitución) que corrige a otra factura: referencia
+    /// a la original, motivo obligatorio y tipo R1. Calcula sus importes como una factura ordinaria.
+    /// La factura original debe marcarse aparte con <see cref="MarcarRectificada"/> (invariante F6).
+    /// </summary>
+    public static Resultado<Factura> EmitirRectificativa(
+        Guid empresaId,
+        NumeroFactura numero,
+        DateOnly fechaEmision,
+        ClienteFacturado cliente,
+        IReadOnlyList<NuevaLinea> lineas,
+        decimal porcentajeIrpf,
+        Guid facturaOriginalId,
+        string? motivo,
+        IReloj reloj)
+    {
+        ArgumentNullException.ThrowIfNull(numero);
+        ArgumentNullException.ThrowIfNull(cliente);
+        ArgumentNullException.ThrowIfNull(lineas);
+        ArgumentNullException.ThrowIfNull(reloj);
+
+        if (string.IsNullOrWhiteSpace(motivo))
+        {
+            return Resultado.Fallo<Factura>(Error.Validacion("rectificativa.sin_motivo", "La rectificativa necesita un motivo."));
+        }
+
+        if (lineas.Count == 0)
+        {
+            return Resultado.Fallo<Factura>(Error.Validacion("factura.sin_lineas", "La factura debe tener al menos una línea."));
+        }
+
+        if (porcentajeIrpf is < 0 or > IrpfMaximo)
+        {
+            return Resultado.Fallo<Factura>(Error.Validacion("factura.irpf_invalido", "El porcentaje de IRPF no es válido."));
+        }
+
+        foreach (var linea in lineas)
+        {
+            var error = ValidarLinea(linea);
+            if (error is not null)
+            {
+                return Resultado.Fallo<Factura>(error);
+            }
+        }
+
+        var factura = new Factura(Guid.NewGuid(), empresaId, numero, fechaEmision, fechaEmision, cliente, porcentajeIrpf, reloj.AhoraUtc)
+        {
+            TipoFactura = TipoFactura.Rectificativa,
+            RectificaFacturaId = facturaOriginalId,
+            MotivoRectificacion = motivo.Trim(),
+        };
+        foreach (var datos in lineas)
+        {
+            factura._lineas.Add(new LineaFactura(empresaId, datos));
+        }
+
+        factura.BaseImponible = Redondeo.Dos(factura._lineas.Sum(l => l.Base));
+        factura.CuotaIva = Redondeo.Dos(factura._lineas.Sum(l => l.CuotaIva));
+        factura.RetencionIrpf = Redondeo.Dos(factura.BaseImponible * porcentajeIrpf / 100m);
+        factura.Total = Redondeo.Dos(factura.BaseImponible + factura.CuotaIva - factura.RetencionIrpf);
+
+        factura.RegistrarEvento(new FacturaEmitida(factura.Id, empresaId, factura.NumeroCompleto, factura.Total, reloj.AhoraUtc));
+        return Resultado.Ok(factura);
+    }
+
+    /// <summary>Marca esta factura como rectificada por otra. Solo una factura emitida puede rectificarse.</summary>
+    public Resultado MarcarRectificada()
+    {
+        if (Estado != EstadoFactura.Emitida)
+        {
+            return Resultado.Fallo(Error.Conflicto("factura.no_rectificable", "Solo una factura emitida puede rectificarse."));
+        }
+
+        Estado = EstadoFactura.Rectificada;
+        return Resultado.Ok();
     }
 
     private static Error? ValidarLinea(NuevaLinea linea)

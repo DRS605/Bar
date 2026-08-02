@@ -32,6 +32,10 @@ public static class EndpointsFacturacion
             .WithSummary("Emite un ticket (factura simplificada) desde el TPV.")
             .RequierePermiso(Permisos.FacturaEmitir);
 
+        facturas.MapPost("/{id:guid}/rectificar", RectificarAsync)
+            .WithSummary("Emite una factura rectificativa que corrige a esta factura.")
+            .RequierePermiso(Permisos.FacturaEmitir);
+
         var recurrentes = rutas.MapGroup("/facturas-recurrentes").WithTags("Facturación periódica");
 
         recurrentes.MapGet("", ListarRecurrentesAsync)
@@ -59,6 +63,17 @@ public static class EndpointsFacturacion
             .RequierePermiso(Permisos.FacturaEmitir);
 
         return rutas;
+    }
+
+    private static async Task<IResult> RectificarAsync(Guid id, EmitirRectificativaComando comando, IContextoEmpresa contexto, EmitirRectificativa caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, id, comando, ct).ConfigureAwait(false);
+        return resultado.EsCorrecto ? resultado.ACreado($"/facturas/{resultado.Valor.Id}") : ResultadosHttp.AProblema(resultado.Error);
     }
 
     private static async Task<IResult> EmitirTicketAsync(EmitirTicketComando comando, IContextoEmpresa contexto, EmitirTicket caso, CancellationToken ct)

@@ -58,6 +58,16 @@ Orden HAC/1177/2024):
 | `POST` | `/facturas` | permiso `factura.emitir` | Emite una factura. **201** |
 | `GET` | `/facturas` | permiso `factura.leer` | Lista de facturas de la empresa. |
 | `GET` | `/facturas/{id}` | permiso `factura.leer` | Factura con sus líneas. |
+| `POST` | `/facturas/{id}/rectificar` | permiso `factura.emitir` | Emite una rectificativa de esa factura. **201** |
+
+## Rectificativas (R1)
+
+Una **factura rectificativa** corrige a otra (invariante **F6**): referencia a la original, **motivo
+obligatorio**, tipo **R1** y su propia serie (por defecto `R`). Se emite *por sustitución* (con las
+líneas corregidas), congela los datos de cliente de la original, genera su registro **VeriFactu**
+encadenado y marca la **original como `Rectificada`**. Solo puede rectificarse una factura **emitida**
+(no un ticket, ni una ya rectificada/anulada). *La rectificativa por diferencias / abono total con
+importes negativos queda como mejora futura.*
 
 ## Tickets (factura simplificada) — TPV
 

@@ -70,6 +70,7 @@ internal sealed class ConfiguracionFactura : IEntityTypeConfiguration<Factura>
         builder.Property(f => f.Estado).HasColumnName("estado").HasMaxLength(20).HasConversion<string>().IsRequired();
         builder.Property(f => f.TipoFactura).HasColumnName("tipo_factura").HasMaxLength(20).HasConversion<string>().IsRequired();
         builder.Property(f => f.RectificaFacturaId).HasColumnName("rectifica_factura_id");
+        builder.Property(f => f.MotivoRectificacion).HasColumnName("motivo_rectificacion").HasMaxLength(300);
 
         builder.Property(f => f.CreadoEn).HasColumnName("creado_en").IsRequired();
 
