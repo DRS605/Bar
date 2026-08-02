@@ -52,9 +52,18 @@ Orden HAC/1177/2024):
 - Campos en `factura`: `huella`, `huella_anterior`, `id_registro`, `fecha_hora_gen_registro`,
   `estado_envio_aeat` (`Registrado` = generado y almacenado localmente).
 
-> **Fuera de alcance por ahora**: el **envío en vivo del registro al servicio web de la AEAT**
-> (requiere certificado electrónico y entorno real). El registro queda generado y encadenado; activar
-> el envío es aditivo y no rehace el núcleo.
+### Registro de alta en XML
+
+`GET /facturas/{id}/verifactu.xml` genera el **registro de alta** en XML con los campos de la AEAT
+(`IDFactura`, `NombreRazonEmisor`, `TipoFactura`, desglose por tipo de IVA, `CuotaTotal`,
+`ImporteTotal`, `Encadenamiento` con la huella anterior, `SistemaInformatico`,
+`FechaHoraHusoGenRegistro`, `TipoHuella`, `Huella`). Es el documento que se remitiría al servicio web
+de la AEAT (`GeneradorXmlVerifactu`).
+
+> **Fuera de alcance por ahora**: el **envío en vivo del registro al servicio web SOAP de la AEAT**
+> (requiere certificado electrónico y el entorno de la Agencia). El registro se genera, se encadena y
+> se puede inspeccionar en XML; activar el envío es **aditivo** (conectar el certificado y el
+> endpoint) y no rehace el núcleo.
 
 ## API
 

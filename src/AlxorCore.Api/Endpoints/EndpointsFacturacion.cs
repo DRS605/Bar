@@ -27,6 +27,10 @@ public static class EndpointsFacturacion
             .WithSummary("Obtiene una factura con sus líneas.")
             .RequierePermiso(Permisos.FacturaLeer);
 
+        facturas.MapGet("/{id:guid}/verifactu.xml", VerifactuXmlAsync)
+            .WithSummary("Descarga el registro de alta VeriFactu (XML) de la factura.")
+            .RequierePermiso(Permisos.FacturaLeer);
+
         rutas.MapPost("/tickets", EmitirTicketAsync)
             .WithTags("TPV / Tickets")
             .WithSummary("Emite un ticket (factura simplificada) desde el TPV.")
@@ -150,6 +154,31 @@ public static class EndpointsFacturacion
 
     private static async Task<IResult> ObtenerAsync(Guid id, ObtenerFactura caso, CancellationToken ct) =>
         (await caso.EjecutarAsync(id, ct).ConfigureAwait(false)).AOk();
+
+    private static async Task<IResult> VerifactuXmlAsync(
+        Guid id, IContextoEmpresa contexto, IConsultaFacturas facturas,
+        AlxorCore.Organizacion.Aplicacion.Puertos.IConsultaEmpresas empresas, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var factura = await facturas.ObtenerAsync(id, ct).ConfigureAwait(false);
+        if (factura is null)
+        {
+            return ResultadosHttp.AProblema(Error.NoEncontrado("factura.no_encontrada", "La factura no existe."));
+        }
+
+        var emisor = await empresas.ObtenerAsync(contexto.EmpresaId.Value, ct).ConfigureAwait(false);
+        if (emisor is null)
+        {
+            return ResultadosHttp.AProblema(Error.NoEncontrado("empresa.no_encontrada", "La empresa no existe."));
+        }
+
+        var xml = AlxorCore.Api.Comun.GeneradorXmlVerifactu.Generar(factura, emisor);
+        return Results.Text(xml, "application/xml");
+    }
 }
 
 /// <summary>Cuerpo para activar/pausar una factura recurrente.</summary>
