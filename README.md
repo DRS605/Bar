@@ -60,6 +60,24 @@ docker compose up --build
 - API: `http://localhost:8080` · Swagger: `http://localhost:8080/swagger` · Salud: `/salud`
 - En *Development* la API aplica las migraciones automáticamente.
 
+> El archivo `docker-compose.override.yml` (incluido) publica la API en
+> **`http://localhost:3400`** además del 8080; Docker Compose lo aplica solo.
+
+### Datos de demostración
+
+Con la API arrancada, rellena una empresa con clientes, artículos, facturas repartidas por el año,
+cobros (alguno parcial), gastos y una factura recurrente, para ver el panel y los informes con
+contenido desde el primer momento:
+
+```bash
+python3 scripts/datos-demo.py                       # contra http://localhost:3400
+python3 scripts/datos-demo.py http://localhost:8080 # otra URL base
+```
+
+Solo usa la biblioteca estándar de Python (sin dependencias). Crea la cuenta `demo@alxorcore.es`
+(contraseña `Demo1234!`) y no vuelve a sembrar si la empresa ya tiene facturas. Pensado para bases
+de datos de desarrollo/demo, no para producción.
+
 ## Puesta en marcha (desarrollo con SDK)
 
 Requisitos: **.NET 8 SDK** y **PostgreSQL** (local o vía Docker).
