@@ -1,5 +1,6 @@
-# PostgreSQL para desarrollo local de ALXOR Core.
-# Uso: docker compose up -d
+# ALXOR Core — pila completa para desarrollo local.
+#   docker compose up --build
+# API en http://localhost:8080 (Swagger en /swagger), PostgreSQL en localhost:5432.
 services:
   postgres:
     image: postgres:16-alpine
@@ -16,7 +17,25 @@ services:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: alxor-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # En Development la API aplica las migraciones automáticamente y publica Swagger.
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__AlxorCore: "Host=postgres;Port=5432;Database=alxor;Username=postgres;Password=postgres"
+      # Clave de desarrollo. En producción, usar un secreto real (mínimo 32 caracteres).
+      Jwt__ClaveSecreta: "clave-de-desarrollo-cambiar-en-produccion-32+"
+    ports:
+      - "8080:8080"
 
 volumes:
   alxor-postgres-data:

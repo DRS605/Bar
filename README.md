@@ -43,7 +43,18 @@ docs/
   modulos/identidad.md                 # Documentación del módulo Identidad
 ```
 
-## Puesta en marcha (desarrollo)
+## Arranque rápido (Docker)
+
+Con Docker basta un comando para levantar la API + PostgreSQL:
+
+```bash
+docker compose up --build
+```
+
+- API: `http://localhost:8080` · Swagger: `http://localhost:8080/swagger` · Salud: `/salud`
+- En *Development* la API aplica las migraciones automáticamente.
+
+## Puesta en marcha (desarrollo con SDK)
 
 Requisitos: **.NET 8 SDK** y **PostgreSQL** (local o vía Docker).
 
