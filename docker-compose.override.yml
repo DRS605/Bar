@@ -1,0 +1,7 @@
+# Override local: publica la API en http://localhost:3400 (en vez de 8080).
+# Docker Compose aplica este archivo automáticamente junto a docker-compose.yml.
+#   docker compose up --build   →   http://localhost:3400
+services:
+  api:
+    ports:
+      - "3400:8080"
