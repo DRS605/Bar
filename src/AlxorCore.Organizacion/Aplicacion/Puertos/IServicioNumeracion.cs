@@ -11,12 +11,14 @@ namespace AlxorCore.Organizacion.Aplicacion.Puertos;
 public interface IServicioNumeracion
 {
     /// <summary>
-    /// Asigna el siguiente número para (empresa + tipo de documento + ejercicio). Debe ejecutarse
-    /// dentro de la transacción del documento que se está creando.
+    /// Asigna el siguiente número para (empresa + tipo de documento + ejercicio + serie). Debe
+    /// ejecutarse dentro de la transacción del documento que se está creando. Si <paramref name="prefijo"/>
+    /// es nulo o vacío se usa la serie por defecto; la serie se crea de forma perezosa si no existe.
     /// </summary>
     Task<Resultado<NumeroDocumento>> SiguienteAsync(
         Guid empresaId,
         TipoDocumento tipoDocumento,
         int ejercicio,
+        string? prefijo = null,
         CancellationToken ct = default);
 }

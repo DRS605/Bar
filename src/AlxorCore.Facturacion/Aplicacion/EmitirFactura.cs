@@ -24,7 +24,8 @@ public sealed record EmitirFacturaComando(
     IReadOnlyList<LineaComando> Lineas,
     DateOnly? FechaEmision = null,
     DateOnly? FechaOperacion = null,
-    decimal? PorcentajeIrpf = null);
+    decimal? PorcentajeIrpf = null,
+    string? Serie = null);
 
 /// <summary>
 /// Caso de uso estrella: emitir una factura. Compone cliente (Terceros), productos/impuestos
@@ -93,7 +94,7 @@ public sealed class EmitirFactura
             cliente.Calle, cliente.CodigoPostal, cliente.Poblacion, cliente.Provincia, cliente.Pais);
 
         // La numeración es lo último antes de crear y guardar (minimiza huecos).
-        var numero = await _numeracion.SiguienteAsync(empresaId, TipoDocumento.Factura, fechaEmision.Year, ct).ConfigureAwait(false);
+        var numero = await _numeracion.SiguienteAsync(empresaId, TipoDocumento.Factura, fechaEmision.Year, comando.Serie, ct).ConfigureAwait(false);
         if (numero.EsFallo)
         {
             return Resultado.Fallo<FacturaDto>(numero.Error);

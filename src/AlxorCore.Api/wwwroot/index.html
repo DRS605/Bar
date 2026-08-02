@@ -230,7 +230,8 @@
       proveedores:'<svg viewBox="0 0 24 24"><path d="M3 9l2-5h14l2 5"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/></svg>',
       cobros:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 12h6M12 9v6"/></svg>',
       informes:'<svg viewBox="0 0 24 24"><path d="M4 20V4M4 20h16"/><path d="M8 16v-5M13 16V8M18 16v-9"/></svg>',
-      recurrentes:'<svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13-6l3 2"/><path d="M20 4v4h-4"/><path d="M20 12a8 8 0 0 1-13 6l-3-2"/><path d="M4 20v-4h4"/></svg>'
+      recurrentes:'<svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 13-6l3 2"/><path d="M20 4v4h-4"/><path d="M20 12a8 8 0 0 1-13 6l-3-2"/><path d="M4 20v-4h4"/></svg>',
+      ajustes:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 0 1-4 0v-.1A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H1a2 2 0 0 1 0-4h.1A1.7 1.7 0 0 0 2.6 7a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 9 1.6V1a2 2 0 0 1 4 0v.1A1.7 1.7 0 0 0 17 2.6a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>'
     };
     ICON.ventas = '<svg viewBox="0 0 24 24"><path d="M3 6h18l-1.5 9H4.5z"/><circle cx="9" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/><path d="M3 6L2 3"/></svg>';
     ICON.compras = '<svg viewBox="0 0 24 24"><path d="M6 7V6a3 3 0 0 1 6 0v1"/><path d="M4 7h16l-1 13H5z"/></svg>';
@@ -244,8 +245,9 @@
       { t:"grupo", k:"compras", l:"Compras", items:[["gastos","Gastos"],["proveedores","Proveedores"],["pagos","Pagos"]] },
       { t:"grupo", k:"articulos", l:"Artículos", items:[["productos","Productos"]] },
       { t:"item", k:"informes", l:"Informes" },
+      { t:"item", k:"ajustes", l:"Ajustes" },
     ];
-    const TITULOS = { inicio:"Inicio", facturas:"Facturas", recurrentes:"Facturación periódica", clientes:"Clientes", cobros:"Cobros", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", productos:"Artículos", informes:"Informes" };
+    const TITULOS = { inicio:"Inicio", facturas:"Facturas", recurrentes:"Facturación periódica", clientes:"Clientes", cobros:"Cobros", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", productos:"Artículos", informes:"Informes", ajustes:"Ajustes" };
     function renderNav() {
       return NAV.map(n => {
         if (n.t === "item") return `<a class="navitem" data-k="${n.k}" onclick="ir('${n.k}')">${ICON[n.k]}<span>${n.l}</span></a>`;
@@ -292,7 +294,7 @@
     function ir(k){ vista=k;
       document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("active",a.dataset.k===k));
       document.getElementById("viewTitle").textContent=TITULOS[k]||k;
-      ({inicio:vInicio,facturas:vFacturas,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,pagos:vPagos,informes:vInformes}[k])();
+      ({inicio:vInicio,facturas:vFacturas,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,pagos:vPagos,informes:vInformes,ajustes:vAjustes}[k])();
     }
     const view = h => document.getElementById("view").innerHTML=h;
     const panel = (t,c,a="") => `<div class="panel"><div class="panel-head"><h2>${t}</h2>${a}</div>${c}</div>`;
@@ -412,6 +414,25 @@
       const cuerpo=libro.asientos.length?`<table><thead><tr><th>Fecha</th><th>Documento</th><th>Cliente</th><th class="num">Base</th><th class="num">Cuota IVA</th></tr></thead><tbody>${filas}${total}</tbody></table>`:vacio("informes","Sin movimientos en el periodo","Emite facturas para ver aquí tu libro de IVA repercutido.");
       view(panel(`Libro de IVA repercutido · ${anio}`,cuerpo,`<button class="btn small ghost" onclick="descargarCsv()">↓ Exportar CSV (gestoría)</button>`));
     }
+    async function vAjustes() {
+      view('<div class="muted">Cargando…</div>');
+      const series=await api("/series");
+      const anio=new Date().getFullYear();
+      const filas=series.sort((a,b)=>b.ejercicio-a.ejercicio||(a.prefijo<b.prefijo?-1:1)).map(s=>{
+        const prox=`${s.prefijo}${s.ejercicio}/${String(s.siguienteNumero).padStart(6,"0")}`;
+        const def=s.prefijo==="FA"?'<span class="pill part" style="margin-left:8px">Por defecto</span>':"";
+        return `<tr><td><strong class="mono">${s.prefijo}</strong>${def}</td><td class="muted">${s.tipoDocumento}</td><td class="muted">${s.ejercicio}</td><td class="num mono">${prox}</td></tr>`;}).join("");
+      const cuerpo=series.length?`<table><thead><tr><th>Serie</th><th>Documento</th><th>Ejercicio</th><th class="num">Próximo número</th></tr></thead><tbody>${filas}</tbody></table>`
+        :vacio("ajustes","Aún no hay series propias","La serie <b>FA</b> se crea sola al emitir tu primera factura. Crea más series (p. ej. <b>R</b> para rectificativas o <b>T</b> para tickets) cuando las necesites.",`<button class="btn small" onclick="modalSerie()">+ Nueva serie</button>`);
+      const intro=`<p class="muted" style="margin:0 0 16px">Cada serie numera sus facturas de forma <strong>correlativa y sin huecos</strong>, y reinicia el contador cada ejercicio. Al emitir una factura podrás elegir en qué serie va.</p>`;
+      view(panel("Series de facturación",intro+cuerpo,`<button class="btn small" onclick="modalSerie()">+ Nueva serie</button>`));
+    }
+    function modalSerie(){ const anio=new Date().getFullYear();
+      abrir("Nueva serie de facturación",`<label>Prefijo de la serie</label><input id="s_pref" maxlength="10" placeholder="Ej. R, T, EXP…" style="text-transform:uppercase"/>
+        <div class="grid2"><div><label>Ejercicio</label><input id="s_anio" type="number" value="${anio}"/></div><div><label>Documento</label><select id="s_tipo"><option value="Factura">Factura</option></select></div></div>
+        <p class="muted" style="font-size:12.5px;margin-top:12px">La numeración empezará en 1 y no tiene huecos. Podrás usar esta serie al emitir una factura.</p>`,
+        async()=>{ await api("/series",{method:"POST",body:JSON.stringify({tipoDocumento:val("s_tipo"),ejercicio:Number(val("s_anio")),prefijo:val("s_pref")})}); vAjustes(); }); }
+
     async function descargarCsv(){ const anio=new Date().getFullYear();
       const r=await fetch(`/informes/libro-iva/csv?tipo=Repercutido&desde=${anio}-01-01&hasta=${anio}-12-31`,{headers:{Authorization:"Bearer "+token}});
       const b=await r.blob(); const u=URL.createObjectURL(b); const a=document.createElement("a"); a.href=u; a.download="libro-iva.csv"; a.click(); URL.revokeObjectURL(u); }
@@ -438,12 +459,14 @@
         <div class="grid2"><div><label>Proveedor</label><select id="g_prov">${opts}</select></div><div><label>Base (€)</label><input id="g_base" type="number" value="0"/></div></div>
         <label>IVA</label>${ivaSel("g_iva")}`,
         async()=>{ await api("/gastos",{method:"POST",body:JSON.stringify({concepto:val("g_conc"),proveedorId:val("g_prov")||null,baseImponible:Number(val("g_base")),codigoIva:val("g_iva")})}); vGastos(); }); }
-    async function modalFactura(){ const cs=await api("/clientes");
+    async function modalFactura(){ const [cs,series]=await Promise.all([api("/clientes"),api("/series").catch(()=>[])]);
       const opts=cs.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join("");
-      abrir("Nueva factura",`<label>Cliente</label><select id="f_cli">${opts}</select>
+      const prefijos=[...new Set(["FA",...series.map(s=>s.prefijo)])];
+      const serieSel=prefijos.length>1?`<div><label>Serie</label><select id="f_serie">${prefijos.map(p=>`<option value="${p}">${p}</option>`).join("")}</select></div>`:"";
+      abrir("Nueva factura",`<div class="grid2"><div><label>Cliente</label><select id="f_cli">${opts}</select></div>${serieSel}</div>
         <label style="margin-top:16px">Concepto</label>
         <div class="row"><div><input id="f_desc" placeholder="Descripción"/></div><div><label>Cant.</label><input id="f_cant" type="number" value="1"/></div><div><label>Precio €</label><input id="f_prec" type="number" value="0"/></div><div><label>IVA</label>${ivaSel("f_iva")}</div></div>`,
-        async()=>{ await api("/facturas",{method:"POST",body:JSON.stringify({clienteId:val("f_cli"),lineas:[{descripcion:val("f_desc"),cantidad:Number(val("f_cant")),precioUnitario:Number(val("f_prec")),codigoIva:val("f_iva")}]})}); vFacturas(); }); }
+        async()=>{ const serie=document.getElementById("f_serie")?document.getElementById("f_serie").value:null; await api("/facturas",{method:"POST",body:JSON.stringify({clienteId:val("f_cli"),serie,lineas:[{descripcion:val("f_desc"),cantidad:Number(val("f_cant")),precioUnitario:Number(val("f_prec")),codigoIva:val("f_iva")}]})}); vFacturas(); }); }
     async function modalRecurrente(){ const cs=await api("/clientes");
       if(!cs.length){ alert("Primero crea un cliente para poder facturarle de forma periódica."); return; }
       const opts=cs.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join("");

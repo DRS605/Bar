@@ -28,9 +28,12 @@ internal sealed class ServicioNumeracion : IServicioNumeracion
         Guid empresaId,
         TipoDocumento tipoDocumento,
         int ejercicio,
+        string? prefijoPedido = null,
         CancellationToken ct = default)
     {
-        var prefijo = SerieNumeracion.PrefijoFacturaPorDefecto;
+        var prefijo = string.IsNullOrWhiteSpace(prefijoPedido)
+            ? SerieNumeracion.PrefijoFacturaPorDefecto
+            : prefijoPedido.Trim().ToUpperInvariant();
         var tipoTexto = tipoDocumento.ToString();
 
         var conexion = _contexto.Database.GetDbConnection();

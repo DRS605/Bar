@@ -34,10 +34,12 @@ rol de aplicación restringido para que la RLS sea efectiva.
 
 ## Numeración correlativa
 
-`IServicioNumeracion.SiguienteAsync(empresa, tipo, ejercicio)` asigna el siguiente número con un
-`UPDATE ... RETURNING` **atómico** (bloqueo de fila), evitando duplicados y carreras. Crea la serie
-por defecto (`FA`) de forma **perezosa** la primera vez que se factura, de modo que cada nuevo
-ejercicio obtiene automáticamente su serie. Lo consumirá el módulo Facturación.
+`IServicioNumeracion.SiguienteAsync(empresa, tipo, ejercicio, prefijo?)` asigna el siguiente número
+con un `UPDATE ... RETURNING` **atómico** (bloqueo de fila), evitando duplicados y carreras. Si no se
+indica `prefijo` usa la serie por defecto (`FA`); en cualquier caso crea la serie de forma
+**perezosa** si no existe, de modo que cada nuevo ejercicio (y cada serie: `FA`, `R`, `T`…) obtiene
+su propio contador. Lo consume Facturación: al emitir una factura se puede elegir la **serie**
+(`EmitirFacturaComando.Serie`), y cada serie numera de forma correlativa e independiente.
 
 > Compromiso conocido: el número se confirma de inmediato. Si la creación del documento fallara
 > después, podría quedar un hueco. Se asigna como último paso antes de guardar para minimizar la
