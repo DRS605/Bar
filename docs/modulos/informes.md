@@ -25,6 +25,24 @@ con sus totales:
 `GET /informes/libro-iva/csv?tipo=&desde=&hasta=` descarga el libro en **CSV** (separador `;`,
 decimales con coma, formato español), listo para la gestoría. Requiere el permiso `datos.exportar`.
 
+## Resúmenes fiscales trimestrales (303 y 130)
+
+`GET /informes/resumen-trimestral?anio=&trimestre=1..4` calcula, a partir de las facturas emitidas y
+los gastos, los dos modelos que un autónomo en estimación directa presenta cada trimestre. Es una
+**ayuda informativa** para prepararlos con la gestoría, **no** un envío oficial a la AEAT.
+
+- **Modelo 303 (IVA)** — por **trimestre**: `IVA repercutido` (cuota de las facturas del trimestre)
+  menos `IVA soportado` (cuota de los gastos). El **resultado** positivo es *a ingresar*, negativo
+  *a compensar/devolver*.
+- **Modelo 130 (IRPF)** — **acumulado** desde el 1 de enero: sobre el rendimiento neto acumulado
+  (`ingresos − gastos`, en base imponible) se aplica el **20 %**, del que se descuentan las
+  **retenciones soportadas** (el IRPF que los clientes retuvieron en tus facturas) y los **pagos
+  fraccionados de los trimestres anteriores**. Nunca resulta negativo (mínimo 0).
+
+Solo cuentan las facturas en estado **Emitida**: se excluyen las **anuladas** y las ya
+**rectificadas** (sustituidas por su rectificativa, que aporta los importes corregidos). Requiere el
+permiso `informe.leer`.
+
 ## API
 
 | Método | Ruta | Auth | Descripción |
@@ -32,9 +50,12 @@ decimales con coma, formato español), listo para la gestoría. Requiere el perm
 | `GET` | `/informes/dashboard` | permiso `informe.leer` | Panel principal. |
 | `GET` | `/informes/libro-iva` | permiso `informe.leer` | Libro de IVA del periodo. |
 | `GET` | `/informes/libro-iva/csv` | permiso `datos.exportar` | Exportación CSV. |
+| `GET` | `/informes/resumen-trimestral` | permiso `informe.leer` | Resúmenes 303 (IVA) y 130 (IRPF) del trimestre. |
 
 ## Tests
 
-- **Unitarios**: exportador CSV (cabecera, asientos, totales, escapado).
+- **Unitarios**: exportador CSV (cabecera, asientos, totales, escapado); resúmenes fiscales (303
+  repercutido − soportado por trimestre; 130 acumulado con el 20 %, retenciones, pagos anteriores y
+  suelo en 0; exclusión de facturas anuladas/rectificadas; trimestre fuera de rango).
 - **Integración**: dashboard (facturado/gastado/pendientes y su actualización tras un cobro), libro
-  de IVA repercutido y exportación CSV.
+  de IVA repercutido, exportación CSV y resumen trimestral (303 y 130).

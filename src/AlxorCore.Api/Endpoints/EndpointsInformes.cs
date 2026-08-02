@@ -28,6 +28,10 @@ public static class EndpointsInformes
             .WithSummary("Exporta el libro de IVA a CSV para la gestoría.")
             .RequierePermiso(Permisos.DatosExportar);
 
+        informes.MapGet("/resumen-trimestral", ResumenTrimestralAsync)
+            .WithSummary("Resúmenes fiscales del trimestre: modelo 303 (IVA) y modelo 130 (IRPF).")
+            .RequierePermiso(Permisos.InformeLeer);
+
         return rutas;
     }
 
@@ -68,6 +72,24 @@ public static class EndpointsInformes
         var csv = ExportadorLibroIvaCsv.Generar(libro);
         var bytes = Encoding.UTF8.GetBytes(csv);
         return Results.File(bytes, "text/csv", $"libro-iva-{tipo}-{d:yyyyMMdd}-{h:yyyyMMdd}.csv");
+    }
+
+    private static async Task<IResult> ResumenTrimestralAsync(
+        IContextoEmpresa contexto, GenerarResumenesFiscales caso, CancellationToken ct,
+        int? anio = null, int trimestre = 1)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        if (trimestre is < 1 or > 4)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("trimestre.invalido", "El trimestre debe estar entre 1 y 4."));
+        }
+
+        var ejercicio = anio ?? DateTime.UtcNow.Year;
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, ejercicio, trimestre, ct).ConfigureAwait(false));
     }
 
     private static (DateOnly Desde, DateOnly Hasta) RangoPorDefecto(DateOnly? desde, DateOnly? hasta)

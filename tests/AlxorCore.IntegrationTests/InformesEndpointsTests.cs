@@ -17,6 +17,9 @@ public sealed class InformesEndpointsTests : IClassFixture<FabricaApiPruebas>
     private sealed record DashboardResp(int Anio, int Mes, decimal FacturadoMes, decimal GastadoMes, int NumeroFacturasMes, decimal PendienteCobro, decimal PendientePago);
     private sealed record AsientoResp(string Documento, string Tercero, decimal Base, decimal Cuota);
     private sealed record LibroResp(string Tipo, List<AsientoResp> Asientos, decimal TotalBase, decimal TotalCuota);
+    private sealed record Modelo303Resp(decimal IvaDevengadoBase, decimal IvaDevengadoCuota, decimal IvaDeducibleBase, decimal IvaDeducibleCuota, decimal Resultado);
+    private sealed record Modelo130Resp(decimal IngresosAcumulados, decimal GastosAcumulados, decimal RendimientoAcumulado, decimal PagoFraccionadoBruto, decimal RetencionesAcumuladas, decimal PagosAnteriores, decimal Resultado);
+    private sealed record ResumenResp(Modelo303Resp Modelo303, Modelo130Resp Modelo130);
 
     private static async Task<FacturaResp> EmitirFacturaAsync(HttpClient cliente)
     {
@@ -73,5 +76,27 @@ public sealed class InformesEndpointsTests : IClassFixture<FabricaApiPruebas>
         var csv = await respuesta.Content.ReadAsStringAsync();
         csv.Should().Contain("Fecha;Documento;Tercero;NIF;Base;Cuota IVA");
         csv.Should().Contain("TOTALES;;;;200,00;42,00");
+    }
+
+    [Fact]
+    public async Task Resumen_trimestral_calcula_303_y_130()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        await EmitirFacturaAsync(cliente); // base 200, IVA 42
+        await cliente.PostAsJsonAsync("/gastos", new { Concepto = "Material", BaseImponible = 100m, CodigoIva = "IVA21" }); // base 100, IVA 21
+
+        var hoy = DateTime.UtcNow;
+        var trimestre = ((hoy.Month - 1) / 3) + 1;
+
+        var resumen = await cliente.GetFromJsonAsync<ResumenResp>($"/informes/resumen-trimestral?anio={hoy.Year}&trimestre={trimestre}");
+
+        resumen!.Modelo303.IvaDevengadoCuota.Should().Be(42m);
+        resumen.Modelo303.IvaDeducibleCuota.Should().Be(21m);
+        resumen.Modelo303.Resultado.Should().Be(21m); // 42 - 21
+
+        resumen.Modelo130.IngresosAcumulados.Should().Be(200m);
+        resumen.Modelo130.GastosAcumulados.Should().Be(100m);
+        resumen.Modelo130.RendimientoAcumulado.Should().Be(100m);
+        resumen.Modelo130.PagoFraccionadoBruto.Should().Be(20m); // 20% de 100
     }
 }

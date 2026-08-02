@@ -138,7 +138,7 @@
     tbody tr:hover { background:#fafbfc; }
     td.num, th.num { text-align:right; font-variant-numeric: tabular-nums; }
     .pill { display:inline-block; padding: 3px 10px; border-radius:999px; font-size:11.5px; font-weight:650; }
-    .pill.ok { background:#e7f6ee; color:var(--pos); } .pill.wait { background:#fdf2e3; color:var(--warn); } .pill.part { background: var(--accent-soft); color: var(--accent); }
+    .pill.ok { background:#e7f6ee; color:var(--pos); } .pill.wait { background:#fdf2e3; color:var(--warn); } .pill.part { background: var(--accent-soft); color: var(--accent); } .pill.neg { background:#fdecea; color:var(--neg); }
     .muted { color: var(--muted); } .right { text-align:right; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; letter-spacing:.2px; }
 
@@ -563,14 +563,50 @@
       abrir(`Registrar cobro · ${numero}`,`<div class="grid2"><div><label>Importe (€)</label><input id="cb_imp" type="number" value="${pendiente}"/></div><div><label>Fecha</label><input id="cb_fecha" type="date" value="${hoy}"/></div></div>
         <label>Método de cobro</label><select id="cb_met">${metodos}</select>`,
         async()=>{ await api("/cobros",{method:"POST",body:JSON.stringify({facturaId:id,importe:Number(val("cb_imp")),fecha:val("cb_fecha"),metodo:val("cb_met")})}); vCobros(); }); }
+    let trimSel=Math.floor(new Date().getMonth()/3)+1;
     async function vInformes() {
       view('<div class="muted">Cargando…</div>');
       const anio=new Date().getFullYear();
-      const libro=await api(`/informes/libro-iva?tipo=Repercutido&desde=${anio}-01-01&hasta=${anio}-12-31`);
+      const [libro,resumen]=await Promise.all([
+        api(`/informes/libro-iva?tipo=Repercutido&desde=${anio}-01-01&hasta=${anio}-12-31`),
+        api(`/informes/resumen-trimestral?anio=${anio}&trimestre=${trimSel}`).catch(()=>null),
+      ]);
       const filas=libro.asientos.map(a=>`<tr><td class="muted">${a.fecha}</td><td><strong>${a.documento}</strong></td><td>${a.tercero}</td><td class="num">${eur(a.base)}</td><td class="num">${eur(a.cuota)}</td></tr>`).join("");
       const total=`<tr><td colspan="3" class="right"><strong>Totales</strong></td><td class="num"><strong>${eur(libro.totalBase)}</strong></td><td class="num"><strong>${eur(libro.totalCuota)}</strong></td></tr>`;
       const cuerpo=libro.asientos.length?`<table><thead><tr><th>Fecha</th><th>Documento</th><th>Cliente</th><th class="num">Base</th><th class="num">Cuota IVA</th></tr></thead><tbody>${filas}${total}</tbody></table>`:vacio("informes","Sin movimientos en el periodo","Emite facturas para ver aquí tu libro de IVA repercutido.");
-      view(panel(`Libro de IVA repercutido · ${anio}`,cuerpo,`<button class="btn small ghost" onclick="descargarCsv()">↓ Exportar CSV (gestoría)</button>`));
+      const panelLibro=panel(`Libro de IVA repercutido · ${anio}`,cuerpo,`<button class="btn small ghost" onclick="descargarCsv()">↓ Exportar CSV (gestoría)</button>`);
+      view((resumen?panelResumen(resumen,anio):"")+panelLibro);
+    }
+    function selTrim(anio){
+      return [1,2,3,4].map(t=>`<button class="btn small ${t===trimSel?'':'ghost'}" onclick="verTrimestre(${t})">${t}T</button>`).join(" ");
+    }
+    async function verTrimestre(t){ trimSel=t; await vInformes(); }
+    function panelResumen(r,anio){
+      const c3=r.modelo303, c1=r.modelo130;
+      const signo303=c3.resultado>0.005?'A ingresar':(c3.resultado<-0.005?'A compensar':'Sin cuota');
+      const cls303=c3.resultado>0.005?'neg':(c3.resultado<-0.005?'ok':'part');
+      const signo130=c1.resultado>0.005?'A ingresar':'Sin pago';
+      const cls130=c1.resultado>0.005?'neg':'ok';
+      const fila=(l,v,fuerte)=>`<tr><td class="${fuerte?'':'muted'}">${l}</td><td class="num">${fuerte?'<strong>':''}${eur(v)}${fuerte?'</strong>':''}</td></tr>`;
+      const t303=`<table><tbody>
+        ${fila('IVA repercutido (facturas)',c3.ivaDevengadoCuota)}
+        ${fila('IVA soportado (gastos)',c3.ivaDeducibleCuota)}
+        <tr><td><strong>Resultado</strong> <span class="pill ${cls303}">${signo303}</span></td><td class="num"><strong>${eur(Math.abs(c3.resultado))}</strong></td></tr>
+        </tbody></table>`;
+      const t130=`<table><tbody>
+        ${fila('Ingresos acumulados',c1.ingresosAcumulados)}
+        ${fila('Gastos acumulados',c1.gastosAcumulados)}
+        ${fila('Rendimiento neto',c1.rendimientoAcumulado,true)}
+        ${fila('Pago fraccionado (20%)',c1.pagoFraccionadoBruto)}
+        ${fila('− Retenciones soportadas',c1.retencionesAcumuladas)}
+        ${fila('− Pagos anteriores',c1.pagosAnteriores)}
+        <tr><td><strong>Resultado</strong> <span class="pill ${cls130}">${signo130}</span></td><td class="num"><strong>${eur(c1.resultado)}</strong></td></tr>
+        </tbody></table>`;
+      const cuerpo=`<div class="grid2">
+        <div><h4 style="margin:0 0 8px">Modelo 303 · IVA <span class="muted" style="font-weight:400;font-size:12.5px">(trimestral)</span></h4>${t303}</div>
+        <div><h4 style="margin:0 0 8px">Modelo 130 · IRPF <span class="muted" style="font-weight:400;font-size:12.5px">(acumulado)</span></h4>${t130}</div></div>
+        <p class="muted" style="font-size:12px;margin:14px 0 0">Ayuda informativa para preparar la autoliquidación con tu gestoría; no es un envío oficial a la AEAT.</p>`;
+      return panel(`Resumen trimestral · ${anio}`,cuerpo,selTrim(anio));
     }
     async function vAjustes() {
       view('<div class="muted">Cargando…</div>');

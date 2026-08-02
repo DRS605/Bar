@@ -44,7 +44,7 @@ public sealed record FacturaDto(
 /// <summary>Resumen de factura para listados y libros de IVA.</summary>
 public sealed record FacturaResumen(
     Guid Id, string NumeroCompleto, DateOnly FechaEmision, DateOnly FechaVencimiento, string ClienteNombre,
-    string? ClienteNif, decimal BaseImponible, decimal CuotaIva, decimal Total, string Estado, string Tipo);
+    string? ClienteNif, decimal BaseImponible, decimal CuotaIva, decimal RetencionIrpf, decimal Total, string Estado, string Tipo);
 
 /// <summary>Repositorio de facturas (escritura).</summary>
 public interface IRepositorioFacturas

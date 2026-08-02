@@ -250,7 +250,7 @@ internal sealed class RepositorioFacturas : IRepositorioFacturas, IConsultaFactu
 
         return facturas
             .Select(f => new FacturaResumen(
-                f.Id, f.NumeroCompleto, f.FechaEmision, f.FechaVencimiento, f.ClienteNombre, f.ClienteNif, f.BaseImponible, f.CuotaIva, f.Total, f.Estado.ToString(), f.TipoFactura.ToString()))
+                f.Id, f.NumeroCompleto, f.FechaEmision, f.FechaVencimiento, f.ClienteNombre, f.ClienteNif, f.BaseImponible, f.CuotaIva, f.RetencionIrpf, f.Total, f.Estado.ToString(), f.TipoFactura.ToString()))
             .ToList();
     }
 }

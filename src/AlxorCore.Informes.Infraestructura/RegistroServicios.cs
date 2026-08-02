@@ -12,6 +12,7 @@ public static class RegistroServicios
 
         servicios.AddScoped<ObtenerDashboard>();
         servicios.AddScoped<GenerarLibroIva>();
+        servicios.AddScoped<GenerarResumenesFiscales>();
 
         return servicios;
     }
