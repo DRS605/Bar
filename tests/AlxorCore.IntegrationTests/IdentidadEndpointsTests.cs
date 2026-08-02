@@ -21,6 +21,8 @@ public sealed class IdentidadEndpointsTests : IClassFixture<FabricaApiPruebas>
 
     private sealed record PerfilDto(Guid Id, string Email, string Nombre, bool EmailVerificado);
 
+    private sealed record RegistroConTokenDto(PerfilDto Perfil, string TokenVerificacion);
+
     private sealed record LoginRespuesta(string Token, DateTimeOffset ExpiraEn, PerfilDto Usuario);
 
     [Fact]
@@ -99,13 +101,15 @@ public sealed class IdentidadEndpointsTests : IClassFixture<FabricaApiPruebas>
     {
         var cliente = _fabrica.CreateClient();
         var email = EmailUnico();
-        await cliente.PostAsJsonAsync("/auth/registro", new RegistroPeticion(email, "Ana", "contrasena123"));
+        var registro = await cliente.PostAsJsonAsync("/auth/registro", new RegistroPeticion(email, "Ana", "contrasena123"));
+        var token = (await registro.Content.ReadFromJsonAsync<RegistroConTokenDto>())!.TokenVerificacion;
+
+        var verificar = await cliente.PostAsJsonAsync("/auth/verificar-email", new { Token = token });
+        verificar.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
         var login = await cliente.PostAsJsonAsync("/auth/login", new LoginPeticion(email, "contrasena123"));
         var datos = await login.Content.ReadFromJsonAsync<LoginRespuesta>();
         cliente.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", datos!.Token);
-
-        var verificar = await cliente.PostAsync(new Uri("/auth/verificar-email", UriKind.Relative), content: null);
-        verificar.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var perfil = await cliente.GetFromJsonAsync<PerfilDto>("/auth/perfil");
         perfil!.EmailVerificado.Should().BeTrue();

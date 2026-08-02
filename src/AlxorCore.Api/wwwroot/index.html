@@ -208,6 +208,7 @@
         <label>Contraseña</label>
         <input id="pass" type="password" autocomplete="current-password" />
         <button class="btn" onclick="entrar()">Entrar</button>
+        <div style="text-align:right;margin-top:12px"><a href="#" onclick="mostrarRecuperar();return false" style="color:var(--accent);font-size:13px;text-decoration:none">¿Olvidaste tu contraseña?</a></div>
         <div class="error" id="loginError"></div>
       </div>
     </div>
@@ -309,6 +310,26 @@
         token=sel.token; empresa=empresas[0]; arrancar();
       } catch(e){ err.textContent=e.message||"No se pudo iniciar sesión."; }
     }
+
+    /* Recuperación de contraseña (enlace por correo; en modo demo el token se muestra aquí) */
+    function mostrarRecuperar(){
+      abrir("Recuperar contraseña",`<p class="muted" style="margin:0 0 12px">Escribe tu correo y te enviaremos un enlace para restablecer la contraseña.</p>
+        <label>Correo electrónico</label><input id="rec_email" type="email" placeholder="tu@correo.com"/>
+        <button class="btn small" style="margin-top:12px" onclick="recEnviar()">Enviar enlace</button>
+        <div id="rec_reset" style="display:none;margin-top:18px;border-top:1px solid var(--line);padding-top:16px">
+          <p class="muted" style="font-size:12.5px;margin:0 0 12px">Introduce el código del enlace y tu nueva contraseña (mínimo 8 caracteres).</p>
+          <label>Código del enlace</label><input id="rec_token"/>
+          <label>Nueva contraseña</label><input id="rec_pass" type="password" autocomplete="new-password"/>
+        </div>`,
+        async()=>{ const t=(document.getElementById("rec_token").value||"").trim(); if(!t) throw new Error("Primero pide el enlace de recuperación.");
+          await api("/auth/restablecer",{method:"POST",body:JSON.stringify({token:t,nuevaContrasena:val("rec_pass")})});
+          toast("Contraseña actualizada. Ya puedes entrar.","ok"); }); }
+    async function recEnviar(){ try{
+        const r=await api("/auth/recuperar",{method:"POST",body:JSON.stringify({email:document.getElementById("rec_email").value})});
+        document.getElementById("rec_reset").style.display="block";
+        if(r.token){ document.getElementById("rec_token").value=r.token; toast("Enlace generado (modo demo). Fija tu nueva contraseña.","ok"); }
+        else { toast("Si el correo existe, te hemos enviado un enlace.","ok"); }
+      }catch(e){ toast(e.message,"err"); } }
 
     function arrancar() {
       document.getElementById("login").style.display="none";
@@ -644,7 +665,18 @@
         <div class="row"><div><input id="r_desc" placeholder="Descripción"/></div><div><label>Cant.</label><input id="r_cant" type="number" value="1"/></div><div><label>Precio €</label><input id="r_prec" type="number" value="0"/></div><div><label>IVA</label>${ivaSel("r_iva")}</div></div>`,
         async()=>{ await api("/facturas-recurrentes",{method:"POST",body:JSON.stringify({nombre:val("r_nom"),clienteId:val("r_cli"),periodicidad:val("r_per"),primeraEmision:val("r_fecha"),porcentajeIrpf:Number(val("r_irpf")),lineas:[{descripcion:val("r_desc"),cantidad:Number(val("r_cant")),precioUnitario:Number(val("r_prec")),codigoIva:val("r_iva")}]})}); vRecurrentes(); }); }
 
-    document.getElementById("email").value = new URLSearchParams(location.search).get("email") || "";
+    const _params = new URLSearchParams(location.search);
+    document.getElementById("email").value = _params.get("email") || "";
+    // Enlaces de correo: verificar cuenta o restablecer contraseña.
+    if (_params.get("verificar")) {
+      api("/auth/verificar-email",{method:"POST",body:JSON.stringify({token:_params.get("verificar")})})
+        .then(()=>toast("Correo verificado ✓","ok")).catch(()=>toast("El enlace de verificación no es válido o ha caducado.","err"));
+    }
+    if (_params.get("restablecer")) {
+      mostrarRecuperar();
+      document.getElementById("rec_reset").style.display="block";
+      document.getElementById("rec_token").value=_params.get("restablecer");
+    }
   </script>
 </body>
 </html>

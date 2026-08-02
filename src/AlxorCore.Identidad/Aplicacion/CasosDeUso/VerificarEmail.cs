@@ -1,13 +1,13 @@
 using AlxorCore.Identidad.Aplicacion.Puertos;
+using AlxorCore.Identidad.Dominio;
 using AlxorCore.Nucleo.Resultados;
 using AlxorCore.Nucleo.Tiempo;
 
 namespace AlxorCore.Identidad.Aplicacion.CasosDeUso;
 
 /// <summary>
-/// Caso de uso: marcar como verificado el correo del usuario autenticado. En el MVP la
-/// confirmación se hace sobre el propio usuario (el envío real de un enlace con token llegará
-/// con el módulo Documentos).
+/// Caso de uso: verificar el correo a partir del <b>token</b> del enlace enviado al registrarse.
+/// Busca al usuario por el hash del token y confirma si es válido y no ha caducado.
 /// </summary>
 public sealed class VerificarEmail
 {
@@ -22,15 +22,25 @@ public sealed class VerificarEmail
         _reloj = reloj;
     }
 
-    public async Task<Resultado> EjecutarAsync(Guid usuarioId, CancellationToken ct = default)
+    public async Task<Resultado> EjecutarAsync(string token, CancellationToken ct = default)
     {
-        var usuario = await _usuarios.ObtenerPorIdAsync(usuarioId, ct).ConfigureAwait(false);
-        if (usuario is null)
+        if (string.IsNullOrWhiteSpace(token))
         {
-            return Resultado.Fallo(Error.NoEncontrado("usuario.no_encontrado", "El usuario no existe."));
+            return Resultado.Fallo(Error.Validacion("verificacion.token_invalido", "El enlace de verificación no es válido."));
         }
 
-        usuario.VerificarEmail(_reloj);
+        var usuario = await _usuarios.ObtenerPorTokenVerificacionAsync(TokenCuenta.Hash(token), ct).ConfigureAwait(false);
+        if (usuario is null)
+        {
+            return Resultado.Fallo(Error.Validacion("verificacion.token_invalido", "El enlace de verificación no es válido."));
+        }
+
+        var resultado = usuario.ConfirmarEmailConToken(token, _reloj);
+        if (resultado.EsFallo)
+        {
+            return resultado;
+        }
+
         await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
         return Resultado.Ok();
     }

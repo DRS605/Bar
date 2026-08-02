@@ -24,8 +24,10 @@ public class RegistrarUsuarioTests
         var resultado = await caso.EjecutarAsync(new RegistrarUsuarioComando("Ana@Ejemplo.com", "Ana", "contrasena123"));
 
         resultado.EsCorrecto.Should().BeTrue();
-        resultado.Valor.Email.Should().Be("ana@ejemplo.com");
+        resultado.Valor.Perfil.Email.Should().Be("ana@ejemplo.com");
+        resultado.Valor.TokenVerificacion.Should().NotBeNullOrEmpty();
         _usuarios.Usuarios.Should().ContainSingle();
+        _usuarios.Usuarios[0].TokenVerificacionHash.Should().NotBeNull();
         _uow.Confirmaciones.Should().Be(1);
         _email.Envios.Should().Be(1);
     }

@@ -54,6 +54,12 @@ public sealed class Usuario : RaizAgregado<Guid>
 
     public DateTimeOffset ActualizadoEn { get; private set; }
 
+    // --- Tokens de cuenta (solo se almacena el hash) ---
+    public string? TokenVerificacionHash { get; private set; }
+    public DateTimeOffset? TokenVerificacionExpira { get; private set; }
+    public string? TokenRestablecimientoHash { get; private set; }
+    public DateTimeOffset? TokenRestablecimientoExpira { get; private set; }
+
     /// <summary>Indica si el usuario puede autenticarse en este momento.</summary>
     public bool PuedeAutenticarse => Estado == EstadoUsuario.Activo;
 
@@ -89,8 +95,67 @@ public sealed class Usuario : RaizAgregado<Guid>
         }
 
         EmailVerificado = true;
+        TokenVerificacionHash = null;
+        TokenVerificacionExpira = null;
         Tocar(reloj);
         RegistrarEvento(new EmailUsuarioVerificado(Id, reloj.AhoraUtc));
+    }
+
+    /// <summary>Emite un token de verificación de correo (se almacena su hash) con su caducidad.</summary>
+    public void EmitirTokenVerificacion(string token, DateTimeOffset expira, IReloj reloj)
+    {
+        TokenVerificacionHash = TokenCuenta.Hash(token);
+        TokenVerificacionExpira = expira;
+        Tocar(reloj);
+    }
+
+    /// <summary>Confirma el correo comprobando el token y su caducidad.</summary>
+    public Resultado ConfirmarEmailConToken(string token, IReloj reloj)
+    {
+        if (EmailVerificado)
+        {
+            return Resultado.Ok();
+        }
+
+        if (TokenVerificacionHash is null || TokenVerificacionHash != TokenCuenta.Hash(token))
+        {
+            return Resultado.Fallo(Error.Validacion("verificacion.token_invalido", "El enlace de verificación no es válido."));
+        }
+
+        if (TokenVerificacionExpira is not null && TokenVerificacionExpira < reloj.AhoraUtc)
+        {
+            return Resultado.Fallo(Error.Validacion("verificacion.token_caducado", "El enlace de verificación ha caducado."));
+        }
+
+        VerificarEmail(reloj);
+        return Resultado.Ok();
+    }
+
+    /// <summary>Emite un token de restablecimiento de contraseña (se almacena su hash) con su caducidad.</summary>
+    public void EmitirTokenRestablecimiento(string token, DateTimeOffset expira, IReloj reloj)
+    {
+        TokenRestablecimientoHash = TokenCuenta.Hash(token);
+        TokenRestablecimientoExpira = expira;
+        Tocar(reloj);
+    }
+
+    /// <summary>Restablece la contraseña comprobando el token y su caducidad. El token se consume.</summary>
+    public Resultado RestablecerConToken(string token, HashContrasena nuevoHash, IReloj reloj)
+    {
+        if (TokenRestablecimientoHash is null || TokenRestablecimientoHash != TokenCuenta.Hash(token))
+        {
+            return Resultado.Fallo(Error.Validacion("restablecimiento.token_invalido", "El enlace de restablecimiento no es válido."));
+        }
+
+        if (TokenRestablecimientoExpira is not null && TokenRestablecimientoExpira < reloj.AhoraUtc)
+        {
+            return Resultado.Fallo(Error.Validacion("restablecimiento.token_caducado", "El enlace de restablecimiento ha caducado."));
+        }
+
+        TokenRestablecimientoHash = null;
+        TokenRestablecimientoExpira = null;
+        CambiarContrasena(nuevoHash, reloj);
+        return Resultado.Ok();
     }
 
     /// <summary>Sustituye la contraseña por un nuevo hash.</summary>

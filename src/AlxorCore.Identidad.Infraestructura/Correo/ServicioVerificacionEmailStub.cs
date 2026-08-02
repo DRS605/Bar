@@ -15,10 +15,17 @@ internal sealed class ServicioVerificacionEmailStub : IServicioVerificacionEmail
 
     public ServicioVerificacionEmailStub(ILogger<ServicioVerificacionEmailStub> log) => _log = log;
 
-    public Task EnviarVerificacionAsync(Usuario usuario, CancellationToken ct = default)
+    public Task EnviarVerificacionAsync(Usuario usuario, string token, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(usuario);
-        _log.LogInformation("Correo de verificación pendiente de envío para {Email} (stub).", usuario.Email.Valor);
+        _log.LogInformation("Correo de verificación para {Email} (stub). Enlace: /?verificar={Token}", usuario.Email.Valor, token);
+        return Task.CompletedTask;
+    }
+
+    public Task EnviarRestablecimientoAsync(Usuario usuario, string token, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(usuario);
+        _log.LogInformation("Correo de restablecimiento para {Email} (stub). Enlace: /?restablecer={Token}", usuario.Email.Valor, token);
         return Task.CompletedTask;
     }
 }

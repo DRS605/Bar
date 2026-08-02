@@ -28,7 +28,13 @@ public sealed class FakeServicioVerificacionEmail : IServicioVerificacionEmail
 {
     public int Envios { get; private set; }
 
-    public Task EnviarVerificacionAsync(Usuario usuario, CancellationToken ct = default)
+    public Task EnviarVerificacionAsync(Usuario usuario, string token, CancellationToken ct = default)
+    {
+        Envios++;
+        return Task.CompletedTask;
+    }
+
+    public Task EnviarRestablecimientoAsync(Usuario usuario, string token, CancellationToken ct = default)
     {
         Envios++;
         return Task.CompletedTask;

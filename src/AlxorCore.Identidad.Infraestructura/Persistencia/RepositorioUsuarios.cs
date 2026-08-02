@@ -17,6 +17,12 @@ internal sealed class RepositorioUsuarios : IRepositorioUsuarios
     public Task<Usuario?> ObtenerPorIdAsync(Guid id, CancellationToken ct = default) =>
         _contexto.Usuarios.SingleOrDefaultAsync(u => u.Id == id, ct);
 
+    public Task<Usuario?> ObtenerPorTokenVerificacionAsync(string tokenHash, CancellationToken ct = default) =>
+        _contexto.Usuarios.SingleOrDefaultAsync(u => u.TokenVerificacionHash == tokenHash, ct);
+
+    public Task<Usuario?> ObtenerPorTokenRestablecimientoAsync(string tokenHash, CancellationToken ct = default) =>
+        _contexto.Usuarios.SingleOrDefaultAsync(u => u.TokenRestablecimientoHash == tokenHash, ct);
+
     public Task<bool> ExisteEmailAsync(Email email, CancellationToken ct = default) =>
         _contexto.Usuarios.AnyAsync(u => u.Email == email, ct);
 

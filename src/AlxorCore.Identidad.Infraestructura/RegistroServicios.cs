@@ -56,6 +56,8 @@ public static class RegistroServicios
         servicios.AddScoped<IniciarSesion>();
         servicios.AddScoped<ObtenerPerfil>();
         servicios.AddScoped<VerificarEmail>();
+        servicios.AddScoped<RecuperarContrasena>();
+        servicios.AddScoped<RestablecerContrasena>();
 
         return servicios;
     }

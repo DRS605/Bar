@@ -16,6 +16,12 @@ public sealed class FakeRepositorioUsuarios : IRepositorioUsuarios
     public Task<Usuario?> ObtenerPorIdAsync(Guid id, CancellationToken ct = default) =>
         Task.FromResult(_usuarios.FirstOrDefault(u => u.Id == id));
 
+    public Task<Usuario?> ObtenerPorTokenVerificacionAsync(string tokenHash, CancellationToken ct = default) =>
+        Task.FromResult(_usuarios.FirstOrDefault(u => u.TokenVerificacionHash == tokenHash));
+
+    public Task<Usuario?> ObtenerPorTokenRestablecimientoAsync(string tokenHash, CancellationToken ct = default) =>
+        Task.FromResult(_usuarios.FirstOrDefault(u => u.TokenRestablecimientoHash == tokenHash));
+
     public Task<bool> ExisteEmailAsync(Email email, CancellationToken ct = default) =>
         Task.FromResult(_usuarios.Any(u => u.Email == email));
 

@@ -56,6 +56,14 @@ internal sealed class ConfiguracionUsuario : IEntityTypeConfiguration<Usuario>
             .HasColumnName("actualizado_en")
             .IsRequired();
 
+        // Tokens de cuenta (solo el hash).
+        builder.Property(u => u.TokenVerificacionHash).HasColumnName("token_verificacion_hash").HasMaxLength(64);
+        builder.Property(u => u.TokenVerificacionExpira).HasColumnName("token_verificacion_expira");
+        builder.Property(u => u.TokenRestablecimientoHash).HasColumnName("token_restablecimiento_hash").HasMaxLength(64);
+        builder.Property(u => u.TokenRestablecimientoExpira).HasColumnName("token_restablecimiento_expira");
+        builder.HasIndex(u => u.TokenVerificacionHash).HasDatabaseName("ix_usuario_token_verificacion");
+        builder.HasIndex(u => u.TokenRestablecimientoHash).HasDatabaseName("ix_usuario_token_restablecimiento");
+
         // Los eventos de dominio no se persisten.
         builder.Ignore(u => u.EventosDominio);
     }

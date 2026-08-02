@@ -12,8 +12,23 @@ identidad del **usuario** y el vocabulario de **roles y permisos** de la platafo
 - Registrar usuarios (correo, nombre, contraseña).
 - Iniciar sesión y emitir un **JWT**.
 - Consultar el perfil del usuario autenticado.
-- Verificar el correo electrónico (envío real diferido al módulo Documentos; aquí un *stub*).
+- **Verificar el correo** con un token de un solo uso (enlace enviado al registrarse).
+- **Recuperar contraseña**: solicitar un enlace y restablecerla con un token con caducidad.
 - Definir el **catálogo de permisos** y los **roles** (Propietario, Usuario, Solo lectura).
+
+## Tokens de cuenta (verificación y restablecimiento)
+
+Al registrarse se emite un **token de verificación** (caduca en 48 h); recuperar contraseña emite un
+**token de restablecimiento** (caduca en 1 h). De cada token solo se almacena su **hash** (SHA-256):
+si se filtrase la base de datos, el token en claro no queda expuesto. El envío del enlace va por el
+puerto de correo (un *stub* en el MVP; en desarrollo/pruebas el token se devuelve en la respuesta
+para poder continuar sin correo real, nunca en producción).
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/auth/verificar-email` | Verifica el correo con `{ token }`. |
+| `POST` | `/auth/recuperar` | Solicita el enlace de restablecimiento (respuesta uniforme, no revela si el correo existe). |
+| `POST` | `/auth/restablecer` | Fija la nueva contraseña con `{ token, nuevaContrasena }`. |
 
 ## Estructura (Clean Architecture ligera)
 

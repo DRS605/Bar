@@ -14,6 +14,12 @@ public interface IRepositorioUsuarios
     /// <summary>Busca un usuario por su identificador, o <c>null</c> si no existe.</summary>
     Task<Usuario?> ObtenerPorIdAsync(Guid id, CancellationToken ct = default);
 
+    /// <summary>Busca un usuario por el hash de su token de verificación de correo.</summary>
+    Task<Usuario?> ObtenerPorTokenVerificacionAsync(string tokenHash, CancellationToken ct = default);
+
+    /// <summary>Busca un usuario por el hash de su token de restablecimiento de contraseña.</summary>
+    Task<Usuario?> ObtenerPorTokenRestablecimientoAsync(string tokenHash, CancellationToken ct = default);
+
     /// <summary>Indica si ya existe un usuario con ese correo.</summary>
     Task<bool> ExisteEmailAsync(Email email, CancellationToken ct = default);
 
