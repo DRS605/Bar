@@ -38,6 +38,7 @@ internal sealed class ConfiguracionGasto : IEntityTypeConfiguration<Gasto>
         builder.HasKey(g => g.Id);
         builder.Property(g => g.Id).HasColumnName("id");
         builder.Property(g => g.EmpresaId).HasColumnName("empresa_id").IsRequired();
+        builder.Property(g => g.ProveedorId).HasColumnName("proveedor_id");
         builder.Property(g => g.ProveedorTexto).HasColumnName("proveedor_texto").HasMaxLength(200);
         builder.Property(g => g.Concepto).HasColumnName("concepto").HasMaxLength(Gasto.LongitudMaximaConcepto).IsRequired();
         builder.Property(g => g.Fecha).HasColumnName("fecha").IsRequired();

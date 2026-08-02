@@ -1,5 +1,7 @@
 # Módulo Terceros
 
+Gestiona **clientes y proveedores** de cada empresa (ambos multiempresa, con RLS).
+
 Gestión de **clientes** de cada empresa. Es el primer módulo puramente multiempresa (todo su dato
 lleva `empresa_id`, con filtro global y RLS).
 
@@ -29,3 +31,8 @@ Direccion, PorcentajeIrpfDefecto (0–60 %, se prerrellena al facturar), Activo 
 - **Unitarios**: validaciones de `Cliente` (nombre, IRPF), creación/actualización/desactivación.
 - **Integración**: CRUD completo y **aislamiento por empresa** (una empresa no ve los clientes de
   otra).
+
+
+## Proveedores
+
+`Proveedor` { Nombre, NifFiscal opcional, Email, Direccion, PorcentajeIrpfDefecto, Activo }. CRUD en `/proveedores` (escritura con permiso `gasto.gestionar`). Los usa el módulo Gastos para enlazar cada gasto a un proveedor y copiar su nombre.

@@ -36,6 +36,14 @@ public static class RegistroServicios
         servicios.AddScoped<ListarClientes>();
         servicios.AddScoped<ObtenerCliente>();
 
+        servicios.AddScoped<RepositorioProveedores>();
+        servicios.AddScoped<IRepositorioProveedores>(sp => sp.GetRequiredService<RepositorioProveedores>());
+        servicios.AddScoped<IConsultaProveedores>(sp => sp.GetRequiredService<RepositorioProveedores>());
+        servicios.AddScoped<CrearProveedor>();
+        servicios.AddScoped<ActualizarProveedor>();
+        servicios.AddScoped<ListarProveedores>();
+        servicios.AddScoped<ObtenerProveedor>();
+
         return servicios;
     }
 }

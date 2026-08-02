@@ -31,8 +31,53 @@ public static class EndpointsTerceros
             .WithSummary("Actualiza un cliente.")
             .RequierePermiso(Permisos.ClienteGestionar);
 
+        var proveedores = rutas.MapGroup("/proveedores").WithTags("Proveedores");
+
+        proveedores.MapGet("", ListarProvAsync)
+            .WithSummary("Lista los proveedores de la empresa activa.")
+            .RequireAuthorization();
+
+        proveedores.MapGet("/{id:guid}", ObtenerProvAsync)
+            .WithSummary("Obtiene un proveedor.")
+            .RequireAuthorization();
+
+        proveedores.MapPost("", CrearProvAsync)
+            .WithSummary("Crea un proveedor.")
+            .RequierePermiso(Permisos.GastoGestionar);
+
+        proveedores.MapPut("/{id:guid}", ActualizarProvAsync)
+            .WithSummary("Actualiza un proveedor.")
+            .RequierePermiso(Permisos.GastoGestionar);
+
         return rutas;
     }
+
+    private static async Task<IResult> ListarProvAsync(IContextoEmpresa contexto, ListarProveedores caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> ObtenerProvAsync(Guid id, ObtenerProveedor caso, CancellationToken ct) =>
+        (await caso.EjecutarAsync(id, ct).ConfigureAwait(false)).AOk();
+
+    private static async Task<IResult> CrearProvAsync(DatosProveedor datos, IContextoEmpresa contexto, CrearProveedor caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, datos, ct).ConfigureAwait(false);
+        return resultado.EsCorrecto ? resultado.ACreado($"/proveedores/{resultado.Valor.Id}") : ResultadosHttp.AProblema(resultado.Error);
+    }
+
+    private static async Task<IResult> ActualizarProvAsync(Guid id, DatosProveedor datos, ActualizarProveedor caso, CancellationToken ct) =>
+        (await caso.EjecutarAsync(id, datos, ct).ConfigureAwait(false)).AOk();
 
     private static async Task<IResult> ListarAsync(IContextoEmpresa contexto, ListarClientes caso, CancellationToken ct)
     {

@@ -22,6 +22,8 @@ public sealed class TercerosDbContext : DbContextEmpresaBase, IUnidadDeTrabajoTe
 
     public DbSet<Cliente> Clientes => Set<Cliente>();
 
+    public DbSet<Proveedor> Proveedores => Set<Proveedor>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Esquema);
@@ -86,6 +88,65 @@ internal sealed class RepositorioClientes : IRepositorioClientes, IConsultaClien
 
         var clientes = await consulta.OrderBy(c => c.Nombre).ToListAsync(ct).ConfigureAwait(false);
         return clientes.Select(ClienteDto.Desde).ToList();
+    }
+}
+
+internal sealed class ConfiguracionProveedor : IEntityTypeConfiguration<Proveedor>
+{
+    public void Configure(EntityTypeBuilder<Proveedor> builder)
+    {
+        builder.ToTable("proveedor");
+        builder.HasKey(p => p.Id);
+        builder.Property(p => p.Id).HasColumnName("id");
+        builder.Property(p => p.EmpresaId).HasColumnName("empresa_id").IsRequired();
+        builder.Property(p => p.Nombre).HasColumnName("nombre").HasMaxLength(Proveedor.LongitudMaximaNombre).IsRequired();
+        builder.Property(p => p.NifFiscal).HasColumnName("nif_fiscal").HasMaxLength(20);
+        builder.Property(p => p.Email).HasColumnName("email").HasMaxLength(254);
+        builder.OwnsOne(p => p.Direccion, d =>
+        {
+            d.Property(x => x.Calle).HasColumnName("direccion_calle").HasMaxLength(200);
+            d.Property(x => x.CodigoPostal).HasColumnName("direccion_cp").HasMaxLength(10);
+            d.Property(x => x.Poblacion).HasColumnName("direccion_poblacion").HasMaxLength(120);
+            d.Property(x => x.Provincia).HasColumnName("direccion_provincia").HasMaxLength(120);
+            d.Property(x => x.Pais).HasColumnName("direccion_pais").HasMaxLength(2);
+        });
+        builder.Property(p => p.PorcentajeIrpfDefecto).HasColumnName("irpf_defecto").HasColumnType("numeric(5,2)").IsRequired();
+        builder.Property(p => p.Activo).HasColumnName("activo").IsRequired();
+        builder.Property(p => p.CreadoEn).HasColumnName("creado_en").IsRequired();
+        builder.Property(p => p.ActualizadoEn).HasColumnName("actualizado_en").IsRequired();
+
+        builder.HasIndex(p => new { p.EmpresaId, p.Nombre }).HasDatabaseName("ix_proveedor_empresa_nombre");
+        builder.Ignore(p => p.EventosDominio);
+    }
+}
+
+internal sealed class RepositorioProveedores : IRepositorioProveedores, IConsultaProveedores
+{
+    private readonly TercerosDbContext _contexto;
+
+    public RepositorioProveedores(TercerosDbContext contexto) => _contexto = contexto;
+
+    public Task<Proveedor?> ObtenerPorIdAsync(Guid id, CancellationToken ct = default) =>
+        _contexto.Proveedores.SingleOrDefaultAsync(p => p.Id == id, ct);
+
+    public void Agregar(Proveedor proveedor) => _contexto.Proveedores.Add(proveedor);
+
+    public async Task<ProveedorDto?> ObtenerAsync(Guid proveedorId, CancellationToken ct = default)
+    {
+        var proveedor = await _contexto.Proveedores.SingleOrDefaultAsync(p => p.Id == proveedorId, ct).ConfigureAwait(false);
+        return proveedor is null ? null : ProveedorDto.Desde(proveedor);
+    }
+
+    public async Task<IReadOnlyList<ProveedorDto>> ListarAsync(Guid empresaId, bool incluirInactivos = false, CancellationToken ct = default)
+    {
+        var consulta = _contexto.Proveedores.Where(p => p.EmpresaId == empresaId);
+        if (!incluirInactivos)
+        {
+            consulta = consulta.Where(p => p.Activo);
+        }
+
+        var proveedores = await consulta.OrderBy(p => p.Nombre).ToListAsync(ct).ConfigureAwait(false);
+        return proveedores.Select(ProveedorDto.Desde).ToList();
     }
 }
 

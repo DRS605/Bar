@@ -31,9 +31,10 @@ public sealed class Gasto : RaizAgregadoEmpresa<Guid>
         CodigoIva = null!;
     }
 
-    private Gasto(Guid id, Guid empresaId, string? proveedorTexto, string concepto, DateOnly fecha, decimal baseImponible, string codigoIva, decimal porcentajeIva, decimal porcentajeIrpf, DateTimeOffset ahora)
+    private Gasto(Guid id, Guid empresaId, Guid? proveedorId, string? proveedorTexto, string concepto, DateOnly fecha, decimal baseImponible, string codigoIva, decimal porcentajeIva, decimal porcentajeIrpf, DateTimeOffset ahora)
         : base(id, empresaId)
     {
+        ProveedorId = proveedorId;
         ProveedorTexto = proveedorTexto;
         Concepto = concepto;
         Fecha = fecha;
@@ -49,6 +50,10 @@ public sealed class Gasto : RaizAgregadoEmpresa<Guid>
         ActualizadoEn = ahora;
     }
 
+    /// <summary>Proveedor asociado (opcional; permite gastos rápidos sin proveedor fijo).</summary>
+    public Guid? ProveedorId { get; private set; }
+
+    /// <summary>Nombre del proveedor (copia del proveedor asociado, o texto libre).</summary>
     public string? ProveedorTexto { get; private set; }
 
     public string Concepto { get; private set; }
@@ -76,7 +81,7 @@ public sealed class Gasto : RaizAgregadoEmpresa<Guid>
     public DateTimeOffset ActualizadoEn { get; private set; }
 
     public static Resultado<Gasto> Registrar(
-        Guid empresaId, string? proveedorTexto, string? concepto, DateOnly fecha, decimal baseImponible, string? codigoIva, decimal porcentajeIrpf, IReloj reloj)
+        Guid empresaId, Guid? proveedorId, string? proveedorTexto, string? concepto, DateOnly fecha, decimal baseImponible, string? codigoIva, decimal porcentajeIrpf, IReloj reloj)
     {
         ArgumentNullException.ThrowIfNull(reloj);
 
@@ -107,7 +112,7 @@ public sealed class Gasto : RaizAgregadoEmpresa<Guid>
         }
 
         var gasto = new Gasto(
-            Guid.NewGuid(), empresaId, Normalizar(proveedorTexto), concepto.Trim(), fecha, Redondeo.Dos(baseImponible),
+            Guid.NewGuid(), empresaId, proveedorId, Normalizar(proveedorTexto), concepto.Trim(), fecha, Redondeo.Dos(baseImponible),
             impuesto.Valor.Codigo, impuesto.Valor.Porcentaje, porcentajeIrpf, reloj.AhoraUtc);
         gasto.RegistrarEvento(new GastoRegistrado(gasto.Id, empresaId, gasto.Total, reloj.AhoraUtc));
         return Resultado.Ok(gasto);

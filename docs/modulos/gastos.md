@@ -1,7 +1,6 @@
 # Módulo Gastos
 
-Registro de **gastos** (facturas recibidas simplificadas). El proveedor se guarda como **texto
-libre** (en el MVP no hay entidad Proveedor).
+Registro de **gastos** (facturas recibidas simplificadas). Cada gasto puede enlazarse a un **proveedor** (entidad del módulo Terceros): se guarda su id y una copia de su nombre. También admite proveedor como texto libre para altas rápidas.
 
 ## Modelo
 

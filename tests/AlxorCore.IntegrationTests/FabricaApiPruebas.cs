@@ -60,7 +60,7 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>, IAsyncLi
         await tesoreria.Database.MigrateAsync().ConfigureAwait(false);
 
         await identidad.Database.ExecuteSqlRawAsync(
-            "TRUNCATE identidad.usuario, organizacion.empresa, organizacion.membresia, organizacion.serie_numeracion, terceros.cliente, catalogo.producto, facturacion.factura, facturacion.linea_factura, gastos.gasto, tesoreria.movimiento")
+            "TRUNCATE identidad.usuario, organizacion.empresa, organizacion.membresia, organizacion.serie_numeracion, terceros.cliente, terceros.proveedor, catalogo.producto, facturacion.factura, facturacion.linea_factura, gastos.gasto, tesoreria.movimiento")
             .ConfigureAwait(false);
     }
 

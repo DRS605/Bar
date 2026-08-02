@@ -3,6 +3,7 @@ using System;
 using AlxorCore.Gastos.Infraestructura;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AlxorCore.Gastos.Infraestructura.Persistencia.Migraciones
 {
     [DbContext(typeof(GastosDbContext))]
-    partial class GastosDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260802085351_GastoProveedorId")]
+    partial class GastoProveedorId
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
