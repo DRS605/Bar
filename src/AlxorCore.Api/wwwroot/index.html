@@ -368,8 +368,9 @@
     async function vFacturas() {
       view('<div class="muted">Cargando…</div>');
       const fs=await api("/facturas");
-      const filas=fs.map(f=>`<tr><td><strong>${f.numeroCompleto}</strong></td><td>${f.clienteNombre}</td><td class="muted">${f.fechaEmision}</td><td class="num">${eur(f.baseImponible)}</td><td class="num">${eur(f.cuotaIva)}</td><td class="num"><strong>${eur(f.total)}</strong></td><td class="right"><span class="pill ok">${f.estado}</span></td></tr>`).join("");
-      const cuerpo=fs.length?`<table><thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th class="num">Base</th><th class="num">IVA</th><th class="num">Total</th><th class="right">Estado</th></tr></thead><tbody>${filas}</tbody></table>`:vacio("facturas","Todavía no hay facturas","Emite la primera; el número y los impuestos los ponemos nosotros.",`<button class="btn small" onclick="modalFactura()">+ Nueva factura</button>`);
+      const tipoPill=f=>f.tipo==="Simplificada"?'<span class="pill part" style="margin-left:8px">Ticket</span>':"";
+      const filas=fs.map(f=>`<tr><td><strong>${f.numeroCompleto}</strong>${tipoPill(f)}</td><td>${f.clienteNombre}</td><td class="muted">${f.fechaEmision}</td><td class="num">${eur(f.baseImponible)}</td><td class="num">${eur(f.cuotaIva)}</td><td class="num"><strong>${eur(f.total)}</strong></td><td class="right"><span class="pill ok">${f.estado}</span></td><td class="right"><button class="btn small ghost" onclick="abrirPdf('${f.id}')">PDF</button></td></tr>`).join("");
+      const cuerpo=fs.length?`<table><thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th class="num">Base</th><th class="num">IVA</th><th class="num">Total</th><th class="right">Estado</th><th></th></tr></thead><tbody>${filas}</tbody></table>`:vacio("facturas","Todavía no hay facturas","Emite la primera; el número y los impuestos los ponemos nosotros.",`<button class="btn small" onclick="modalFactura()">+ Nueva factura</button>`);
       view(panel("Facturas emitidas",cuerpo,`<button class="btn small" onclick="modalFactura()">+ Nueva factura</button>`));
     }
     async function vRecurrentes() {
@@ -386,7 +387,7 @@
     async function procesarRecurrentes(){ try{ const r=await api("/facturas-recurrentes/procesar",{method:"POST"});
       alert(r.emitidas?`Se ${r.emitidas===1?"ha emitido 1 factura":"han emitido "+r.emitidas+" facturas"} automáticamente.`:"No había facturas periódicas vencidas."); vRecurrentes(); }catch(e){ alert(e.message);} }
     /* ---------- TPV / Tickets ---------- */
-    let tpvProductos=[], tpvCart=[], tpvStream=null, tpvTimer=null, tpvDetector=null, tpvUltimo=0;
+    let tpvProductos=[], tpvCart=[], tpvStream=null, tpvTimer=null, tpvDetector=null, tpvUltimo=0, tpvMetodo="Efectivo", tpvUltimoTicket=null;
     async function vTpv() {
       view('<div class="muted">Cargando artículos…</div>');
       tpvProductos = await api("/productos");
@@ -397,6 +398,7 @@
         : `<button class="btn small secondary" onclick="tpvSinCamara()">📷 Escáner de cámara</button>`;
       const izq=`<div class="panel"><div class="panel-head"><h2>Punto de venta</h2>${scanBtn}</div>
         <div style="padding:16px 18px">
+          <div id="tpvUltimo"></div>
           <div id="tpvVideoWrap"><video id="tpvVideo" playsinline muted></video><div class="scanline"></div><div class="scanhint">Apunta al código de barras del artículo · <a href="#" onclick="tpvParar();return false" style="color:#7fe3f7">detener</a></div></div>
           <div class="scanbar"><input id="tpvBuscar" placeholder="Escanea (lector USB) o busca por código / nombre…" oninput="tpvPintarResultados()" onkeydown="tpvBuscarKey(event)" autofocus/></div>
           <div class="tpv-res" id="tpvResultados"></div>
@@ -404,8 +406,11 @@
       const der=`<div class="panel tpv-cart"><div class="panel-head"><h2>Ticket</h2><span class="pill part">Serie T</span></div>
         <div style="padding:14px 18px"><div id="tpvCart"></div></div></div>`;
       view(`<div class="tpv">${izq}${der}</div>`);
-      tpvPintarResultados(); tpvPintarCarrito();
+      tpvPintarResultados(); tpvPintarCarrito(); tpvPintarUltimo();
     }
+    function tpvPintarUltimo(){ const el=document.getElementById("tpvUltimo"); if(!el)return;
+      if(!tpvUltimoTicket){ el.innerHTML=""; return; }
+      el.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--accent-soft);border-radius:12px;padding:10px 14px;margin-bottom:14px"><span>Último ticket: <strong class="mono">${tpvUltimoTicket.numero}</strong> · ${eur(tpvUltimoTicket.total)} <span class="muted">(${tpvUltimoTicket.metodo})</span></span><button class="btn small ghost" onclick="abrirPdf('${tpvUltimoTicket.id}',true)">🖨️ Imprimir ticket</button></div>`; }
     function tpvSinCamara(){ toast("Tu navegador no permite escáner de cámara aquí. Usa un lector USB o el buscador.","err"); }
     function tpvBuscarKey(e){ if(e.key!=="Enter")return; const q=e.target.value.trim(); if(!q)return;
       const p=tpvProductos.find(x=>x.referencia&&x.referencia.toLowerCase()===q.toLowerCase());
@@ -424,16 +429,29 @@
       const filas=tpvCart.map((l,i)=>{ const b=l.cantidad*l.precioUnitario; base+=b; iva+=b*l.porcentajeIva/100;
         return `<div class="cart-line"><div class="cl-n">${l.descripcion}<br><small>${eur(l.precioUnitario)} · IVA ${l.porcentajeIva}%</small></div><div class="step"><button onclick="tpvPaso(${i},-1)">−</button><b>${l.cantidad}</b><button onclick="tpvPaso(${i},1)">+</button></div><div class="num" style="width:74px;text-align:right"><strong>${eur(b)}</strong></div></div>`; }).join("");
       const total=base+iva;
+      const metodos=["Efectivo","Tarjeta","Bizum"].map(m=>`<option value="${m}"${m===tpvMetodo?" selected":""}>${m}</option>`).join("");
       el.innerHTML=filas+`<div style="margin-top:12px">
         <div class="cart-tot"><span>Base</span><span>${eur(base)}</span></div>
         <div class="cart-tot"><span>IVA</span><span>${eur(iva)}</span></div>
         <div class="cart-tot big"><span>Total</span><span>${eur(total)}</span></div>
+        <label style="margin-top:12px">Método de pago</label><select id="tpvMetodo" onchange="tpvMetodo=this.value">${metodos}</select>
         <button class="btn" style="margin-top:14px" onclick="tpvCobrar()">Cobrar y emitir ticket · ${eur(total)}</button></div>`; }
     async function tpvCobrar(){ if(!tpvCart.length){ toast("Añade artículos al ticket.","err"); return; }
       const lineas=tpvCart.map(l=>({descripcion:l.descripcion,cantidad:l.cantidad,precioUnitario:l.precioUnitario,codigoIva:l.codigoIva}));
       try{ const t=await api("/tickets",{method:"POST",body:JSON.stringify({lineas})});
-        tpvCart=[]; tpvPintarCarrito(); toast(`Ticket ${t.numeroCompleto} emitido · ${eur(t.total)}`,"ok"); }
+        // El ticket se cobra en el acto: registramos el cobro por el total con su método de pago.
+        try{ await api("/cobros",{method:"POST",body:JSON.stringify({facturaId:t.id,importe:t.total,metodo:tpvMetodo})}); }catch(e){ toast("Ticket emitido, pero el cobro no se registró: "+e.message,"err"); }
+        tpvUltimoTicket={id:t.id,numero:t.numeroCompleto,total:t.total,metodo:tpvMetodo};
+        tpvCart=[]; tpvPintarCarrito(); tpvPintarUltimo();
+        toast(`Ticket ${t.numeroCompleto} cobrado (${tpvMetodo}) · ${eur(t.total)}`,"ok"); }
       catch(e){ toast(e.message,"err"); } }
+    async function abrirPdf(id, imprimir){ try{
+        const r=await fetch(`/facturas/${id}/pdf`,{headers:{Authorization:"Bearer "+token}});
+        if(!r.ok) throw new Error("No se pudo generar el PDF");
+        const u=URL.createObjectURL(await r.blob()); const w=window.open(u,"_blank");
+        if(imprimir&&w){ w.addEventListener("load",()=>{ try{ w.focus(); w.print(); }catch{} }); }
+        setTimeout(()=>URL.revokeObjectURL(u),60000);
+      }catch(e){ toast(e.message,"err"); } }
     async function tpvEscanear(){ if(!('BarcodeDetector' in window)){ tpvSinCamara(); return; }
       try{ tpvStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
         const v=document.getElementById("tpvVideo"); v.srcObject=tpvStream; await v.play();

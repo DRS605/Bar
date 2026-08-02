@@ -53,7 +53,10 @@ identifica se congela como *"Cliente de contado"* y `cliente_id` queda nulo) y c
 
 El caso de uso `EmitirTicket` comparte con la emisión ordinaria la resolución de líneas y la
 numeración correlativa. El TPV de la interfaz añade artículos por **código de barras** (cámara del
-móvil vía `BarcodeDetector`, o lector USB / buscador) y cobra en un toque.
+móvil vía `BarcodeDetector`, o lector USB / buscador), **cobra en el acto** (registra el cobro por el
+total con su método de pago en Tesorería) y permite **imprimir el ticket**. El PDF de un ticket se
+genera en **formato rollo de 80 mm** (el resto de facturas siguen en A4), reutilizando el mismo
+endpoint `GET /facturas/{id}/pdf`.
 
 | Método | Ruta | Auth | Descripción |
 |---|---|---|---|

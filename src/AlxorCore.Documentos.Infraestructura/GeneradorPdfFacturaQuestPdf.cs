@@ -16,6 +16,14 @@ internal sealed class GeneradorPdfFacturaQuestPdf : IGeneradorPdfFactura
         ArgumentNullException.ThrowIfNull(factura);
         ArgumentNullException.ThrowIfNull(emisor);
 
+        // Un ticket (factura simplificada) se imprime en formato rollo de 80 mm; el resto en A4.
+        return string.Equals(factura.Tipo, "Simplificada", StringComparison.OrdinalIgnoreCase)
+            ? GenerarTicket(factura, emisor)
+            : GenerarFacturaA4(factura, emisor);
+    }
+
+    private static byte[] GenerarFacturaA4(FacturaDto factura, EmpresaDto emisor)
+    {
         var documento = Document.Create(contenedor =>
         {
             contenedor.Page(pagina =>
@@ -98,6 +106,61 @@ internal sealed class GeneradorPdfFacturaQuestPdf : IGeneradorPdfFactura
                 {
                     texto.Span("ALXOR Core · ").FontColor(Colors.Grey.Medium);
                     texto.Span(emisor.RazonSocial).FontColor(Colors.Grey.Medium);
+                });
+            });
+        });
+
+        return documento.GeneratePdf();
+    }
+
+    /// <summary>Genera el PDF de un ticket (factura simplificada) en formato rollo de 80 mm.</summary>
+    private static byte[] GenerarTicket(FacturaDto factura, EmpresaDto emisor)
+    {
+        var documento = Document.Create(contenedor =>
+        {
+            contenedor.Page(pagina =>
+            {
+                pagina.ContinuousSize(72, Unit.Millimetre);
+                pagina.Margin(6, Unit.Millimetre);
+                pagina.DefaultTextStyle(x => x.FontSize(8).FontFamily(Fonts.Calibri));
+
+                pagina.Content().Column(col =>
+                {
+                    col.Spacing(2);
+
+                    col.Item().AlignCenter().Text(emisor.RazonSocial).Bold().FontSize(11);
+                    col.Item().AlignCenter().Text($"NIF: {emisor.Nif}");
+                    col.Item().PaddingVertical(3).LineHorizontal(0.5f).LineColor(Colors.Grey.Medium);
+
+                    col.Item().AlignCenter().Text("TICKET · FACTURA SIMPLIFICADA").Bold();
+                    col.Item().AlignCenter().Text(factura.NumeroCompleto);
+                    col.Item().AlignCenter().Text($"{factura.FechaEmision:dd/MM/yyyy}");
+                    col.Item().PaddingVertical(3).LineHorizontal(0.5f).LineColor(Colors.Grey.Medium);
+
+                    foreach (var linea in factura.Lineas)
+                    {
+                        col.Item().Text(linea.Descripcion);
+                        col.Item().Row(fila =>
+                        {
+                            fila.RelativeItem().Text($"{Redondeo.Formatear(linea.Cantidad)} × {Redondeo.Formatear(linea.PrecioUnitario)} €  (IVA {linea.PorcentajeIva:0}%)").FontColor(Colors.Grey.Darken1);
+                            fila.ConstantItem(70).AlignRight().Text($"{Redondeo.Formatear(linea.Base + linea.CuotaIva)} €");
+                        });
+                    }
+
+                    col.Item().PaddingVertical(3).LineHorizontal(0.5f).LineColor(Colors.Grey.Medium);
+
+                    col.Item().Row(f => { f.RelativeItem().Text("Base"); f.ConstantItem(70).AlignRight().Text($"{Redondeo.Formatear(factura.BaseImponible)} €"); });
+                    col.Item().Row(f => { f.RelativeItem().Text("IVA"); f.ConstantItem(70).AlignRight().Text($"{Redondeo.Formatear(factura.CuotaIva)} €"); });
+                    col.Item().PaddingTop(2).Row(f =>
+                    {
+                        f.RelativeItem().Text("TOTAL").Bold().FontSize(11);
+                        f.ConstantItem(80).AlignRight().Text($"{Redondeo.Formatear(factura.Total)} €").Bold().FontSize(11);
+                    });
+                    col.Item().AlignCenter().PaddingTop(2).Text("IVA incluido").FontColor(Colors.Grey.Darken1);
+
+                    col.Item().PaddingVertical(4).LineHorizontal(0.5f).LineColor(Colors.Grey.Medium);
+                    col.Item().AlignCenter().Text("¡Gracias por su compra!").Bold();
+                    col.Item().AlignCenter().PaddingTop(4).Text("ALXOR Core").FontSize(7).FontColor(Colors.Grey.Medium);
                 });
             });
         });

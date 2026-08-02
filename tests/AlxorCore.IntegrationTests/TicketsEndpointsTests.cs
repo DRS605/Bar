@@ -58,4 +58,36 @@ public sealed class TicketsEndpointsTests : IClassFixture<FabricaApiPruebas>
 
         resp.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
+
+    [Fact]
+    public async Task El_ticket_genera_un_pdf()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var ticket = await (await cliente.PostAsJsonAsync("/tickets", Ticket(
+            new[] { new { Cantidad = 1m, Descripcion = "Refresco", PrecioUnitario = 2m, CodigoIva = "IVA10" } })))
+            .Content.ReadFromJsonAsync<FacturaResp>();
+
+        var pdf = await cliente.GetAsync(new Uri($"/facturas/{ticket!.Id}/pdf", UriKind.Relative));
+        pdf.StatusCode.Should().Be(HttpStatusCode.OK);
+        pdf.Content.Headers.ContentType!.MediaType.Should().Be("application/pdf");
+        (await pdf.Content.ReadAsByteArrayAsync()).Length.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task El_ticket_se_puede_cobrar_y_queda_liquidado()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var ticket = await (await cliente.PostAsJsonAsync("/tickets", Ticket(
+            new[] { new { Cantidad = 2m, Descripcion = "Café", PrecioUnitario = 1.50m, CodigoIva = "IVA10" } })))
+            .Content.ReadFromJsonAsync<FacturaResp>();
+
+        var cobro = await cliente.PostAsJsonAsync("/cobros", new { FacturaId = ticket!.Id, Importe = ticket.Total, Metodo = "Efectivo" });
+        cobro.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var saldo = await cliente.GetFromJsonAsync<SaldoResp>($"/facturas/{ticket.Id}/saldo");
+        saldo!.Estado.Should().Be("Liquidado");
+        saldo.Pendiente.Should().Be(0m);
+    }
+
+    private sealed record SaldoResp(string Estado, decimal Liquidado, decimal Pendiente);
 }
