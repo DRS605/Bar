@@ -45,6 +45,10 @@ public static class RegistroServicios
         servicios.AddScoped<SeleccionarEmpresa>();
         servicios.AddScoped<CrearSerie>();
         servicios.AddScoped<ListarSeries>();
+        servicios.AddScoped<ListarMembresias>();
+        servicios.AddScoped<AgregarMembresia>();
+        servicios.AddScoped<CambiarRolMembresia>();
+        servicios.AddScoped<RevocarMembresia>();
 
         return servicios;
     }

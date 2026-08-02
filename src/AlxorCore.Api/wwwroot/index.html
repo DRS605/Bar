@@ -578,8 +578,39 @@
       const cuerpo=series.length?`<table><thead><tr><th>Serie</th><th>Documento</th><th>Ejercicio</th><th class="num">Próximo número</th></tr></thead><tbody>${filas}</tbody></table>`
         :vacio("ajustes","Aún no hay series propias","La serie <b>FA</b> se crea sola al emitir tu primera factura. Crea más series (p. ej. <b>R</b> para rectificativas o <b>T</b> para tickets) cuando las necesites.",`<button class="btn small" onclick="modalSerie()">+ Nueva serie</button>`);
       const intro=`<p class="muted" style="margin:0 0 16px">Cada serie numera sus facturas de forma <strong>correlativa y sin huecos</strong>, y reinicia el contador cada ejercicio. Al emitir una factura podrás elegir en qué serie va.</p>`;
-      view(panel("Series de facturación",intro+cuerpo,`<button class="btn small" onclick="modalSerie()">+ Nueva serie</button>`));
+      const panelSeries=panel("Series de facturación",intro+cuerpo,`<button class="btn small" onclick="modalSerie()">+ Nueva serie</button>`);
+      let panelUsuarios="";
+      try{ panelUsuarios=await panelUsuariosHtml(); }catch(e){ panelUsuarios=""; }
+      view(panelSeries+panelUsuarios);
     }
+    const ROLES=[["propietario","Propietario"],["usuario","Usuario"],["solo_lectura","Solo lectura"]];
+    const rolNombre=c=>(ROLES.find(r=>r[0]===c)||[,c])[1];
+    async function panelUsuariosHtml(){
+      const ms=await api("/usuarios");
+      const ini=n=>`<span class="avatar mini">${(n||'?').slice(0,1).toUpperCase()}</span>`;
+      const filas=ms.map(m=>{
+        const rev=m.estado==="Revocada";
+        const sel=`<select onchange="cambiarRol('${m.usuarioId}',this.value)" ${rev?'disabled':''}>${ROLES.map(r=>`<option value="${r[0]}"${r[0]===m.rol?' selected':''}>${r[1]}</option>`).join("")}</select>`;
+        const acc=(m.esYo||rev)?"":`<button class="btn small secondary" onclick="revocarMiembro('${m.usuarioId}','${(m.nombre||m.email).replace(/'/g,"")}')">Revocar</button>`;
+        const est=rev?'<span class="pill wait">Revocado</span>':(m.emailVerificado?'<span class="pill ok">Verificado</span>':'<span class="pill part">Sin verificar</span>');
+        const yo=m.esYo?' <span class="muted">(tú)</span>':'';
+        return `<tr><td>${ini(m.nombre)}<strong>${m.nombre}</strong>${yo}</td><td class="muted">${m.email}</td><td>${sel}</td><td class="right">${est}</td><td class="right">${acc}</td></tr>`;}).join("");
+      const cuerpo=`<table><thead><tr><th>Usuario</th><th>Correo</th><th>Rol</th><th class="right">Estado</th><th></th></tr></thead><tbody>${filas}</tbody></table>`;
+      const intro=`<p class="muted" style="margin:0 0 16px">Invita a tu equipo o a tu gestoría y asígnales un rol: <strong>Propietario</strong> (todo), <strong>Usuario</strong> (operativa diaria) o <strong>Solo lectura</strong> (consulta y exportación).</p>`;
+      return panel("Usuarios y permisos",intro+cuerpo,`<button class="btn small" onclick="modalInvitar()">+ Invitar usuario</button>`);
+    }
+    function modalInvitar(){
+      const roles=ROLES.map(r=>`<option value="${r[0]}"${r[0]==="usuario"?" selected":""}>${r[1]}</option>`).join("");
+      abrir("Invitar usuario",`<p class="muted" style="margin:0 0 12px">Le enviaremos un enlace para que fije su contraseña y entre en tu empresa.</p>
+        <div class="grid2"><div><label>Correo electrónico</label><input id="inv_email" type="email" placeholder="persona@correo.com"/></div><div><label>Nombre (opcional)</label><input id="inv_nombre"/></div></div>
+        <label>Rol</label><select id="inv_rol">${roles}</select>
+        <div id="inv_res" style="margin-top:12px"></div>`,
+        async()=>{ const r=await api("/usuarios/invitar",{method:"POST",body:JSON.stringify({email:val("inv_email"),nombre:val("inv_nombre")||null,rol:val("inv_rol")})});
+          if(r.enlaceContrasena){ toast("Invitado. Enlace (modo demo): copia el código para que fije su contraseña.","ok"); }
+          else { toast(r.creado?"Usuario invitado.":"Usuario añadido a la empresa.","ok"); }
+          vAjustes(); }); }
+    async function cambiarRol(id,rol){ try{ await api(`/usuarios/${id}/rol`,{method:"POST",body:JSON.stringify({rol})}); toast("Rol actualizado.","ok"); }catch(e){ toast(e.message,"err"); vAjustes(); } }
+    async function revocarMiembro(id,nombre){ if(!confirm(`¿Revocar el acceso de ${nombre}?`))return; try{ await api(`/usuarios/${id}/revocar`,{method:"POST"}); toast("Acceso revocado.","ok"); vAjustes(); }catch(e){ toast(e.message,"err"); } }
     function modalSerie(){ const anio=new Date().getFullYear();
       abrir("Nueva serie de facturación",`<label>Prefijo de la serie</label><input id="s_pref" maxlength="10" placeholder="Ej. R, T, EXP…" style="text-transform:uppercase"/>
         <div class="grid2"><div><label>Ejercicio</label><input id="s_anio" type="number" value="${anio}"/></div><div><label>Documento</label><select id="s_tipo"><option value="Factura">Factura</option></select></div></div>

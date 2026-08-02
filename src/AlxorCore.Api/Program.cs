@@ -129,6 +129,7 @@ app.MapGet("/salud", () => Results.Ok(new { estado = "ok" }))
 
 app.MapearIdentidad();
 app.MapearOrganizacion();
+app.MapearUsuarios();
 app.MapearTerceros();
 app.MapearCatalogo();
 app.MapearFacturacion();

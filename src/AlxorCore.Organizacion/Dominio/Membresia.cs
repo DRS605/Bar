@@ -59,4 +59,14 @@ public sealed class Membresia : RaizAgregado<Guid>
 
     /// <summary>Revoca la membresía. Idempotente.</summary>
     public void Revocar() => Estado = EstadoMembresia.Revocada;
+
+    /// <summary>Reactiva una membresía revocada.</summary>
+    public void Reactivar() => Estado = EstadoMembresia.Activa;
+
+    /// <summary>Cambia el rol de la membresía.</summary>
+    public void CambiarRol(Rol rol)
+    {
+        ArgumentNullException.ThrowIfNull(rol);
+        RolCodigo = rol.Codigo;
+    }
 }

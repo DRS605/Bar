@@ -40,6 +40,9 @@ internal sealed class RepositorioMembresias : IRepositorioMembresias
         _contexto.Membresias.SingleOrDefaultAsync(m => m.UsuarioId == usuarioId && m.EmpresaId == empresaId, ct);
 
     public void Agregar(Membresia membresia) => _contexto.Membresias.Add(membresia);
+
+    public async Task<IReadOnlyList<Membresia>> ListarPorEmpresaAsync(Guid empresaId, CancellationToken ct = default) =>
+        await _contexto.Membresias.Where(m => m.EmpresaId == empresaId).OrderBy(m => m.CreadoEn).ToListAsync(ct).ConfigureAwait(false);
 }
 
 internal sealed class RepositorioSeries : IRepositorioSeries

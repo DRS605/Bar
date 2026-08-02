@@ -38,6 +38,7 @@ public static class RegistroServicios
         // Unidad de trabajo respaldada por el DbContext del módulo.
         servicios.AddScoped<IUnidadDeTrabajoIdentidad>(sp => sp.GetRequiredService<IdentidadDbContext>());
         servicios.AddScoped<IRepositorioUsuarios, RepositorioUsuarios>();
+        servicios.AddScoped<IConsultaUsuarios, ConsultaUsuarios>();
         servicios.AddScoped<IPublicadorEventos, PublicadorEventosRegistro>();
         servicios.AddScoped<IServicioVerificacionEmail, ServicioVerificacionEmailStub>();
 
@@ -58,6 +59,7 @@ public static class RegistroServicios
         servicios.AddScoped<VerificarEmail>();
         servicios.AddScoped<RecuperarContrasena>();
         servicios.AddScoped<RestablecerContrasena>();
+        servicios.AddScoped<CrearUsuarioInvitado>();
 
         return servicios;
     }

@@ -56,6 +56,18 @@ su propio contador. Lo consume Facturación: al emitir una factura se puede eleg
 | `GET` | `/empresas/actual` | JWT + empresa | Empresa activa. |
 | `GET` | `/series` | JWT + empresa | Series de la empresa activa. |
 | `POST` | `/series` | permiso `empresa.ajustes` | Crea una serie. |
+| `GET` | `/usuarios` | permiso `usuario.gestionar` | Miembros de la empresa (usuario + rol). |
+| `POST` | `/usuarios/invitar` | permiso `usuario.gestionar` | Invita a un usuario con un rol. |
+| `POST` | `/usuarios/{id}/rol` | permiso `usuario.gestionar` | Cambia el rol de un miembro. |
+| `POST` | `/usuarios/{id}/revocar` | permiso `usuario.gestionar` | Revoca el acceso de un miembro. |
+
+## Gestión de usuarios (membresías)
+
+Los endpoints `/usuarios` (en `EndpointsUsuarios`) **orquestan** Identidad y Organización: listar los
+miembros de la empresa activa (membresía + datos del usuario), **invitar** (si el correo no existe se
+crea el usuario con una contraseña aleatoria y un token de restablecimiento para que fije la suya),
+**cambiar el rol** y **revocar** el acceso. Los roles son Propietario, Usuario y Solo lectura
+(`AlxorCore.Nucleo.Autorizacion.Rol`). No puedes revocarte a ti mismo.
 
 ## Modelo y persistencia
 

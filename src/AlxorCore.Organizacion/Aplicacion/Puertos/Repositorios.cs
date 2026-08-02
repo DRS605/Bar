@@ -18,6 +18,9 @@ public interface IRepositorioMembresias
     Task<Membresia?> ObtenerAsync(Guid usuarioId, Guid empresaId, CancellationToken ct = default);
 
     void Agregar(Membresia membresia);
+
+    /// <summary>Membresías (activas y revocadas) de una empresa.</summary>
+    Task<IReadOnlyList<Membresia>> ListarPorEmpresaAsync(Guid empresaId, CancellationToken ct = default);
 }
 
 /// <summary>Repositorio de series de numeración.</summary>
