@@ -523,30 +523,30 @@
 
     async function vClientes() {
       view('<div class="muted">Cargando…</div>');
-      const cs=await api("/clientes");
+      const cs=await api("/clientes"); _cacheCli=cs;
       const ini = n => `<span class="avatar mini">${(n||'?').slice(0,1).toUpperCase()}</span>`;
-      const filas=cs.map(c=>`<tr><td>${ini(c.nombre)}<strong>${c.nombre}</strong></td><td class="muted">${c.nifFiscal||"—"}</td><td class="muted">${c.email||"—"}</td><td class="num">${c.porcentajeIrpfDefecto>0?c.porcentajeIrpfDefecto+"%":"—"}</td></tr>`).join("");
-      const cuerpo=cs.length?`<table><thead><tr><th>Nombre</th><th>NIF</th><th>Email</th><th class="num">IRPF</th></tr></thead><tbody>${filas}</tbody></table>`:vacio("clientes","Sin clientes todavía","Añade tu primer cliente o impórtalos desde un CSV.",`<button class="btn small" onclick="modalCliente()">+ Nuevo cliente</button>`);
+      const filas=cs.map(c=>`<tr><td>${ini(c.nombre)}<strong>${c.nombre}</strong></td><td class="muted">${c.nifFiscal||"—"}</td><td class="muted">${c.email||"—"}</td><td class="num">${c.porcentajeIrpfDefecto>0?c.porcentajeIrpfDefecto+"%":"—"}</td><td class="right"><button class="btn small secondary" onclick="editarCliente('${c.id}')">Editar</button></td></tr>`).join("");
+      const cuerpo=cs.length?`<table><thead><tr><th>Nombre</th><th>NIF</th><th>Email</th><th class="num">IRPF</th><th></th></tr></thead><tbody>${filas}</tbody></table>`:vacio("clientes","Sin clientes todavía","Añade tu primer cliente o impórtalos desde un CSV.",`<button class="btn small" onclick="modalCliente()">+ Nuevo cliente</button>`);
       const acc=`<div style="display:flex;gap:10px"><button class="btn small ghost" onclick="modalImportar('clientes')">↥ Importar CSV</button><button class="btn small" onclick="modalCliente()">+ Nuevo cliente</button></div>`;
       view(panel("Clientes",cuerpo,acc));
     }
     async function vProveedores() {
       view('<div class="muted">Cargando…</div>');
-      const ps=await api("/proveedores");
+      const ps=await api("/proveedores"); _cacheProv=ps;
       const ini = n => `<span class="avatar mini">${(n||'?').slice(0,1).toUpperCase()}</span>`;
       const pago=c=>({NoIndicada:"—",Transferencia:"Transferencia",Domiciliacion:"Domiciliación",Efectivo:"Efectivo",Tarjeta:"Tarjeta",Pagare:"Pagaré",Confirming:"Confirming",Otro:"Otro"}[c]||"—");
-      const filas=ps.map(p=>`<tr><td>${ini(p.nombre)}<strong>${p.nombre}</strong></td><td class="muted">${p.nifFiscal||"—"}</td><td class="muted">${pago(p.formaPago)}</td><td class="muted">${p.email||"—"}</td><td class="num">${p.porcentajeIrpfDefecto>0?p.porcentajeIrpfDefecto+"%":"—"}</td></tr>`).join("");
-      const cuerpo=ps.length?`<table><thead><tr><th>Nombre</th><th>NIF</th><th>Forma de pago</th><th>Email</th><th class="num">IRPF</th></tr></thead><tbody>${filas}</tbody></table>`:vacio("proveedores","Sin proveedores todavía","Da de alta a tus proveedores para asociarlos a tus gastos.",`<button class="btn small" onclick="modalProveedor()">+ Nuevo proveedor</button>`);
+      const filas=ps.map(p=>`<tr><td>${ini(p.nombre)}<strong>${p.nombre}</strong></td><td class="muted">${p.nifFiscal||"—"}</td><td class="muted">${pago(p.formaPago)}</td><td class="muted">${p.email||"—"}</td><td class="num">${p.porcentajeIrpfDefecto>0?p.porcentajeIrpfDefecto+"%":"—"}</td><td class="right"><button class="btn small secondary" onclick="editarProveedor('${p.id}')">Editar</button></td></tr>`).join("");
+      const cuerpo=ps.length?`<table><thead><tr><th>Nombre</th><th>NIF</th><th>Forma de pago</th><th>Email</th><th class="num">IRPF</th><th></th></tr></thead><tbody>${filas}</tbody></table>`:vacio("proveedores","Sin proveedores todavía","Da de alta a tus proveedores para asociarlos a tus gastos.",`<button class="btn small" onclick="modalProveedor()">+ Nuevo proveedor</button>`);
       view(panel("Proveedores",cuerpo,`<button class="btn small" onclick="modalProveedor()">+ Nuevo proveedor</button>`));
     }
     async function vProductos() {
       view('<div class="muted">Cargando…</div>');
-      const [ps,provs]=await Promise.all([api("/productos"),api("/proveedores").catch(()=>[])]);
+      const [ps,provs]=await Promise.all([api("/productos"),api("/proveedores").catch(()=>[])]); _cacheProd=ps;
       const provNombre=id=>{ const p=provs.find(x=>x.id===id); return p?p.nombre:"—"; };
       const margen=p=>{ const m=p.precioUnitario-(p.precioCompra||0); return p.precioCompra?`<span class="pill ${m>=0?'ok':'neg'}">${eur(m)}</span>`:'<span class="muted">—</span>'; };
-      const filas=ps.map(p=>`<tr data-b="${(p.nombre+' '+(p.referencia||'')).toLowerCase()}" style="cursor:pointer" onclick="verHistorico('${p.id}','${p.nombre.replace(/'/g,"")}')"><td><strong>${p.nombre}</strong></td><td class="muted mono">${p.referencia||"—"}</td><td class="muted">${p.proveedorHabitualId?provNombre(p.proveedorHabitualId):"—"}</td><td class="num">${eur(p.precioUnitario)}</td><td class="num muted">${p.precioCompra?eur(p.precioCompra):"—"}</td><td class="num">${margen(p)}</td><td class="num">${p.porcentajeIva}%</td></tr>`).join("");
+      const filas=ps.map(p=>`<tr data-b="${(p.nombre+' '+(p.referencia||'')).toLowerCase()}" style="cursor:pointer" onclick="verHistorico('${p.id}','${p.nombre.replace(/'/g,"")}')"><td><strong>${p.nombre}</strong></td><td class="muted mono">${p.referencia||"—"}</td><td class="muted">${p.proveedorHabitualId?provNombre(p.proveedorHabitualId):"—"}</td><td class="num">${eur(p.precioUnitario)}</td><td class="num muted">${p.precioCompra?eur(p.precioCompra):"—"}</td><td class="num">${margen(p)}</td><td class="num">${p.porcentajeIva}%</td><td class="right"><button class="btn small secondary" onclick="editarProducto('${p.id}',event)">Editar</button></td></tr>`).join("");
       const acciones=`<div style="display:flex;gap:10px;align-items:center"><input id="prodBuscar" placeholder="Buscar por nombre o código…" style="max-width:220px;padding:8px 12px" oninput="filtrarProductos()"/><button class="btn small ghost" onclick="modalImportar('productos')">↥ Importar CSV</button><button class="btn small" onclick="modalProducto()">+ Nuevo</button></div>`;
-      const cuerpo=ps.length?`<table><thead><tr><th>Artículo</th><th>Código / EAN</th><th>Proveedor habitual</th><th class="num">Venta</th><th class="num">Compra</th><th class="num">Margen</th><th class="num">IVA</th></tr></thead><tbody id="prodBody">${filas}</tbody></table><p class="muted" style="font-size:12px;margin:12px 0 0">Toca un artículo para ver su histórico de precios.</p>`:vacio("articulos","Sin artículos todavía","Crea productos o servicios con su código para reutilizarlos al facturar.",`<button class="btn small" onclick="modalProducto()">+ Nuevo artículo</button>`);
+      const cuerpo=ps.length?`<table><thead><tr><th>Artículo</th><th>Código / EAN</th><th>Proveedor habitual</th><th class="num">Venta</th><th class="num">Compra</th><th class="num">Margen</th><th class="num">IVA</th><th></th></tr></thead><tbody id="prodBody">${filas}</tbody></table><p class="muted" style="font-size:12px;margin:12px 0 0">Toca un artículo para ver su histórico de precios, o pulsa Editar.</p>`:vacio("articulos","Sin artículos todavía","Crea productos o servicios con su código para reutilizarlos al facturar.",`<button class="btn small" onclick="modalProducto()">+ Nuevo artículo</button>`);
       view(panel("Artículos",cuerpo,acciones));
     }
     async function verHistorico(id,nombre){
@@ -738,20 +738,28 @@
     const val=id=>document.getElementById(id).value;
     const ivaSel=id=>`<select id="${id}"><option value="IVA21">IVA 21%</option><option value="IVA10">IVA 10%</option><option value="IVA4">IVA 4%</option><option value="IVA0">Exento</option></select>`;
 
-    function modalCliente(){ abrir("Nuevo cliente",`<label>Nombre</label><input id="c_nombre" placeholder="Nombre o razón social"/><div class="grid2"><div><label>NIF (opcional)</label><input id="c_nif"/></div><div><label>Email (opcional)</label><input id="c_email"/></div></div>`,
-      async()=>{ await api("/clientes",{method:"POST",body:JSON.stringify({nombre:val("c_nombre"),nifFiscal:val("c_nif")||null,email:val("c_email")||null})}); vClientes(); }); }
-    function modalProveedor(){ const fp=[["NoIndicada","Sin especificar"],["Transferencia","Transferencia"],["Domiciliacion","Domiciliación"],["Efectivo","Efectivo"],["Tarjeta","Tarjeta"],["Pagare","Pagaré"],["Confirming","Confirming"],["Otro","Otro"]].map(o=>`<option value="${o[0]}">${o[1]}</option>`).join("");
-      abrir("Nuevo proveedor",`<label>Nombre</label><input id="pr_nombre" placeholder="Nombre o razón social"/><div class="grid2"><div><label>NIF (opcional)</label><input id="pr_nif"/></div><div><label>IRPF (opcional)</label><input id="pr_irpf" type="number" value="0"/></div></div>
+    function rellenar(campos){ for(const k in campos){ const el=document.getElementById(k); if(el&&campos[k]!=null) el.value=campos[k]; } }
+    let _cacheCli=[], _cacheProv=[], _cacheProd=[];
+    function editarCliente(id){ modalCliente(_cacheCli.find(c=>c.id===id)); }
+    function editarProveedor(id){ modalProveedor(_cacheProv.find(p=>p.id===id)); }
+    function editarProducto(id,ev){ if(ev) ev.stopPropagation(); modalProducto(_cacheProd.find(p=>p.id===id)); }
+    function modalCliente(c){ abrir(c?"Editar cliente":"Nuevo cliente",`<label>Nombre</label><input id="c_nombre" placeholder="Nombre o razón social"/><div class="grid2"><div><label>NIF (opcional)</label><input id="c_nif"/></div><div><label>Email (opcional)</label><input id="c_email"/></div></div><label>IRPF por defecto (%)</label><input id="c_irpf" type="number" value="0"/>`,
+      async()=>{ const b=JSON.stringify({nombre:val("c_nombre"),nifFiscal:val("c_nif")||null,email:val("c_email")||null,porcentajeIrpfDefecto:Number(val("c_irpf"))}); await api("/clientes"+(c?"/"+c.id:""),{method:c?"PUT":"POST",body:b}); vClientes(); });
+      if(c) rellenar({c_nombre:c.nombre,c_nif:c.nifFiscal,c_email:c.email,c_irpf:c.porcentajeIrpfDefecto}); }
+    function modalProveedor(pr){ const fp=[["NoIndicada","Sin especificar"],["Transferencia","Transferencia"],["Domiciliacion","Domiciliación"],["Efectivo","Efectivo"],["Tarjeta","Tarjeta"],["Pagare","Pagaré"],["Confirming","Confirming"],["Otro","Otro"]].map(o=>`<option value="${o[0]}">${o[1]}</option>`).join("");
+      abrir(pr?"Editar proveedor":"Nuevo proveedor",`<label>Nombre</label><input id="pr_nombre" placeholder="Nombre o razón social"/><div class="grid2"><div><label>NIF (opcional)</label><input id="pr_nif"/></div><div><label>IRPF (opcional)</label><input id="pr_irpf" type="number" value="0"/></div></div>
       <div class="grid2"><div><label>Forma de pago</label><select id="pr_pago">${fp}</select></div><div><label>Email (opcional)</label><input id="pr_email"/></div></div>`,
-      async()=>{ await api("/proveedores",{method:"POST",body:JSON.stringify({nombre:val("pr_nombre"),nifFiscal:val("pr_nif")||null,email:val("pr_email")||null,porcentajeIrpfDefecto:Number(val("pr_irpf")),formaPago:val("pr_pago")})}); vProveedores(); }); }
-    async function modalProducto(){ const provs=await api("/proveedores").catch(()=>[]);
-      const provOpts=`<option value="">— Sin asignar —</option>`+provs.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join("");
-      abrir("Nuevo artículo",`<label>Nombre</label><input id="p_nombre" placeholder="Nombre del producto o servicio"/>
+      async()=>{ const b=JSON.stringify({nombre:val("pr_nombre"),nifFiscal:val("pr_nif")||null,email:val("pr_email")||null,porcentajeIrpfDefecto:Number(val("pr_irpf")),formaPago:val("pr_pago")}); await api("/proveedores"+(pr?"/"+pr.id:""),{method:pr?"PUT":"POST",body:b}); vProveedores(); });
+      if(pr) rellenar({pr_nombre:pr.nombre,pr_nif:pr.nifFiscal,pr_email:pr.email,pr_irpf:pr.porcentajeIrpfDefecto,pr_pago:pr.formaPago}); }
+    async function modalProducto(p){ const provs=await api("/proveedores").catch(()=>[]);
+      const provOpts=`<option value="">— Sin asignar —</option>`+provs.map(x=>`<option value="${x.id}">${x.nombre}</option>`).join("");
+      abrir(p?"Editar artículo":"Nuevo artículo",`<label>Nombre</label><input id="p_nombre" placeholder="Nombre del producto o servicio"/>
       <div class="grid2"><div><label>Código / EAN (opcional)</label><input id="p_ref" placeholder="Ej. 8412345678901"/></div><div><label>IVA</label>${ivaSel("p_iva")}</div></div>
       <div class="grid2"><div><label>Precio de venta (€)</label><input id="p_precio" type="number" step="0.01" value="0"/></div><div><label>Precio de compra / coste (€)</label><input id="p_compra" type="number" step="0.01" value="0"/></div></div>
       <label>Proveedor habitual (opcional)</label><select id="p_prov">${provOpts}</select>
       <p class="muted" style="font-size:12px;margin:10px 0 0">El precio de compra sirve para calcular el margen en el informe de beneficio. Déjalo en 0 si no aplica.</p>`,
-      async()=>{ await api("/productos",{method:"POST",body:JSON.stringify({nombre:val("p_nombre"),referencia:val("p_ref")||null,precioUnitario:Number(val("p_precio")),precioCompra:Number(val("p_compra")),codigoIva:val("p_iva"),tipo:"Servicio",proveedorHabitualId:val("p_prov")||null})}); vProductos(); }); }
+      async()=>{ const b=JSON.stringify({nombre:val("p_nombre"),referencia:val("p_ref")||null,precioUnitario:Number(val("p_precio")),precioCompra:Number(val("p_compra")),codigoIva:val("p_iva"),tipo:p?p.tipo:"Servicio",proveedorHabitualId:val("p_prov")||null}); await api("/productos"+(p?"/"+p.id:""),{method:p?"PUT":"POST",body:b}); vProductos(); });
+      if(p) rellenar({p_nombre:p.nombre,p_ref:p.referencia,p_precio:p.precioUnitario,p_compra:p.precioCompra,p_iva:p.codigoIva,p_prov:p.proveedorHabitualId}); }
     /* Importación CSV (clientes / productos) */
     let impTipo=null, impContenido=null;
     function modalImportar(tipo){ impTipo=tipo; impContenido=null;
