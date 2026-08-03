@@ -25,7 +25,7 @@ public sealed class Cliente : RaizAgregadoEmpresa<Guid>
         Direccion = Direccion.Vacia;
     }
 
-    private Cliente(Guid id, Guid empresaId, string nombre, string? nifFiscal, string? email, Direccion direccion, decimal irpf, DateTimeOffset ahora)
+    private Cliente(Guid id, Guid empresaId, string nombre, string? nifFiscal, string? email, Direccion direccion, decimal irpf, bool recargoEquivalencia, DateTimeOffset ahora)
         : base(id, empresaId)
     {
         Nombre = nombre;
@@ -33,6 +33,7 @@ public sealed class Cliente : RaizAgregadoEmpresa<Guid>
         Email = email;
         Direccion = direccion;
         PorcentajeIrpfDefecto = irpf;
+        RecargoEquivalencia = recargoEquivalencia;
         Activo = true;
         CreadoEn = ahora;
         ActualizadoEn = ahora;
@@ -49,6 +50,9 @@ public sealed class Cliente : RaizAgregadoEmpresa<Guid>
     /// <summary>Retención de IRPF por defecto (0–60 %). Se prerrellena al facturar.</summary>
     public decimal PorcentajeIrpfDefecto { get; private set; }
 
+    /// <summary>El cliente está en régimen de recargo de equivalencia (minorista): al facturarle se aplica por defecto.</summary>
+    public bool RecargoEquivalencia { get; private set; }
+
     public bool Activo { get; private set; }
 
     public DateTimeOffset CreadoEn { get; private set; }
@@ -62,7 +66,8 @@ public sealed class Cliente : RaizAgregadoEmpresa<Guid>
         string? email,
         Direccion direccion,
         decimal porcentajeIrpfDefecto,
-        IReloj reloj)
+        IReloj reloj,
+        bool recargoEquivalencia = false)
     {
         ArgumentNullException.ThrowIfNull(direccion);
         ArgumentNullException.ThrowIfNull(reloj);
@@ -74,12 +79,12 @@ public sealed class Cliente : RaizAgregadoEmpresa<Guid>
         }
 
         var cliente = new Cliente(
-            Guid.NewGuid(), empresaId, nombre!.Trim(), Normalizar(nifFiscal), Normalizar(email), direccion, porcentajeIrpfDefecto, reloj.AhoraUtc);
+            Guid.NewGuid(), empresaId, nombre!.Trim(), Normalizar(nifFiscal), Normalizar(email), direccion, porcentajeIrpfDefecto, recargoEquivalencia, reloj.AhoraUtc);
         cliente.RegistrarEvento(new ClienteCreado(cliente.Id, empresaId, reloj.AhoraUtc));
         return Resultado.Ok(cliente);
     }
 
-    public Resultado Actualizar(string? nombre, string? nifFiscal, string? email, Direccion direccion, decimal porcentajeIrpfDefecto, IReloj reloj)
+    public Resultado Actualizar(string? nombre, string? nifFiscal, string? email, Direccion direccion, decimal porcentajeIrpfDefecto, IReloj reloj, bool recargoEquivalencia = false)
     {
         ArgumentNullException.ThrowIfNull(direccion);
         ArgumentNullException.ThrowIfNull(reloj);
@@ -95,6 +100,7 @@ public sealed class Cliente : RaizAgregadoEmpresa<Guid>
         Email = Normalizar(email);
         Direccion = direccion;
         PorcentajeIrpfDefecto = porcentajeIrpfDefecto;
+        RecargoEquivalencia = recargoEquivalencia;
         ActualizadoEn = reloj.AhoraUtc;
         return Resultado.Ok();
     }

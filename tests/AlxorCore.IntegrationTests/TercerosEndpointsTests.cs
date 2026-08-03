@@ -12,7 +12,18 @@ public sealed class TercerosEndpointsTests : IClassFixture<FabricaApiPruebas>
 
     public TercerosEndpointsTests(FabricaApiPruebas fabrica) => _fabrica = fabrica;
 
-    private sealed record ClienteDto(Guid Id, string Nombre, string? NifFiscal, decimal PorcentajeIrpfDefecto, bool Activo);
+    private sealed record ClienteDto(Guid Id, string Nombre, string? NifFiscal, decimal PorcentajeIrpfDefecto, bool Activo, bool RecargoEquivalencia);
+
+    [Fact]
+    public async Task Cliente_guarda_el_indicador_de_recargo_de_equivalencia()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var creado = await (await cliente.PostAsJsonAsync("/clientes", new { Nombre = "Minorista SL", RecargoEquivalencia = true })).Content.ReadFromJsonAsync<ClienteDto>();
+        creado!.RecargoEquivalencia.Should().BeTrue();
+
+        var obtenido = await cliente.GetFromJsonAsync<ClienteDto>($"/clientes/{creado.Id}");
+        obtenido!.RecargoEquivalencia.Should().BeTrue();
+    }
 
     [Fact]
     public async Task Crear_listar_obtener_y_actualizar_cliente()

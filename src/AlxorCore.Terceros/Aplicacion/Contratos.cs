@@ -15,12 +15,13 @@ public sealed record ClienteDto(
     string Provincia,
     string Pais,
     decimal PorcentajeIrpfDefecto,
-    bool Activo)
+    bool Activo,
+    bool RecargoEquivalencia)
 {
     public static ClienteDto Desde(Cliente c) => new(
         c.Id, c.Nombre, c.NifFiscal, c.Email,
         c.Direccion.Calle, c.Direccion.CodigoPostal, c.Direccion.Poblacion, c.Direccion.Provincia, c.Direccion.Pais,
-        c.PorcentajeIrpfDefecto, c.Activo);
+        c.PorcentajeIrpfDefecto, c.Activo, c.RecargoEquivalencia);
 }
 
 /// <summary>Repositorio de clientes (escritura).</summary>

@@ -8,7 +8,8 @@ lleva `empresa_id`, con filtro global y RLS).
 ## Modelo
 
 `Cliente` { Nombre (obligatorio), NifFiscal (opcional, texto — admite clientes extranjeros), Email,
-Direccion, PorcentajeIrpfDefecto (0–60 %, se prerrellena al facturar), Activo }.
+Direccion, PorcentajeIrpfDefecto (0–60 %, se prerrellena al facturar), **RecargoEquivalencia**
+(minorista: al facturarle se marca por defecto el recargo), Activo }.
 
 ## API
 

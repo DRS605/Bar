@@ -52,6 +52,7 @@ internal sealed class ConfiguracionCliente : IEntityTypeConfiguration<Cliente>
             d.Property(p => p.Pais).HasColumnName("direccion_pais").HasMaxLength(2);
         });
         builder.Property(c => c.PorcentajeIrpfDefecto).HasColumnName("irpf_defecto").HasColumnType("numeric(5,2)").IsRequired();
+        builder.Property(c => c.RecargoEquivalencia).HasColumnName("recargo_equivalencia").IsRequired();
         builder.Property(c => c.Activo).HasColumnName("activo").IsRequired();
         builder.Property(c => c.CreadoEn).HasColumnName("creado_en").IsRequired();
         builder.Property(c => c.ActualizadoEn).HasColumnName("actualizado_en").IsRequired();
