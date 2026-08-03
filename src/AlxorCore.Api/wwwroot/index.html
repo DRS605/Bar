@@ -796,13 +796,34 @@
       const prefijos=[...new Set(["FA",...series.map(s=>s.prefijo)])];
       const serieBox=prefijos.length>1?`<div><label>Serie</label><select id="f_serie">${prefijos.map(p=>`<option value="${p}">${p}</option>`).join("")}</select></div>`:`<div></div>`;
       const vencSel=`<select id="f_venc"><option value="0">Contado</option><option value="15">15 días</option><option value="30">30 días</option><option value="60">60 días</option><option value="90">90 días</option></select>`;
+      _facLineas=[{descripcion:"",cantidad:1,precio:0,iva:"IVA21"}];
       abrir("Nueva factura",`<div class="grid2"><div><label>Cliente</label><select id="f_cli" onchange="ajustarRecargoCliente()">${opts}</select></div><div><label>Vencimiento</label>${vencSel}</div></div>
         <div class="grid2">${serieBox}<div></div></div>
-        <label style="margin-top:16px">Concepto</label>
-        <div class="row"><div><input id="f_desc" placeholder="Descripción"/></div><div><label>Cant.</label><input id="f_cant" type="number" value="1"/></div><div><label>Precio €</label><input id="f_prec" type="number" value="0"/></div><div><label>IVA</label>${ivaSel("f_iva")}</div></div>
+        <label style="margin-top:16px">Líneas</label>
+        <div id="f_lineas">${facLineasHtml()}</div>
+        <button class="btn small ghost" style="margin-top:6px" onclick="facAnadirLinea()">+ Añadir línea</button>
+        <div id="f_total" class="right" style="margin-top:10px;font-weight:650"></div>
         <label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-weight:500;cursor:pointer"><input id="f_recargo" type="checkbox" style="width:auto"/> Aplicar recargo de equivalencia (cliente minorista)</label>`,
-        async()=>{ const serie=document.getElementById("f_serie")?document.getElementById("f_serie").value:null; await api("/facturas",{method:"POST",body:JSON.stringify({clienteId:val("f_cli"),serie,diasVencimiento:Number(val("f_venc")),recargoEquivalencia:document.getElementById("f_recargo").checked,lineas:[{descripcion:val("f_desc"),cantidad:Number(val("f_cant")),precioUnitario:Number(val("f_prec")),codigoIva:val("f_iva")}]})}); vFacturas(); });
-      ajustarRecargoCliente(); }
+        async()=>{ const serie=document.getElementById("f_serie")?document.getElementById("f_serie").value:null;
+          const lineas=_facLineas.filter(l=>l.descripcion.trim()&&l.cantidad>0).map(l=>({descripcion:l.descripcion,cantidad:l.cantidad,precioUnitario:l.precio,codigoIva:l.iva}));
+          if(!lineas.length) throw new Error("Añade al menos una línea con descripción y cantidad.");
+          await api("/facturas",{method:"POST",body:JSON.stringify({clienteId:val("f_cli"),serie,diasVencimiento:Number(val("f_venc")),recargoEquivalencia:document.getElementById("f_recargo").checked,lineas})}); vFacturas(); });
+      ajustarRecargoCliente(); facTotal(); }
+    let _facLineas=[];
+    const IVAPCT={IVA21:21,IVA10:10,IVA4:4,IVA0:0};
+    function facLineasHtml(){ return _facLineas.map((l,i)=>`<div class="row" style="align-items:end">
+      <div><input placeholder="Descripción" value="${(l.descripcion||'').replace(/"/g,'&quot;')}" oninput="_facLineas[${i}].descripcion=this.value"/></div>
+      <div><label>Cant.</label><input type="number" step="0.01" value="${l.cantidad}" oninput="_facLineas[${i}].cantidad=Number(this.value);facTotal()"/></div>
+      <div><label>Precio €</label><input type="number" step="0.01" value="${l.precio}" oninput="_facLineas[${i}].precio=Number(this.value);facTotal()"/></div>
+      <div><label>IVA</label><select onchange="_facLineas[${i}].iva=this.value;facTotal()">${Object.keys(IVAPCT).map(c=>`<option value="${c}"${c===l.iva?' selected':''}>${c==='IVA0'?'Exento':'IVA '+IVAPCT[c]+'%'}</option>`).join("")}</select></div>
+      <div><button class="btn small secondary" onclick="facQuitarLinea(${i})" ${_facLineas.length<=1?'disabled':''}>✕</button></div>
+    </div>`).join(""); }
+    function facRefrescar(){ document.getElementById("f_lineas").innerHTML=facLineasHtml(); facTotal(); }
+    function facAnadirLinea(){ _facLineas.push({descripcion:"",cantidad:1,precio:0,iva:"IVA21"}); facRefrescar(); }
+    function facQuitarLinea(i){ if(_facLineas.length<=1)return; _facLineas.splice(i,1); facRefrescar(); }
+    function facTotal(){ const el=document.getElementById("f_total"); if(!el)return;
+      let base=0,iva=0; _facLineas.forEach(l=>{ const b=(l.cantidad||0)*(l.precio||0); base+=b; iva+=b*(IVAPCT[l.iva]||0)/100; });
+      el.textContent=`Base ${eur(base)} · IVA ${eur(iva)} · Total ${eur(base+iva)}`; }
     function ajustarRecargoCliente(){ const sel=document.getElementById("f_cli"), chk=document.getElementById("f_recargo"); if(!sel||!chk)return;
       const c=_cacheCli.find(x=>x.id===sel.value); chk.checked=!!(c&&c.recargoEquivalencia); }
     async function modalRectificar(id){ const f=await api("/facturas/"+id);

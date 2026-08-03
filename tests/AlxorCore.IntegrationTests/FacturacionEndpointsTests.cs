@@ -112,6 +112,30 @@ public sealed class FacturacionEndpointsTests : IClassFixture<FabricaApiPruebas>
         listaB.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task Emitir_factura_con_varias_lineas_suma_los_importes()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var clienteId = await CrearClienteAsync(cliente);
+
+        var comando = new
+        {
+            ClienteId = clienteId,
+            Lineas = new[]
+            {
+                new { Cantidad = 2m, Descripcion = "Servicio A", PrecioUnitario = 100m, CodigoIva = "IVA21" },
+                new { Cantidad = 1m, Descripcion = "Producto B", PrecioUnitario = 50m, CodigoIva = "IVA10" },
+            },
+        };
+
+        var factura = await (await cliente.PostAsJsonAsync("/facturas", comando)).Content.ReadFromJsonAsync<FacturaResp>();
+
+        factura!.Lineas.Should().HaveCount(2);
+        factura.BaseImponible.Should().Be(250m);          // 200 + 50
+        factura.CuotaIva.Should().Be(47m);                // 42 (21% de 200) + 5 (10% de 50)
+        factura.Total.Should().Be(297m);                  // 250 + 47
+    }
+
     private sealed record FacturaRecargoResp(decimal BaseImponible, decimal CuotaIva, bool RecargoEquivalencia, decimal RecargoTotal, decimal Total);
 
     [Fact]
