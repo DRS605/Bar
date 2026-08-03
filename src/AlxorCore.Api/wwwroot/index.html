@@ -704,8 +704,24 @@
           <button class="btn small" onclick="exportarDatos()">↓ Exportar mis datos (JSON)</button>
           <a class="btn small ghost" href="/privacidad.html" target="_blank">Política de privacidad</a>
           <a class="btn small ghost" href="/terminos.html" target="_blank">Términos del servicio</a>
+        </div>
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line)">
+          <p class="muted" style="margin:0 0 10px;font-size:13px"><strong style="color:var(--neg)">Zona de riesgo.</strong> Eliminar la empresa borra <strong>todos</strong> sus datos de forma permanente. Exporta antes una copia.</p>
+          <button class="btn small" style="background:var(--neg)" onclick="eliminarEmpresa()">Eliminar «${empresa.razonSocial}» y sus datos</button>
         </div>`;
       return panel("Datos y privacidad",cuerpo);
+    }
+    async function eliminarEmpresa(){
+      const nom=empresa.razonSocial;
+      const t=prompt(`Esto BORRARÁ permanentemente «${nom}» y todos sus datos.\n\nEscribe el nombre de la empresa para confirmar:`);
+      if(t===null) return;
+      if(t.trim()!==nom){ toast("El nombre no coincide. No se ha borrado nada.","err"); return; }
+      try{
+        await api("/cuenta",{method:"DELETE"});
+        const empresas=await api("/empresas").catch(()=>[]);
+        if(empresas.length){ await activarEmpresa(empresas[0]); toast("Empresa eliminada.","ok"); }
+        else { toast("Empresa eliminada.","ok"); location.reload(); }
+      }catch(e){ toast(e.message,"err"); }
     }
     async function exportarDatos(){ try{
       const r=await fetch("/cuenta/exportar",{headers:{Authorization:"Bearer "+token}});

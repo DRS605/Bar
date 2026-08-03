@@ -7,6 +7,14 @@ using AlxorCore.Nucleo.Multiempresa;
 using AlxorCore.Nucleo.Resultados;
 using AlxorCore.Organizacion.Aplicacion.Puertos;
 using AlxorCore.Terceros.Aplicacion;
+using AlxorCore.Auditoria.Infraestructura;
+using AlxorCore.Catalogo.Infraestructura;
+using AlxorCore.Facturacion.Infraestructura;
+using AlxorCore.Gastos.Infraestructura;
+using AlxorCore.Organizacion.Infraestructura.Persistencia;
+using AlxorCore.Terceros.Infraestructura;
+using AlxorCore.Tesoreria.Infraestructura;
+using Microsoft.EntityFrameworkCore;
 
 namespace AlxorCore.Api.Endpoints;
 
@@ -31,6 +39,10 @@ public static class EndpointsCuenta
         cuenta.MapGet("/exportar", ExportarAsync)
             .WithSummary("Exporta todos los datos de la empresa activa (RGPD: acceso y portabilidad).")
             .RequierePermiso(Permisos.DatosExportar);
+
+        cuenta.MapDelete("", EliminarAsync)
+            .WithSummary("Elimina la empresa activa y todos sus datos (RGPD: derecho de supresión).")
+            .RequierePermiso(Permisos.UsuarioGestionar);
 
         return rutas;
     }
@@ -65,5 +77,39 @@ public static class EndpointsCuenta
         var bytes = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(datos, OpcionesExport);
         var nombre = $"alxor-export-{DateTime.UtcNow:yyyyMMdd}.json";
         return Results.File(bytes, "application/json", nombre);
+    }
+
+    private static async Task<IResult> EliminarAsync(
+        IContextoEmpresa contexto,
+        FacturacionDbContext facturacion,
+        GastosDbContext gastos,
+        TesoreriaDbContext tesoreria,
+        TercerosDbContext terceros,
+        CatalogoDbContext catalogo,
+        AuditoriaDbContext auditoria,
+        OrganizacionDbContext organizacion,
+        CancellationToken ct)
+    {
+        if (contexto.EmpresaId is not { } id)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        // Borramos los datos de la empresa en cada módulo. El filtro por empresa (EF + RLS) garantiza
+        // que solo se eliminan los de la empresa activa; las líneas (owned) caen en cascada.
+        await facturacion.Facturas.Where(f => f.EmpresaId == id).ExecuteDeleteAsync(ct).ConfigureAwait(false);
+        await facturacion.FacturasRecurrentes.Where(r => r.EmpresaId == id).ExecuteDeleteAsync(ct).ConfigureAwait(false);
+        await gastos.Gastos.Where(g => g.EmpresaId == id).ExecuteDeleteAsync(ct).ConfigureAwait(false);
+        await tesoreria.Movimientos.Where(m => m.EmpresaId == id).ExecuteDeleteAsync(ct).ConfigureAwait(false);
+        await terceros.Clientes.Where(c => c.EmpresaId == id).ExecuteDeleteAsync(ct).ConfigureAwait(false);
+        await terceros.Proveedores.Where(p => p.EmpresaId == id).ExecuteDeleteAsync(ct).ConfigureAwait(false);
+        await catalogo.HistoricoPrecios.Where(h => h.EmpresaId == id).ExecuteDeleteAsync(ct).ConfigureAwait(false);
+        await catalogo.Productos.Where(p => p.EmpresaId == id).ExecuteDeleteAsync(ct).ConfigureAwait(false);
+        await auditoria.Registros.Where(a => a.EmpresaId == id).ExecuteDeleteAsync(ct).ConfigureAwait(false);
+        await organizacion.Series.Where(s => s.EmpresaId == id).ExecuteDeleteAsync(ct).ConfigureAwait(false);
+        await organizacion.Membresias.Where(m => m.EmpresaId == id).ExecuteDeleteAsync(ct).ConfigureAwait(false);
+        await organizacion.Empresas.Where(e => e.Id == id).ExecuteDeleteAsync(ct).ConfigureAwait(false);
+
+        return Results.Ok(new { eliminada = id });
     }
 }

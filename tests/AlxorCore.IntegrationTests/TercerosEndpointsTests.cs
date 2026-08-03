@@ -31,6 +31,25 @@ public sealed class TercerosEndpointsTests : IClassFixture<FabricaApiPruebas>
     }
 
     [Fact]
+    public async Task Eliminar_la_cuenta_borra_sus_datos_y_respeta_a_las_demas_empresas()
+    {
+        var (empresaA, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        await empresaA.PostAsJsonAsync("/clientes", new { Nombre = "Cliente de A" });
+
+        var (empresaB, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        await empresaB.PostAsJsonAsync("/clientes", new { Nombre = "Cliente de B" });
+
+        var borrar = await empresaA.DeleteAsync(new Uri("/cuenta", UriKind.Relative));
+        borrar.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // La empresa A ya no tiene datos; la B sigue intacta.
+        var clientesA = await empresaA.GetFromJsonAsync<List<ClienteDto>>("/clientes");
+        clientesA.Should().BeEmpty();
+        var clientesB = await empresaB.GetFromJsonAsync<List<ClienteDto>>("/clientes");
+        clientesB.Should().ContainSingle(c => c.Nombre == "Cliente de B");
+    }
+
+    [Fact]
     public async Task Cliente_guarda_el_indicador_de_recargo_de_equivalencia()
     {
         var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
