@@ -51,6 +51,20 @@ public class FacturaTests
     }
 
     [Fact]
+    public void Emitir_aplica_recargo_de_equivalencia()
+    {
+        // Línea al 21 % con recargo de equivalencia del 5,2 %.
+        var linea = new NuevaLinea("Concepto", 1m, 1000m, "IVA21", 21m, PorcentajeRecargo: 5.2m);
+        var factura = Factura.Emitir(Guid.NewGuid(), Numero(), Fecha, Fecha, Cliente, [linea], 0m, Reloj).Valor;
+
+        factura.BaseImponible.Should().Be(1000m);
+        factura.CuotaIva.Should().Be(210m);
+        factura.RecargoEquivalencia.Should().BeTrue();
+        factura.RecargoTotal.Should().Be(52m);   // 5,2 % de 1000
+        factura.Total.Should().Be(1262m);         // 1000 + 210 + 52
+    }
+
+    [Fact]
     public void Emitir_redondea_a_dos_decimales()
     {
         // 33,33 × 3 = 99,99; IVA 21% = 20,9979 -> 21,00

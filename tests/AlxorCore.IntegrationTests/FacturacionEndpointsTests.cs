@@ -111,4 +111,28 @@ public sealed class FacturacionEndpointsTests : IClassFixture<FabricaApiPruebas>
 
         listaB.Should().BeEmpty();
     }
+
+    private sealed record FacturaRecargoResp(decimal BaseImponible, decimal CuotaIva, bool RecargoEquivalencia, decimal RecargoTotal, decimal Total);
+
+    [Fact]
+    public async Task Emitir_factura_con_recargo_de_equivalencia()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var clienteId = await CrearClienteAsync(cliente);
+
+        var comando = new
+        {
+            ClienteId = clienteId,
+            RecargoEquivalencia = true,
+            Lineas = new[] { new { Cantidad = 1m, Descripcion = "Género", PrecioUnitario = 1000m, CodigoIva = "IVA21" } },
+        };
+
+        var factura = await (await cliente.PostAsJsonAsync("/facturas", comando)).Content.ReadFromJsonAsync<FacturaRecargoResp>();
+
+        factura!.BaseImponible.Should().Be(1000m);
+        factura.CuotaIva.Should().Be(210m);
+        factura.RecargoEquivalencia.Should().BeTrue();
+        factura.RecargoTotal.Should().Be(52m);   // 5,2 % de 1000
+        factura.Total.Should().Be(1262m);         // 1000 + 210 + 52
+    }
 }

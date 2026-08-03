@@ -30,6 +30,16 @@ public class ImpuestoTests
     {
         Impuesto.PorCodigoImpuesto("IVA99").EsFallo.Should().BeTrue();
     }
+
+    [Theory]
+    [InlineData(21, 5.2)]
+    [InlineData(10, 1.4)]
+    [InlineData(4, 0.5)]
+    [InlineData(0, 0)]
+    public void Recargo_de_equivalencia_por_tipo_de_iva(decimal iva, decimal recargo)
+    {
+        Impuesto.RecargoEquivalencia(iva).Should().Be(recargo);
+    }
 }
 
 public class ProductoTests

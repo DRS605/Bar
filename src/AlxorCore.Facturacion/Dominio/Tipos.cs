@@ -54,7 +54,8 @@ public sealed record NuevaLinea(
     decimal PorcentajeIva,
     decimal PorcentajeDescuento = 0m,
     Guid? ProductoId = null,
-    decimal CosteUnitario = 0m);
+    decimal CosteUnitario = 0m,
+    decimal PorcentajeRecargo = 0m);
 
 /// <summary>Se ha emitido una factura.</summary>
 public sealed record FacturaEmitida(

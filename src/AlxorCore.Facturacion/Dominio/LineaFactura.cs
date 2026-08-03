@@ -28,9 +28,11 @@ public sealed class LineaFactura : EntidadBase<Guid>
         PorcentajeDescuento = datos.PorcentajeDescuento;
         CodigoIva = datos.CodigoIva;
         PorcentajeIva = datos.PorcentajeIva;
+        PorcentajeRecargo = datos.PorcentajeRecargo;
 
         Base = Redondeo.Dos(Cantidad * PrecioUnitario * (1 - (PorcentajeDescuento / 100m)));
         CuotaIva = Redondeo.Dos(Base * PorcentajeIva / 100m);
+        CuotaRecargo = Redondeo.Dos(Base * PorcentajeRecargo / 100m);
     }
 
     /// <summary>Empresa (para el aislamiento multiempresa de la tabla de líneas).</summary>
@@ -53,11 +55,17 @@ public sealed class LineaFactura : EntidadBase<Guid>
 
     public decimal PorcentajeIva { get; private set; }
 
+    /// <summary>Porcentaje de recargo de equivalencia (0 si no aplica).</summary>
+    public decimal PorcentajeRecargo { get; private set; }
+
     /// <summary>Base imponible de la línea (cantidad × precio − descuento).</summary>
     public decimal Base { get; private set; }
 
     /// <summary>Cuota de IVA de la línea.</summary>
     public decimal CuotaIva { get; private set; }
+
+    /// <summary>Cuota de recargo de equivalencia de la línea (0 si no aplica).</summary>
+    public decimal CuotaRecargo { get; private set; }
 
     /// <summary>Coste total de la línea (coste unitario × cantidad).</summary>
     public decimal CosteTotal => Redondeo.Dos(CosteUnitario * Cantidad);

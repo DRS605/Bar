@@ -109,6 +109,11 @@ internal sealed class GeneradorPdfFacturaQuestPdf : IGeneradorPdfFactura
                     {
                         totales.Item().Text($"Base imponible: {Redondeo.Formatear(factura.BaseImponible)} €");
                         totales.Item().Text($"IVA: {Redondeo.Formatear(factura.CuotaIva)} €");
+                        if (factura.RecargoTotal > 0)
+                        {
+                            totales.Item().Text($"Recargo de equivalencia: {Redondeo.Formatear(factura.RecargoTotal)} €");
+                        }
+
                         if (factura.RetencionIrpf > 0)
                         {
                             totales.Item().Text($"Retención IRPF ({factura.PorcentajeIrpf:0}%): -{Redondeo.Formatear(factura.RetencionIrpf)} €");

@@ -66,6 +66,8 @@ internal sealed class ConfiguracionFactura : IEntityTypeConfiguration<Factura>
         builder.Property(f => f.CuotaIva).HasColumnName("cuota_iva").HasColumnType("numeric(14,2)").IsRequired();
         builder.Property(f => f.PorcentajeIrpf).HasColumnName("porcentaje_irpf").HasColumnType("numeric(5,2)").IsRequired();
         builder.Property(f => f.RetencionIrpf).HasColumnName("retencion_irpf").HasColumnType("numeric(14,2)").IsRequired();
+        builder.Property(f => f.RecargoEquivalencia).HasColumnName("recargo_equivalencia").IsRequired();
+        builder.Property(f => f.RecargoTotal).HasColumnName("recargo_total").HasColumnType("numeric(14,2)").IsRequired();
         builder.Property(f => f.Total).HasColumnName("total").HasColumnType("numeric(14,2)").IsRequired();
 
         builder.Property(f => f.Estado).HasColumnName("estado").HasMaxLength(20).HasConversion<string>().IsRequired();
@@ -100,8 +102,10 @@ internal sealed class ConfiguracionFactura : IEntityTypeConfiguration<Factura>
             linea.Property(l => l.PorcentajeDescuento).HasColumnName("descuento").HasColumnType("numeric(5,2)").IsRequired();
             linea.Property(l => l.CodigoIva).HasColumnName("codigo_iva").HasMaxLength(10).IsRequired();
             linea.Property(l => l.PorcentajeIva).HasColumnName("porcentaje_iva").HasColumnType("numeric(5,2)").IsRequired();
+            linea.Property(l => l.PorcentajeRecargo).HasColumnName("porcentaje_recargo").HasColumnType("numeric(5,2)").IsRequired();
             linea.Property(l => l.Base).HasColumnName("base").HasColumnType("numeric(14,2)").IsRequired();
             linea.Property(l => l.CuotaIva).HasColumnName("cuota_iva").HasColumnType("numeric(14,2)").IsRequired();
+            linea.Property(l => l.CuotaRecargo).HasColumnName("cuota_recargo").HasColumnType("numeric(14,2)").IsRequired();
             linea.Ignore(l => l.CosteTotal);
             linea.Ignore(l => l.Margen);
         });

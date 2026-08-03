@@ -61,4 +61,16 @@ public sealed class Impuesto
 
         return Resultado.Fallo<Impuesto>(Error.Validacion("impuesto.desconocido", $"El impuesto «{codigo}» no existe."));
     }
+
+    /// <summary>
+    /// Porcentaje de <b>recargo de equivalencia</b> que corresponde a un tipo de IVA (régimen especial
+    /// de minoristas): 21 % → 5,2 %; 10 % → 1,4 %; 4 % → 0,5 %; resto → 0 %.
+    /// </summary>
+    public static decimal RecargoEquivalencia(decimal porcentajeIva) => porcentajeIva switch
+    {
+        21m => 5.2m,
+        10m => 1.4m,
+        4m => 0.5m,
+        _ => 0m,
+    };
 }

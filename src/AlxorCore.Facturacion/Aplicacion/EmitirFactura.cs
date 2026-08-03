@@ -27,7 +27,8 @@ public sealed record EmitirFacturaComando(
     DateOnly? FechaOperacion = null,
     decimal? PorcentajeIrpf = null,
     string? Serie = null,
-    int? DiasVencimiento = null);
+    int? DiasVencimiento = null,
+    bool RecargoEquivalencia = false);
 
 /// <summary>
 /// Caso de uso estrella: emitir una factura. Compone cliente (Terceros), productos/impuestos
@@ -77,7 +78,7 @@ public sealed class EmitirFactura
             return Resultado.Fallo<FacturaDto>(Error.NoEncontrado("cliente.no_encontrado", "El cliente no existe."));
         }
 
-        var resolucion = await ResolucionLineasFactura.ResolverAsync(comando.Lineas, _productos, ct).ConfigureAwait(false);
+        var resolucion = await ResolucionLineasFactura.ResolverAsync(comando.Lineas, _productos, ct, comando.RecargoEquivalencia).ConfigureAwait(false);
         if (resolucion.EsFallo)
         {
             return Resultado.Fallo<FacturaDto>(resolucion.Error);
@@ -144,7 +145,7 @@ internal static class RegistroVerifactu
 internal static class ResolucionLineasFactura
 {
     public static async Task<Resultado<List<NuevaLinea>>> ResolverAsync(
-        IReadOnlyList<LineaComando> lineas, IConsultaProductos productos, CancellationToken ct)
+        IReadOnlyList<LineaComando> lineas, IConsultaProductos productos, CancellationToken ct, bool recargoEquivalencia = false)
     {
         var resueltas = new List<NuevaLinea>(lineas.Count);
         foreach (var linea in lineas)
@@ -184,8 +185,9 @@ internal static class ResolucionLineasFactura
                 return Resultado.Fallo<List<NuevaLinea>>(impuesto.Error);
             }
 
+            var porcentajeRecargo = recargoEquivalencia ? Impuesto.RecargoEquivalencia(impuesto.Valor.Porcentaje) : 0m;
             resueltas.Add(new NuevaLinea(
-                descripcion, linea.Cantidad, precio.Value, impuesto.Valor.Codigo, impuesto.Valor.Porcentaje, linea.PorcentajeDescuento, linea.ProductoId, coste ?? 0m));
+                descripcion, linea.Cantidad, precio.Value, impuesto.Valor.Codigo, impuesto.Valor.Porcentaje, linea.PorcentajeDescuento, linea.ProductoId, coste ?? 0m, porcentajeRecargo));
         }
 
         return Resultado.Ok(resueltas);

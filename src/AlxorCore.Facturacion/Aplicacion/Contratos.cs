@@ -7,7 +7,7 @@ namespace AlxorCore.Facturacion.Aplicacion;
 public sealed record LineaFacturaDto(
     string Descripcion, decimal Cantidad, decimal PrecioUnitario, decimal PorcentajeDescuento,
     string CodigoIva, decimal PorcentajeIva, decimal Base, decimal CuotaIva,
-    decimal CosteUnitario, decimal Margen);
+    decimal CosteUnitario, decimal Margen, decimal PorcentajeRecargo, decimal CuotaRecargo);
 
 /// <summary>Datos de una línea de venta para el cálculo de márgenes (informe de beneficio).</summary>
 public sealed record LineaMargenDto(Guid? ProductoId, string Descripcion, decimal Cantidad, decimal Ingreso, decimal Coste);
@@ -26,6 +26,8 @@ public sealed record FacturaDto(
     decimal CuotaIva,
     decimal PorcentajeIrpf,
     decimal RetencionIrpf,
+    bool RecargoEquivalencia,
+    decimal RecargoTotal,
     decimal Total,
     string Estado,
     string Tipo,
@@ -38,12 +40,12 @@ public sealed record FacturaDto(
 {
     public static FacturaDto Desde(Factura f) => new(
         f.Id, f.NumeroCompleto, f.FechaEmision, f.FechaOperacion, f.FechaVencimiento, f.ClienteId, f.ClienteNombre, f.ClienteNif,
-        f.BaseImponible, f.CuotaIva, f.PorcentajeIrpf, f.RetencionIrpf, f.Total, f.Estado.ToString(), f.TipoFactura.ToString(), f.Huella, f.HuellaAnterior,
+        f.BaseImponible, f.CuotaIva, f.PorcentajeIrpf, f.RetencionIrpf, f.RecargoEquivalencia, f.RecargoTotal, f.Total, f.Estado.ToString(), f.TipoFactura.ToString(), f.Huella, f.HuellaAnterior,
         f.FechaHoraGenRegistro,
         f.RectificaFacturaId, f.MotivoRectificacion,
         f.Lineas.Select(l => new LineaFacturaDto(
             l.Descripcion, l.Cantidad, l.PrecioUnitario, l.PorcentajeDescuento, l.CodigoIva, l.PorcentajeIva, l.Base, l.CuotaIva,
-            l.CosteUnitario, l.Margen)).ToList());
+            l.CosteUnitario, l.Margen, l.PorcentajeRecargo, l.CuotaRecargo)).ToList());
 }
 
 /// <summary>Resumen de factura para listados y libros de IVA.</summary>

@@ -21,8 +21,18 @@ cobro** de la interfaz cruza el vencimiento con el saldo de Tesorería para marc
 
 - Por línea: `base = redondeo(cantidad × precio × (1 − descuento%))`, `cuota = redondeo(base × IVA%)`.
 - Totales: `base_imponible = Σ bases`, `cuota_iva = Σ cuotas`,
-  `retención = redondeo(base_imponible × IRPF%)`, `total = base_imponible + cuota_iva − retención`.
+  `retención = redondeo(base_imponible × IRPF%)`,
+  `total = base_imponible + cuota_iva + recargo_equivalencia − retención`.
 - Redondeo a 2 decimales, mitad hacia arriba (`AlxorCore.Nucleo.Comun.Redondeo`).
+
+### Recargo de equivalencia
+
+Cuando el cliente es un **minorista en régimen de recargo de equivalencia**, la emisión admite
+`RecargoEquivalencia = true`: cada línea añade su **recargo** según su tipo de IVA (21 % → 5,2 %;
+10 % → 1,4 %; 4 % → 0,5 %; el mapeo vive en `Impuesto.RecargoEquivalencia`). La línea congela
+`porcentaje_recargo` y `cuota_recargo`; la factura guarda `recargo_equivalencia` y `recargo_total`, y
+el recargo suma al total. Aparece en el PDF y en el desglose del registro VeriFactu
+(`TipoRecargoEquivalencia` / `CuotaRecargoEquivalencia`).
 
 ## Invariantes (probadas)
 

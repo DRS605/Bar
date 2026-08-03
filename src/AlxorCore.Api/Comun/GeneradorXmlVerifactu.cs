@@ -68,6 +68,14 @@ public static class GeneradorXmlVerifactu
             w.WriteElementString("TipoImpositivo", grupo.Key.ToString("F2", Inv));
             w.WriteElementString("BaseImponibleOimporteNoSujeto", baseImp.ToString("F2", Inv));
             w.WriteElementString("CuotaRepercutida", cuota.ToString("F2", Inv));
+
+            var recargo = Redondear(grupo.Sum(l => l.CuotaRecargo));
+            if (recargo > 0m)
+            {
+                w.WriteElementString("TipoRecargoEquivalencia", grupo.First().PorcentajeRecargo.ToString("F2", Inv));
+                w.WriteElementString("CuotaRecargoEquivalencia", recargo.ToString("F2", Inv));
+            }
+
             w.WriteEndElement();
         }
 
