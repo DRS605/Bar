@@ -305,11 +305,36 @@
         const login=await api("/auth/login",{method:"POST",body:JSON.stringify({email,contrasena:pass})});
         token=login.token; usuario=login.usuario;
         const empresas=await api("/empresas");
-        if(!empresas.length){ err.textContent="Tu usuario no tiene ninguna empresa."; return; }
-        const sel=await api("/empresas/"+empresas[0].id+"/seleccionar",{method:"POST"});
-        token=sel.token; empresa=empresas[0]; arrancar();
+        if(!empresas.length){
+          err.innerHTML='Aún no tienes ninguna empresa. <a href="#" onclick="modalNuevaEmpresa();return false" style="color:var(--accent);font-weight:650">Crea la primera →</a>';
+          return;
+        }
+        await activarEmpresa(empresas[0]);
       } catch(e){ err.textContent=e.message||"No se pudo iniciar sesión."; }
     }
+    async function activarEmpresa(emp){
+      const sel=await api("/empresas/"+emp.id+"/seleccionar",{method:"POST"});
+      token=sel.token; empresa=emp; arrancar();
+    }
+    async function modalEmpresas(){
+      const lista=await api("/empresas");
+      const filas=lista.map(e=>{ const act=e.id===empresa.id;
+        return `<div style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;${act?'background:var(--accent-soft)':'cursor:pointer'}" ${act?'':`onclick="cambiarEmpresa('${e.id}')"`}>
+          <span class="avatar mini">${e.razonSocial.slice(0,1)}</span>
+          <div style="flex:1"><strong>${e.razonSocial}</strong><br><small class="muted mono">${e.nif}</small></div>
+          ${act?'<span class="pill ok">Actual</span>':'<span class="muted">Cambiar →</span>'}</div>`; }).join("");
+      abrir("Tus empresas",`${filas}<button class="btn small" style="margin-top:6px" onclick="modalNuevaEmpresa()">+ Nueva empresa</button>`,()=>{});
+    }
+    async function cambiarEmpresa(id){
+      const lista=await api("/empresas"); const emp=lista.find(e=>e.id===id); if(!emp)return;
+      cerrarModal(); await activarEmpresa(emp); toast("Empresa activa: "+emp.razonSocial,"ok");
+    }
+    function modalNuevaEmpresa(){
+      abrir("Nueva empresa",`<label>Razón social</label><input id="e_nombre" placeholder="Mi empresa SL"/>
+        <div class="grid2"><div><label>NIF</label><input id="e_nif" placeholder="B12345678"/></div><div><label>Población (opcional)</label><input id="e_pob"/></div></div>
+        <div class="grid2"><div><label>Provincia (opcional)</label><input id="e_prov"/></div><div><label>Código postal (opcional)</label><input id="e_cp"/></div></div>`,
+        async()=>{ const nueva=await api("/empresas",{method:"POST",body:JSON.stringify({razonSocial:val("e_nombre"),nif:val("e_nif"),poblacion:val("e_pob")||null,provincia:val("e_prov")||null,codigoPostal:val("e_cp")||null})});
+          toast("Empresa creada.","ok"); await activarEmpresa(nueva); }); }
 
     /* Recuperación de contraseña (enlace por correo; en modo demo el token se muestra aquí) */
     function mostrarRecuperar(){
@@ -339,7 +364,9 @@
       document.getElementById("sideAvatar").textContent=ini;
       document.getElementById("sideNombre").textContent=usuario?.nombre||"Usuario";
       document.getElementById("sideEmpresa").textContent=empresa.razonSocial;
-      document.getElementById("empresaChip").innerHTML=`<span class="avatar mini">${empresa.razonSocial.slice(0,1)}</span>${empresa.razonSocial}`;
+      const chip=document.getElementById("empresaChip");
+      chip.innerHTML=`<span class="avatar mini">${empresa.razonSocial.slice(0,1)}</span>${empresa.razonSocial} <span style="opacity:.6;margin-left:4px">▾</span>`;
+      chip.style.cursor="pointer"; chip.title="Cambiar de empresa"; chip.onclick=modalEmpresas;
       document.getElementById("nav").innerHTML=renderNav();
       ir("inicio");
     }
