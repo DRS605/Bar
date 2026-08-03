@@ -12,7 +12,8 @@ public sealed class CatalogoEndpointsTests : IClassFixture<FabricaApiPruebas>
 
     public CatalogoEndpointsTests(FabricaApiPruebas fabrica) => _fabrica = fabrica;
 
-    private sealed record ProductoDto(Guid Id, string Nombre, decimal PrecioUnitario, string CodigoIva, decimal PorcentajeIva, bool Activo, decimal PrecioCompra);
+    private sealed record ProductoDto(Guid Id, string Nombre, decimal PrecioUnitario, string CodigoIva, decimal PorcentajeIva, bool Activo, decimal PrecioCompra, Guid? ProveedorHabitualId);
+    private sealed record ProveedorResp(Guid Id);
 
     private sealed record ImpuestoDto(string Codigo, string Nombre, string Tipo, decimal Porcentaje);
 
@@ -44,6 +45,20 @@ public sealed class CatalogoEndpointsTests : IClassFixture<FabricaApiPruebas>
 
         var obtenido = await cliente.GetFromJsonAsync<ProductoDto>($"/productos/{creado.Id}");
         obtenido!.Nombre.Should().Be("Consultoría");
+    }
+
+    [Fact]
+    public async Task Un_articulo_puede_tener_proveedor_habitual()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var prov = (await (await cliente.PostAsJsonAsync("/proveedores", new { Nombre = "Mayorista SL" })).Content.ReadFromJsonAsync<ProveedorResp>())!;
+
+        var creado = (await (await cliente.PostAsJsonAsync("/productos", new { Nombre = "Artículo", PrecioUnitario = 10m, CodigoIva = "IVA21", ProveedorHabitualId = prov.Id }))
+            .Content.ReadFromJsonAsync<ProductoDto>())!;
+        creado.ProveedorHabitualId.Should().Be(prov.Id);
+
+        var obtenido = await cliente.GetFromJsonAsync<ProductoDto>($"/productos/{creado.Id}");
+        obtenido!.ProveedorHabitualId.Should().Be(prov.Id);
     }
 
     [Fact]

@@ -34,7 +34,7 @@ public sealed class Producto : RaizAgregadoEmpresa<Guid>
         Unidad = null!;
     }
 
-    private Producto(Guid id, Guid empresaId, string? referencia, string nombre, TipoProducto tipo, decimal precio, decimal precioCompra, string codigoIva, string unidad, DateTimeOffset ahora)
+    private Producto(Guid id, Guid empresaId, string? referencia, string nombre, TipoProducto tipo, decimal precio, decimal precioCompra, string codigoIva, string unidad, Guid? proveedorHabitualId, DateTimeOffset ahora)
         : base(id, empresaId)
     {
         Referencia = referencia;
@@ -44,6 +44,7 @@ public sealed class Producto : RaizAgregadoEmpresa<Guid>
         PrecioCompra = precioCompra;
         CodigoIva = codigoIva;
         Unidad = unidad;
+        ProveedorHabitualId = proveedorHabitualId;
         Activo = true;
         CreadoEn = ahora;
         ActualizadoEn = ahora;
@@ -66,6 +67,9 @@ public sealed class Producto : RaizAgregadoEmpresa<Guid>
 
     public string Unidad { get; private set; }
 
+    /// <summary>Proveedor habitual del artículo (a quién se le compra normalmente). Referencia opcional a Terceros.</summary>
+    public Guid? ProveedorHabitualId { get; private set; }
+
     public bool Activo { get; private set; }
 
     public DateTimeOffset CreadoEn { get; private set; }
@@ -73,7 +77,7 @@ public sealed class Producto : RaizAgregadoEmpresa<Guid>
     public DateTimeOffset ActualizadoEn { get; private set; }
 
     public static Resultado<Producto> Crear(
-        Guid empresaId, string? referencia, string? nombre, TipoProducto tipo, decimal precioUnitario, decimal precioCompra, string? codigoIva, string? unidad, IReloj reloj)
+        Guid empresaId, string? referencia, string? nombre, TipoProducto tipo, decimal precioUnitario, decimal precioCompra, string? codigoIva, string? unidad, IReloj reloj, Guid? proveedorHabitualId = null)
     {
         ArgumentNullException.ThrowIfNull(reloj);
 
@@ -84,12 +88,12 @@ public sealed class Producto : RaizAgregadoEmpresa<Guid>
         }
 
         var producto = new Producto(
-            Guid.NewGuid(), empresaId, Normalizar(referencia), nombre!.Trim(), tipo, precioUnitario, precioCompra, codigoIva!, NormalizarUnidad(unidad), reloj.AhoraUtc);
+            Guid.NewGuid(), empresaId, Normalizar(referencia), nombre!.Trim(), tipo, precioUnitario, precioCompra, codigoIva!, NormalizarUnidad(unidad), proveedorHabitualId, reloj.AhoraUtc);
         producto.RegistrarEvento(new ProductoCreado(producto.Id, empresaId, reloj.AhoraUtc));
         return Resultado.Ok(producto);
     }
 
-    public Resultado Actualizar(string? referencia, string? nombre, TipoProducto tipo, decimal precioUnitario, decimal precioCompra, string? codigoIva, string? unidad, IReloj reloj)
+    public Resultado Actualizar(string? referencia, string? nombre, TipoProducto tipo, decimal precioUnitario, decimal precioCompra, string? codigoIva, string? unidad, IReloj reloj, Guid? proveedorHabitualId = null)
     {
         ArgumentNullException.ThrowIfNull(reloj);
 
@@ -104,6 +108,7 @@ public sealed class Producto : RaizAgregadoEmpresa<Guid>
         Tipo = tipo;
         PrecioUnitario = precioUnitario;
         PrecioCompra = precioCompra;
+        ProveedorHabitualId = proveedorHabitualId;
         CodigoIva = codigoIva!;
         Unidad = NormalizarUnidad(unidad);
         ActualizadoEn = reloj.AhoraUtc;

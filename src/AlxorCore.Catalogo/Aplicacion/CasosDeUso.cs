@@ -13,7 +13,8 @@ public sealed record DatosProducto(
     TipoProducto Tipo = TipoProducto.Servicio,
     string? CodigoIva = null,
     string? Unidad = null,
-    decimal PrecioCompra = 0m);
+    decimal PrecioCompra = 0m,
+    Guid? ProveedorHabitualId = null);
 
 /// <summary>Caso de uso: crear un producto en la empresa activa.</summary>
 public sealed class CrearProducto
@@ -35,7 +36,7 @@ public sealed class CrearProducto
     {
         ArgumentNullException.ThrowIfNull(datos);
 
-        var producto = Producto.Crear(empresaId, datos.Referencia, datos.Nombre, datos.Tipo, datos.PrecioUnitario, datos.PrecioCompra, datos.CodigoIva, datos.Unidad, _reloj);
+        var producto = Producto.Crear(empresaId, datos.Referencia, datos.Nombre, datos.Tipo, datos.PrecioUnitario, datos.PrecioCompra, datos.CodigoIva, datos.Unidad, _reloj, datos.ProveedorHabitualId);
         if (producto.EsFallo)
         {
             return Resultado.Fallo<ProductoDto>(producto.Error);
@@ -77,7 +78,7 @@ public sealed class ActualizarProducto
         var precioVentaAnterior = producto.PrecioUnitario;
         var precioCompraAnterior = producto.PrecioCompra;
 
-        var r = producto.Actualizar(datos.Referencia, datos.Nombre, datos.Tipo, datos.PrecioUnitario, datos.PrecioCompra, datos.CodigoIva, datos.Unidad, _reloj);
+        var r = producto.Actualizar(datos.Referencia, datos.Nombre, datos.Tipo, datos.PrecioUnitario, datos.PrecioCompra, datos.CodigoIva, datos.Unidad, _reloj, datos.ProveedorHabitualId);
         if (r.EsFallo)
         {
             return Resultado.Fallo<ProductoDto>(r.Error);

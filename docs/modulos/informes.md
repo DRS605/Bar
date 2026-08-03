@@ -55,6 +55,10 @@ línea** de las facturas emitidas (venta − coste congelado) y de los gastos:
 El coste sale del **precio de compra congelado** en cada línea al emitir (Catálogo → Facturación),
 de modo que el margen no cambia aunque después varíe el coste del producto. Requiere `informe.leer`.
 
+A partir de ese desglose por artículo, la interfaz muestra un **ranking de artículos**: los **más
+rentables** (mayor margen), el **rey de las ventas** (mayores ingresos) y **dónde se gana menos**
+(menor margen), con el margen en % sobre ingresos. Es una vista derivada, sin endpoint propio.
+
 ## API
 
 | Método | Ruta | Auth | Descripción |

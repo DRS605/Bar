@@ -541,11 +541,12 @@
     }
     async function vProductos() {
       view('<div class="muted">Cargando…</div>');
-      const ps=await api("/productos");
+      const [ps,provs]=await Promise.all([api("/productos"),api("/proveedores").catch(()=>[])]);
+      const provNombre=id=>{ const p=provs.find(x=>x.id===id); return p?p.nombre:"—"; };
       const margen=p=>{ const m=p.precioUnitario-(p.precioCompra||0); return p.precioCompra?`<span class="pill ${m>=0?'ok':'neg'}">${eur(m)}</span>`:'<span class="muted">—</span>'; };
-      const filas=ps.map(p=>`<tr data-b="${(p.nombre+' '+(p.referencia||'')).toLowerCase()}" style="cursor:pointer" onclick="verHistorico('${p.id}','${p.nombre.replace(/'/g,"")}')"><td><strong>${p.nombre}</strong></td><td class="muted mono">${p.referencia||"—"}</td><td class="num">${eur(p.precioUnitario)}</td><td class="num muted">${p.precioCompra?eur(p.precioCompra):"—"}</td><td class="num">${margen(p)}</td><td class="num">${p.porcentajeIva}%</td></tr>`).join("");
+      const filas=ps.map(p=>`<tr data-b="${(p.nombre+' '+(p.referencia||'')).toLowerCase()}" style="cursor:pointer" onclick="verHistorico('${p.id}','${p.nombre.replace(/'/g,"")}')"><td><strong>${p.nombre}</strong></td><td class="muted mono">${p.referencia||"—"}</td><td class="muted">${p.proveedorHabitualId?provNombre(p.proveedorHabitualId):"—"}</td><td class="num">${eur(p.precioUnitario)}</td><td class="num muted">${p.precioCompra?eur(p.precioCompra):"—"}</td><td class="num">${margen(p)}</td><td class="num">${p.porcentajeIva}%</td></tr>`).join("");
       const acciones=`<div style="display:flex;gap:10px;align-items:center"><input id="prodBuscar" placeholder="Buscar por nombre o código…" style="max-width:220px;padding:8px 12px" oninput="filtrarProductos()"/><button class="btn small ghost" onclick="modalImportar('productos')">↥ Importar CSV</button><button class="btn small" onclick="modalProducto()">+ Nuevo</button></div>`;
-      const cuerpo=ps.length?`<table><thead><tr><th>Artículo</th><th>Código / EAN</th><th class="num">Venta</th><th class="num">Compra</th><th class="num">Margen</th><th class="num">IVA</th></tr></thead><tbody id="prodBody">${filas}</tbody></table><p class="muted" style="font-size:12px;margin:12px 0 0">Toca un artículo para ver su histórico de precios.</p>`:vacio("articulos","Sin artículos todavía","Crea productos o servicios con su código para reutilizarlos al facturar.",`<button class="btn small" onclick="modalProducto()">+ Nuevo artículo</button>`);
+      const cuerpo=ps.length?`<table><thead><tr><th>Artículo</th><th>Código / EAN</th><th>Proveedor habitual</th><th class="num">Venta</th><th class="num">Compra</th><th class="num">Margen</th><th class="num">IVA</th></tr></thead><tbody id="prodBody">${filas}</tbody></table><p class="muted" style="font-size:12px;margin:12px 0 0">Toca un artículo para ver su histórico de precios.</p>`:vacio("articulos","Sin artículos todavía","Crea productos o servicios con su código para reutilizarlos al facturar.",`<button class="btn small" onclick="modalProducto()">+ Nuevo artículo</button>`);
       view(panel("Artículos",cuerpo,acciones));
     }
     async function verHistorico(id,nombre){
@@ -610,7 +611,25 @@
       const total=`<tr><td colspan="3" class="right"><strong>Totales</strong></td><td class="num"><strong>${eur(libro.totalBase)}</strong></td><td class="num"><strong>${eur(libro.totalCuota)}</strong></td></tr>`;
       const cuerpo=libro.asientos.length?`<table><thead><tr><th>Fecha</th><th>Documento</th><th>Cliente</th><th class="num">Base</th><th class="num">Cuota IVA</th></tr></thead><tbody>${filas}${total}</tbody></table>`:vacio("informes","Sin movimientos en el periodo","Emite facturas para ver aquí tu libro de IVA repercutido.");
       const panelLibro=panel(`Libro de IVA repercutido · ${anio}`,cuerpo,`<button class="btn small ghost" onclick="descargarCsv()">↓ Exportar CSV (gestoría)</button>`);
-      view((benef?panelBeneficio(benef,anio):"")+(resumen?panelResumen(resumen,anio):"")+panelLibro);
+      view((benef?panelBeneficio(benef,anio):"")+(benef&&benef.porProducto.length?panelRanking(benef,anio):"")+(resumen?panelResumen(resumen,anio):"")+panelLibro);
+    }
+    function panelRanking(b,anio){
+      const pct=p=>p.ingresos>0?(p.margen/p.ingresos*100):0;
+      const top=(arr,fn,dir)=>[...arr].sort((x,y)=>dir*(fn(y)-fn(x))).slice(0,5);
+      const tabla=(titulo,emoji,arr,valfn,vallbl,cls)=>{
+        const filas=arr.map((p,i)=>`<tr><td class="muted">${i+1}</td><td><strong>${p.descripcion}</strong><br><small class="muted">${eur(p.ingresos)} · margen ${pct(p).toFixed(0)}%</small></td><td class="num"><strong class="${cls||''}">${valfn(p)}</strong></td></tr>`).join("");
+        return `<div><h4 style="margin:0 0 8px">${emoji} ${titulo}</h4><table><thead><tr><th></th><th></th><th class="num">${vallbl}</th></tr></thead><tbody>${filas}</tbody></table></div>`;
+      };
+      const rentables=top(b.porProducto,p=>p.margen,1);
+      const ventas=top(b.porProducto,p=>p.ingresos,1);
+      const flojos=top(b.porProducto,p=>p.margen,-1);
+      const cuerpo=`<div class="grid2" style="grid-template-columns:1fr 1fr">
+        ${tabla('Más rentables','🏆',rentables,p=>eur(p.margen),'Margen')}
+        ${tabla('Rey de las ventas','👑',ventas,p=>eur(p.ingresos),'Ingresos')}
+      </div>
+      <div style="margin-top:16px">${tabla('Donde se gana menos','⚠️',flojos,p=>eur(p.margen),'Margen','')}</div>
+      <p class="muted" style="font-size:12px;margin:14px 0 0">Ranking de los artículos vendidos en ${anio}, por margen e ingresos. El margen % es sobre ingresos.</p>`;
+      return panel("Ranking de artículos",cuerpo);
     }
     function panelBeneficio(b,anio){
       const kpi=(l,v,cls)=>`<div class="kpi ${cls||''}"><div class="lbl">${l}</div><div class="val ${v<0?'neg':''}">${eur(v)}</div></div>`;
@@ -725,11 +744,14 @@
       abrir("Nuevo proveedor",`<label>Nombre</label><input id="pr_nombre" placeholder="Nombre o razón social"/><div class="grid2"><div><label>NIF (opcional)</label><input id="pr_nif"/></div><div><label>IRPF (opcional)</label><input id="pr_irpf" type="number" value="0"/></div></div>
       <div class="grid2"><div><label>Forma de pago</label><select id="pr_pago">${fp}</select></div><div><label>Email (opcional)</label><input id="pr_email"/></div></div>`,
       async()=>{ await api("/proveedores",{method:"POST",body:JSON.stringify({nombre:val("pr_nombre"),nifFiscal:val("pr_nif")||null,email:val("pr_email")||null,porcentajeIrpfDefecto:Number(val("pr_irpf")),formaPago:val("pr_pago")})}); vProveedores(); }); }
-    function modalProducto(){ abrir("Nuevo artículo",`<label>Nombre</label><input id="p_nombre" placeholder="Nombre del producto o servicio"/>
+    async function modalProducto(){ const provs=await api("/proveedores").catch(()=>[]);
+      const provOpts=`<option value="">— Sin asignar —</option>`+provs.map(p=>`<option value="${p.id}">${p.nombre}</option>`).join("");
+      abrir("Nuevo artículo",`<label>Nombre</label><input id="p_nombre" placeholder="Nombre del producto o servicio"/>
       <div class="grid2"><div><label>Código / EAN (opcional)</label><input id="p_ref" placeholder="Ej. 8412345678901"/></div><div><label>IVA</label>${ivaSel("p_iva")}</div></div>
       <div class="grid2"><div><label>Precio de venta (€)</label><input id="p_precio" type="number" step="0.01" value="0"/></div><div><label>Precio de compra / coste (€)</label><input id="p_compra" type="number" step="0.01" value="0"/></div></div>
+      <label>Proveedor habitual (opcional)</label><select id="p_prov">${provOpts}</select>
       <p class="muted" style="font-size:12px;margin:10px 0 0">El precio de compra sirve para calcular el margen en el informe de beneficio. Déjalo en 0 si no aplica.</p>`,
-      async()=>{ await api("/productos",{method:"POST",body:JSON.stringify({nombre:val("p_nombre"),referencia:val("p_ref")||null,precioUnitario:Number(val("p_precio")),precioCompra:Number(val("p_compra")),codigoIva:val("p_iva"),tipo:"Servicio"})}); vProductos(); }); }
+      async()=>{ await api("/productos",{method:"POST",body:JSON.stringify({nombre:val("p_nombre"),referencia:val("p_ref")||null,precioUnitario:Number(val("p_precio")),precioCompra:Number(val("p_compra")),codigoIva:val("p_iva"),tipo:"Servicio",proveedorHabitualId:val("p_prov")||null})}); vProductos(); }); }
     /* Importación CSV (clientes / productos) */
     let impTipo=null, impContenido=null;
     function modalImportar(tipo){ impTipo=tipo; impContenido=null;
