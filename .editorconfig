@@ -49,3 +49,12 @@ dotnet_diagnostic.CA1848.severity = none
 # Arrays constantes como argumentos: el código de migraciones que genera EF Core usa
 # `new[] { ... }` para las columnas de los índices. No merece la pena reescribirlo.
 dotnet_diagnostic.CA1861.severity = none
+
+# ============================================================================
+#  Código generado por EF Core (migraciones): son archivos autogenerados, así
+#  que no les aplicamos reglas de estilo (p. ej. IDE0161 file-scoped namespace).
+#  Forzarlas no aporta y se perderían al regenerar migraciones. Algunos SDK las
+#  marcan como error en compilación; con esto se comportan igual en cualquiera.
+# ============================================================================
+[**/Migraciones/*.cs]
+generated_code = true
