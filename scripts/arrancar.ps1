@@ -7,13 +7,15 @@
                                 --custom "--mode unattended --unattendedmodeui none --superpassword postgres --serverport 5432 --disable-stackbuilder 1"
 
     Uso (en PowerShell, dentro de la carpeta del proyecto):
-        .\scripts\arrancar.ps1                 # ERP en http://localhost:3400
-        .\scripts\arrancar.ps1 -Puerto 8080    # otro puerto
+        .\scripts\arrancar.ps1                              # ERP en http://localhost:3400
+        .\scripts\arrancar.ps1 -Puerto 8080                 # otro puerto
+        .\scripts\arrancar.ps1 -PgPassword "MiClave"        # contrasena de PostgreSQL
 
-    La primera vez tarda un poco (descarga paquetes y compila). La base de datos
-    se crea sola. Para parar el ERP: Ctrl+C en esta ventana.
+    Si al instalar PostgreSQL pusiste una contrasena distinta de 'postgres',
+    pasala con -PgPassword. La primera vez tarda un poco (descarga y compila).
+    La base de datos se crea sola. Para parar el ERP: Ctrl+C en esta ventana.
 #>
-param([int]$Puerto = 3400)
+param([int]$Puerto = 3400, [string]$PgPassword = "postgres")
 
 $ErrorActionPreference = "Stop"
 
@@ -55,7 +57,7 @@ Write-Host "PostgreSQL en marcha ($($svc.Name))."
 # 3) Configuracion y arranque.
 $env:ASPNETCORE_ENVIRONMENT = "Development"
 $env:ASPNETCORE_URLS = "http://localhost:$Puerto"
-$env:ConnectionStrings__AlxorCore = "Host=localhost;Port=5432;Database=alxor;Username=postgres;Password=postgres"
+$env:ConnectionStrings__AlxorCore = "Host=localhost;Port=5432;Database=alxor;Username=postgres;Password=$PgPassword"
 $env:Jwt__ClaveSecreta = "clave-de-desarrollo-cambiar-en-produccion-32+"
 
 Write-Host "`nArrancando el ERP en http://localhost:$Puerto  (Ctrl+C para parar)`n" -ForegroundColor Green
