@@ -6,7 +6,11 @@ namespace AlxorCore.Facturacion.Aplicacion;
 /// <summary>Vista de una línea de factura.</summary>
 public sealed record LineaFacturaDto(
     string Descripcion, decimal Cantidad, decimal PrecioUnitario, decimal PorcentajeDescuento,
-    string CodigoIva, decimal PorcentajeIva, decimal Base, decimal CuotaIva);
+    string CodigoIva, decimal PorcentajeIva, decimal Base, decimal CuotaIva,
+    decimal CosteUnitario, decimal Margen);
+
+/// <summary>Datos de una línea de venta para el cálculo de márgenes (informe de beneficio).</summary>
+public sealed record LineaMargenDto(Guid? ProductoId, string Descripcion, decimal Cantidad, decimal Ingreso, decimal Coste);
 
 /// <summary>Vista de una factura.</summary>
 public sealed record FacturaDto(
@@ -38,7 +42,8 @@ public sealed record FacturaDto(
         f.FechaHoraGenRegistro,
         f.RectificaFacturaId, f.MotivoRectificacion,
         f.Lineas.Select(l => new LineaFacturaDto(
-            l.Descripcion, l.Cantidad, l.PrecioUnitario, l.PorcentajeDescuento, l.CodigoIva, l.PorcentajeIva, l.Base, l.CuotaIva)).ToList());
+            l.Descripcion, l.Cantidad, l.PrecioUnitario, l.PorcentajeDescuento, l.CodigoIva, l.PorcentajeIva, l.Base, l.CuotaIva,
+            l.CosteUnitario, l.Margen)).ToList());
 }
 
 /// <summary>Resumen de factura para listados y libros de IVA.</summary>
@@ -63,6 +68,9 @@ public interface IConsultaFacturas
     Task<FacturaDto?> ObtenerAsync(Guid facturaId, CancellationToken ct = default);
 
     Task<IReadOnlyList<FacturaResumen>> ListarAsync(Guid empresaId, CancellationToken ct = default);
+
+    /// <summary>Líneas de las facturas emitidas en un periodo, para el cálculo de márgenes.</summary>
+    Task<IReadOnlyList<LineaMargenDto>> ListarLineasMargenAsync(Guid empresaId, DateOnly desde, DateOnly hasta, CancellationToken ct = default);
 }
 
 /// <summary>Unidad de trabajo del módulo Facturación.</summary>

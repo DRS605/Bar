@@ -30,12 +30,16 @@ public static class RegistroServicios
         servicios.AddScoped<RepositorioProductos>();
         servicios.AddScoped<IRepositorioProductos>(sp => sp.GetRequiredService<RepositorioProductos>());
         servicios.AddScoped<IConsultaProductos>(sp => sp.GetRequiredService<RepositorioProductos>());
+        servicios.AddScoped<RepositorioHistoricoPrecios>();
+        servicios.AddScoped<IRepositorioHistoricoPrecios>(sp => sp.GetRequiredService<RepositorioHistoricoPrecios>());
+        servicios.AddScoped<IConsultaHistoricoPrecios>(sp => sp.GetRequiredService<RepositorioHistoricoPrecios>());
 
         servicios.AddScoped<CrearProducto>();
         servicios.AddScoped<ImportarProductos>();
         servicios.AddScoped<ActualizarProducto>();
         servicios.AddScoped<ListarProductos>();
         servicios.AddScoped<ObtenerProducto>();
+        servicios.AddScoped<ListarHistoricoPrecios>();
 
         return servicios;
     }

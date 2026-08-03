@@ -32,6 +32,10 @@ public static class EndpointsInformes
             .WithSummary("Resúmenes fiscales del trimestre: modelo 303 (IVA) y modelo 130 (IRPF).")
             .RequierePermiso(Permisos.InformeLeer);
 
+        informes.MapGet("/beneficio", BeneficioAsync)
+            .WithSummary("Beneficio del periodo: margen bruto (venta − compra) y neto (menos gastos).")
+            .RequierePermiso(Permisos.InformeLeer);
+
         return rutas;
     }
 
@@ -90,6 +94,19 @@ public static class EndpointsInformes
 
         var ejercicio = anio ?? DateTime.UtcNow.Year;
         return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, ejercicio, trimestre, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> BeneficioAsync(
+        IContextoEmpresa contexto, GenerarBeneficio caso, CancellationToken ct,
+        DateOnly? desde = null, DateOnly? hasta = null)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var (d, h) = RangoPorDefecto(desde, hasta);
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, d, h, ct).ConfigureAwait(false));
     }
 
     private static (DateOnly Desde, DateOnly Hasta) RangoPorDefecto(DateOnly? desde, DateOnly? hasta)

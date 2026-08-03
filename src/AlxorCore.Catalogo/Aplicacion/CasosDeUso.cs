@@ -12,18 +12,21 @@ public sealed record DatosProducto(
     string? Referencia = null,
     TipoProducto Tipo = TipoProducto.Servicio,
     string? CodigoIva = null,
-    string? Unidad = null);
+    string? Unidad = null,
+    decimal PrecioCompra = 0m);
 
 /// <summary>Caso de uso: crear un producto en la empresa activa.</summary>
 public sealed class CrearProducto
 {
     private readonly IRepositorioProductos _productos;
+    private readonly IRepositorioHistoricoPrecios _historico;
     private readonly IUnidadDeTrabajoCatalogo _unidadDeTrabajo;
     private readonly IReloj _reloj;
 
-    public CrearProducto(IRepositorioProductos productos, IUnidadDeTrabajoCatalogo unidadDeTrabajo, IReloj reloj)
+    public CrearProducto(IRepositorioProductos productos, IRepositorioHistoricoPrecios historico, IUnidadDeTrabajoCatalogo unidadDeTrabajo, IReloj reloj)
     {
         _productos = productos;
+        _historico = historico;
         _unidadDeTrabajo = unidadDeTrabajo;
         _reloj = reloj;
     }
@@ -32,13 +35,14 @@ public sealed class CrearProducto
     {
         ArgumentNullException.ThrowIfNull(datos);
 
-        var producto = Producto.Crear(empresaId, datos.Referencia, datos.Nombre, datos.Tipo, datos.PrecioUnitario, datos.CodigoIva, datos.Unidad, _reloj);
+        var producto = Producto.Crear(empresaId, datos.Referencia, datos.Nombre, datos.Tipo, datos.PrecioUnitario, datos.PrecioCompra, datos.CodigoIva, datos.Unidad, _reloj);
         if (producto.EsFallo)
         {
             return Resultado.Fallo<ProductoDto>(producto.Error);
         }
 
         _productos.Agregar(producto.Valor);
+        _historico.Agregar(HistoricoPrecio.Registrar(empresaId, producto.Valor.Id, producto.Valor.PrecioUnitario, producto.Valor.PrecioCompra, _reloj.AhoraUtc));
         await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
         return Resultado.Ok(ProductoDto.Desde(producto.Valor));
     }
@@ -48,12 +52,14 @@ public sealed class CrearProducto
 public sealed class ActualizarProducto
 {
     private readonly IRepositorioProductos _productos;
+    private readonly IRepositorioHistoricoPrecios _historico;
     private readonly IUnidadDeTrabajoCatalogo _unidadDeTrabajo;
     private readonly IReloj _reloj;
 
-    public ActualizarProducto(IRepositorioProductos productos, IUnidadDeTrabajoCatalogo unidadDeTrabajo, IReloj reloj)
+    public ActualizarProducto(IRepositorioProductos productos, IRepositorioHistoricoPrecios historico, IUnidadDeTrabajoCatalogo unidadDeTrabajo, IReloj reloj)
     {
         _productos = productos;
+        _historico = historico;
         _unidadDeTrabajo = unidadDeTrabajo;
         _reloj = reloj;
     }
@@ -68,15 +74,35 @@ public sealed class ActualizarProducto
             return Resultado.Fallo<ProductoDto>(Error.NoEncontrado("producto.no_encontrado", "El producto no existe."));
         }
 
-        var r = producto.Actualizar(datos.Referencia, datos.Nombre, datos.Tipo, datos.PrecioUnitario, datos.CodigoIva, datos.Unidad, _reloj);
+        var precioVentaAnterior = producto.PrecioUnitario;
+        var precioCompraAnterior = producto.PrecioCompra;
+
+        var r = producto.Actualizar(datos.Referencia, datos.Nombre, datos.Tipo, datos.PrecioUnitario, datos.PrecioCompra, datos.CodigoIva, datos.Unidad, _reloj);
         if (r.EsFallo)
         {
             return Resultado.Fallo<ProductoDto>(r.Error);
         }
 
+        // Solo dejamos rastro en el histórico si algún precio cambió.
+        if (producto.PrecioUnitario != precioVentaAnterior || producto.PrecioCompra != precioCompraAnterior)
+        {
+            _historico.Agregar(HistoricoPrecio.Registrar(producto.EmpresaId, producto.Id, producto.PrecioUnitario, producto.PrecioCompra, _reloj.AhoraUtc));
+        }
+
         await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
         return Resultado.Ok(ProductoDto.Desde(producto));
     }
+}
+
+/// <summary>Caso de uso: listar el histórico de precios de un producto (más reciente primero).</summary>
+public sealed class ListarHistoricoPrecios
+{
+    private readonly IConsultaHistoricoPrecios _consulta;
+
+    public ListarHistoricoPrecios(IConsultaHistoricoPrecios consulta) => _consulta = consulta;
+
+    public Task<IReadOnlyList<HistoricoPrecioDto>> EjecutarAsync(Guid productoId, CancellationToken ct = default) =>
+        _consulta.ListarPorProductoAsync(productoId, ct);
 }
 
 /// <summary>Caso de uso: listar los productos de la empresa activa.</summary>

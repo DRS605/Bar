@@ -96,11 +96,14 @@ internal sealed class ConfiguracionFactura : IEntityTypeConfiguration<Factura>
             linea.Property(l => l.Descripcion).HasColumnName("descripcion").HasMaxLength(300).IsRequired();
             linea.Property(l => l.Cantidad).HasColumnName("cantidad").HasColumnType("numeric(14,3)").IsRequired();
             linea.Property(l => l.PrecioUnitario).HasColumnName("precio_unitario").HasColumnType("numeric(14,4)").IsRequired();
+            linea.Property(l => l.CosteUnitario).HasColumnName("coste_unitario").HasColumnType("numeric(14,4)").IsRequired();
             linea.Property(l => l.PorcentajeDescuento).HasColumnName("descuento").HasColumnType("numeric(5,2)").IsRequired();
             linea.Property(l => l.CodigoIva).HasColumnName("codigo_iva").HasMaxLength(10).IsRequired();
             linea.Property(l => l.PorcentajeIva).HasColumnName("porcentaje_iva").HasColumnType("numeric(5,2)").IsRequired();
             linea.Property(l => l.Base).HasColumnName("base").HasColumnType("numeric(14,2)").IsRequired();
             linea.Property(l => l.CuotaIva).HasColumnName("cuota_iva").HasColumnType("numeric(14,2)").IsRequired();
+            linea.Ignore(l => l.CosteTotal);
+            linea.Ignore(l => l.Margen);
         });
     }
 }
@@ -251,6 +254,17 @@ internal sealed class RepositorioFacturas : IRepositorioFacturas, IConsultaFactu
         return facturas
             .Select(f => new FacturaResumen(
                 f.Id, f.NumeroCompleto, f.FechaEmision, f.FechaVencimiento, f.ClienteNombre, f.ClienteNif, f.BaseImponible, f.CuotaIva, f.RetencionIrpf, f.Total, f.Estado.ToString(), f.TipoFactura.ToString()))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<LineaMargenDto>> ListarLineasMargenAsync(Guid empresaId, DateOnly desde, DateOnly hasta, CancellationToken ct = default)
+    {
+        var facturas = await _contexto.Facturas
+            .Where(f => f.EmpresaId == empresaId && f.Estado == EstadoFactura.Emitida && f.FechaEmision >= desde && f.FechaEmision <= hasta)
+            .ToListAsync(ct).ConfigureAwait(false);
+
+        return facturas
+            .SelectMany(f => f.Lineas.Select(l => new LineaMargenDto(l.ProductoId, l.Descripcion, l.Cantidad, l.Base, l.CosteTotal)))
             .ToList();
     }
 }

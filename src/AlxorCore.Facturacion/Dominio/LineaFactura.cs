@@ -24,6 +24,7 @@ public sealed class LineaFactura : EntidadBase<Guid>
         Descripcion = datos.Descripcion.Trim();
         Cantidad = datos.Cantidad;
         PrecioUnitario = datos.PrecioUnitario;
+        CosteUnitario = datos.CosteUnitario;
         PorcentajeDescuento = datos.PorcentajeDescuento;
         CodigoIva = datos.CodigoIva;
         PorcentajeIva = datos.PorcentajeIva;
@@ -43,6 +44,9 @@ public sealed class LineaFactura : EntidadBase<Guid>
 
     public decimal PrecioUnitario { get; private set; }
 
+    /// <summary>Coste/precio de compra unitario congelado al emitir (para el margen). 0 si no se conoce.</summary>
+    public decimal CosteUnitario { get; private set; }
+
     public decimal PorcentajeDescuento { get; private set; }
 
     public string CodigoIva { get; private set; }
@@ -54,4 +58,10 @@ public sealed class LineaFactura : EntidadBase<Guid>
 
     /// <summary>Cuota de IVA de la línea.</summary>
     public decimal CuotaIva { get; private set; }
+
+    /// <summary>Coste total de la línea (coste unitario × cantidad).</summary>
+    public decimal CosteTotal => Redondeo.Dos(CosteUnitario * Cantidad);
+
+    /// <summary>Margen comercial de la línea (base de venta − coste total).</summary>
+    public decimal Margen => Redondeo.Dos(Base - CosteTotal);
 }

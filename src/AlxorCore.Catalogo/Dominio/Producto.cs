@@ -34,13 +34,14 @@ public sealed class Producto : RaizAgregadoEmpresa<Guid>
         Unidad = null!;
     }
 
-    private Producto(Guid id, Guid empresaId, string? referencia, string nombre, TipoProducto tipo, decimal precio, string codigoIva, string unidad, DateTimeOffset ahora)
+    private Producto(Guid id, Guid empresaId, string? referencia, string nombre, TipoProducto tipo, decimal precio, decimal precioCompra, string codigoIva, string unidad, DateTimeOffset ahora)
         : base(id, empresaId)
     {
         Referencia = referencia;
         Nombre = nombre;
         Tipo = tipo;
         PrecioUnitario = precio;
+        PrecioCompra = precioCompra;
         CodigoIva = codigoIva;
         Unidad = unidad;
         Activo = true;
@@ -54,7 +55,11 @@ public sealed class Producto : RaizAgregadoEmpresa<Guid>
 
     public TipoProducto Tipo { get; private set; }
 
+    /// <summary>Precio de venta unitario.</summary>
     public decimal PrecioUnitario { get; private set; }
+
+    /// <summary>Precio de compra/coste unitario (para el cálculo de márgenes). 0 si no se conoce.</summary>
+    public decimal PrecioCompra { get; private set; }
 
     /// <summary>Código del IVA por defecto (del catálogo <see cref="Impuesto"/>).</summary>
     public string CodigoIva { get; private set; }
@@ -68,27 +73,27 @@ public sealed class Producto : RaizAgregadoEmpresa<Guid>
     public DateTimeOffset ActualizadoEn { get; private set; }
 
     public static Resultado<Producto> Crear(
-        Guid empresaId, string? referencia, string? nombre, TipoProducto tipo, decimal precioUnitario, string? codigoIva, string? unidad, IReloj reloj)
+        Guid empresaId, string? referencia, string? nombre, TipoProducto tipo, decimal precioUnitario, decimal precioCompra, string? codigoIva, string? unidad, IReloj reloj)
     {
         ArgumentNullException.ThrowIfNull(reloj);
 
-        var error = Validar(nombre, precioUnitario, ref codigoIva);
+        var error = Validar(nombre, precioUnitario, precioCompra, ref codigoIva);
         if (error is not null)
         {
             return Resultado.Fallo<Producto>(error);
         }
 
         var producto = new Producto(
-            Guid.NewGuid(), empresaId, Normalizar(referencia), nombre!.Trim(), tipo, precioUnitario, codigoIva!, NormalizarUnidad(unidad), reloj.AhoraUtc);
+            Guid.NewGuid(), empresaId, Normalizar(referencia), nombre!.Trim(), tipo, precioUnitario, precioCompra, codigoIva!, NormalizarUnidad(unidad), reloj.AhoraUtc);
         producto.RegistrarEvento(new ProductoCreado(producto.Id, empresaId, reloj.AhoraUtc));
         return Resultado.Ok(producto);
     }
 
-    public Resultado Actualizar(string? referencia, string? nombre, TipoProducto tipo, decimal precioUnitario, string? codigoIva, string? unidad, IReloj reloj)
+    public Resultado Actualizar(string? referencia, string? nombre, TipoProducto tipo, decimal precioUnitario, decimal precioCompra, string? codigoIva, string? unidad, IReloj reloj)
     {
         ArgumentNullException.ThrowIfNull(reloj);
 
-        var error = Validar(nombre, precioUnitario, ref codigoIva);
+        var error = Validar(nombre, precioUnitario, precioCompra, ref codigoIva);
         if (error is not null)
         {
             return Resultado.Fallo(error);
@@ -98,6 +103,7 @@ public sealed class Producto : RaizAgregadoEmpresa<Guid>
         Nombre = nombre!.Trim();
         Tipo = tipo;
         PrecioUnitario = precioUnitario;
+        PrecioCompra = precioCompra;
         CodigoIva = codigoIva!;
         Unidad = NormalizarUnidad(unidad);
         ActualizadoEn = reloj.AhoraUtc;
@@ -110,7 +116,7 @@ public sealed class Producto : RaizAgregadoEmpresa<Guid>
         ActualizadoEn = reloj.AhoraUtc;
     }
 
-    private static Error? Validar(string? nombre, decimal precio, ref string? codigoIva)
+    private static Error? Validar(string? nombre, decimal precio, decimal precioCompra, ref string? codigoIva)
     {
         if (string.IsNullOrWhiteSpace(nombre))
         {
@@ -125,6 +131,11 @@ public sealed class Producto : RaizAgregadoEmpresa<Guid>
         if (precio < 0)
         {
             return Error.Validacion("producto.precio_negativo", "El precio no puede ser negativo.");
+        }
+
+        if (precioCompra < 0)
+        {
+            return Error.Validacion("producto.precio_compra_negativo", "El precio de compra no puede ser negativo.");
         }
 
         var codigo = string.IsNullOrWhiteSpace(codigoIva) ? Impuesto.IvaGeneral.Codigo : codigoIva.Trim();

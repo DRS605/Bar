@@ -43,6 +43,18 @@ Solo cuentan las facturas en estado **Emitida**: se excluyen las **anuladas** y 
 **rectificadas** (sustituidas por su rectificativa, que aporta los importes corregidos). Requiere el
 permiso `informe.leer`.
 
+## Beneficio (margen bruto y neto)
+
+`GET /informes/beneficio?desde=&hasta=` calcula el beneficio del periodo a partir del **margen por
+línea** de las facturas emitidas (venta − coste congelado) y de los gastos:
+
+- **Margen bruto** = `Σ ingresos de venta − Σ coste (precio de compra)`.
+- **Beneficio neto** = `margen bruto − gastos genéricos del periodo`.
+- **Desglose por artículo/concepto**: unidades, ingresos, coste y margen, ordenado por margen.
+
+El coste sale del **precio de compra congelado** en cada línea al emitir (Catálogo → Facturación),
+de modo que el margen no cambia aunque después varíe el coste del producto. Requiere `informe.leer`.
+
 ## API
 
 | Método | Ruta | Auth | Descripción |
@@ -51,6 +63,7 @@ permiso `informe.leer`.
 | `GET` | `/informes/libro-iva` | permiso `informe.leer` | Libro de IVA del periodo. |
 | `GET` | `/informes/libro-iva/csv` | permiso `datos.exportar` | Exportación CSV. |
 | `GET` | `/informes/resumen-trimestral` | permiso `informe.leer` | Resúmenes 303 (IVA) y 130 (IRPF) del trimestre. |
+| `GET` | `/informes/beneficio` | permiso `informe.leer` | Beneficio del periodo (margen bruto y neto). |
 
 ## Tests
 

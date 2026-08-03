@@ -12,9 +12,11 @@ public sealed class CatalogoEndpointsTests : IClassFixture<FabricaApiPruebas>
 
     public CatalogoEndpointsTests(FabricaApiPruebas fabrica) => _fabrica = fabrica;
 
-    private sealed record ProductoDto(Guid Id, string Nombre, decimal PrecioUnitario, string CodigoIva, decimal PorcentajeIva, bool Activo);
+    private sealed record ProductoDto(Guid Id, string Nombre, decimal PrecioUnitario, string CodigoIva, decimal PorcentajeIva, bool Activo, decimal PrecioCompra);
 
     private sealed record ImpuestoDto(string Codigo, string Nombre, string Tipo, decimal Porcentaje);
+
+    private sealed record HistoricoPrecioResp(DateTimeOffset RegistradoEn, decimal PrecioVenta, decimal PrecioCompra);
 
     [Fact]
     public async Task Listar_impuestos_devuelve_los_tipos_de_iva()
@@ -42,6 +44,25 @@ public sealed class CatalogoEndpointsTests : IClassFixture<FabricaApiPruebas>
 
         var obtenido = await cliente.GetFromJsonAsync<ProductoDto>($"/productos/{creado.Id}");
         obtenido!.Nombre.Should().Be("Consultoría");
+    }
+
+    [Fact]
+    public async Task El_historico_de_precios_registra_alta_y_cambios()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+
+        var creado = (await (await cliente.PostAsJsonAsync("/productos", new { Nombre = "Artículo", PrecioUnitario = 100m, PrecioCompra = 60m, CodigoIva = "IVA21" }))
+            .Content.ReadFromJsonAsync<ProductoDto>())!;
+        creado.PrecioCompra.Should().Be(60m);
+
+        // Cambio de precios -> nueva fila de histórico.
+        await cliente.PutAsJsonAsync($"/productos/{creado.Id}", new { Nombre = "Artículo", PrecioUnitario = 120m, PrecioCompra = 70m, CodigoIva = "IVA21" });
+
+        var historico = await cliente.GetFromJsonAsync<List<HistoricoPrecioResp>>($"/productos/{creado.Id}/precios");
+        historico.Should().HaveCount(2);
+        historico![0].PrecioVenta.Should().Be(120m); // más reciente primero
+        historico[0].PrecioCompra.Should().Be(70m);
+        historico[1].PrecioVenta.Should().Be(100m);
     }
 
     [Fact]

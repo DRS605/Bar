@@ -24,6 +24,10 @@ public static class EndpointsCatalogo
             .WithSummary("Obtiene un producto.")
             .RequireAuthorization();
 
+        productos.MapGet("/{id:guid}/precios", HistoricoAsync)
+            .WithSummary("Histórico de precios (compra y venta) del producto.")
+            .RequireAuthorization();
+
         productos.MapPost("", CrearAsync)
             .WithSummary("Crea un producto.")
             .RequierePermiso(Permisos.ProductoGestionar);
@@ -57,6 +61,9 @@ public static class EndpointsCatalogo
     private static async Task<IResult> ObtenerAsync(Guid id, ObtenerProducto caso, CancellationToken ct) =>
         (await caso.EjecutarAsync(id, ct).ConfigureAwait(false)).AOk();
 
+    private static async Task<IResult> HistoricoAsync(Guid id, ListarHistoricoPrecios caso, CancellationToken ct) =>
+        Results.Ok(await caso.EjecutarAsync(id, ct).ConfigureAwait(false));
+
     private static async Task<IResult> CrearAsync(DatosProducto datos, IContextoEmpresa contexto, CrearProducto caso, CancellationToken ct)
     {
         if (contexto.EmpresaId is null)
@@ -89,7 +96,8 @@ public static class EndpointsCatalogo
                 Referencia: fila.Campo("referencia", "codigo", "ean", "sku", "código"),
                 Tipo: tipo,
                 CodigoIva: ImportacionCsv.CodigoIva(fila.Campo("iva", "codigo iva", "tipo iva")),
-                Unidad: fila.Campo("unidad"));
+                Unidad: fila.Campo("unidad"),
+                PrecioCompra: ImportacionCsv.Numero(fila.Campo("precio compra", "coste", "compra", "precio de compra")));
             filas.Add(new FilaImportacionProducto(fila.Numero, datos));
         }
 

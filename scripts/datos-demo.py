@@ -116,7 +116,8 @@ def main():
         ("Libro técnico", "LIBRO", 24, "IVA4"),
         ("Menú del día", "MENU", 13, "IVA10"),
     ]:
-        llamar("POST", "/productos", {"nombre": nombre, "referencia": ref, "precioUnitario": precio, "codigoIva": iva, "tipo": "Servicio"})
+        # Precio de compra ~55% del de venta (para que el informe de beneficio muestre margen).
+        llamar("POST", "/productos", {"nombre": nombre, "referencia": ref, "precioUnitario": precio, "precioCompra": round(precio * 0.55, 2), "codigoIva": iva, "tipo": "Servicio"})
     paso("6 artículos")
 
     anio = date.today().year
@@ -148,7 +149,7 @@ def main():
             "diasVencimiento": venc,
             "fechaEmision": f"{anio}-{mes:02d}-{dia:02d}",
             "porcentajeIrpf": irpf,
-            "lineas": [{"descripcion": desc, "cantidad": cant, "precioUnitario": precio, "codigoIva": iva}],
+            "lineas": [{"descripcion": desc, "cantidad": cant, "precioUnitario": precio, "costeUnitario": round(precio * 0.55, 2), "codigoIva": iva}],
         })
         facturas.append(f)
     paso(f"{len(facturas)} facturas emitidas")

@@ -20,6 +20,9 @@ public sealed class InformesEndpointsTests : IClassFixture<FabricaApiPruebas>
     private sealed record Modelo303Resp(decimal IvaDevengadoBase, decimal IvaDevengadoCuota, decimal IvaDeducibleBase, decimal IvaDeducibleCuota, decimal Resultado);
     private sealed record Modelo130Resp(decimal IngresosAcumulados, decimal GastosAcumulados, decimal RendimientoAcumulado, decimal PagoFraccionadoBruto, decimal RetencionesAcumuladas, decimal PagosAnteriores, decimal Resultado);
     private sealed record ResumenResp(Modelo303Resp Modelo303, Modelo130Resp Modelo130);
+    private sealed record ProductoResp(Guid Id);
+    private sealed record BeneficioProductoResp(string Descripcion, decimal Ingresos, decimal Coste, decimal Margen);
+    private sealed record BeneficioResp(decimal Ingresos, decimal Coste, decimal MargenBruto, decimal Gastos, decimal BeneficioNeto, List<BeneficioProductoResp> PorProducto);
 
     private static async Task<FacturaResp> EmitirFacturaAsync(HttpClient cliente)
     {
@@ -98,5 +101,33 @@ public sealed class InformesEndpointsTests : IClassFixture<FabricaApiPruebas>
         resumen.Modelo130.GastosAcumulados.Should().Be(100m);
         resumen.Modelo130.RendimientoAcumulado.Should().Be(100m);
         resumen.Modelo130.PagoFraccionadoBruto.Should().Be(20m); // 20% de 100
+    }
+
+    [Fact]
+    public async Task Beneficio_calcula_margen_bruto_y_neto()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var clienteId = (await (await cliente.PostAsJsonAsync("/clientes", new { Nombre = "Cliente", NifFiscal = "B12345674" })).Content.ReadFromJsonAsync<ClienteResp>())!.Id;
+
+        // Artículo con precio de venta 100 y compra 60 -> margen 40 por unidad.
+        var prod = (await (await cliente.PostAsJsonAsync("/productos", new { Nombre = "Artículo", PrecioUnitario = 100m, PrecioCompra = 60m, CodigoIva = "IVA21" }))
+            .Content.ReadFromJsonAsync<ProductoResp>())!;
+
+        var hoy = DateTime.UtcNow;
+        await cliente.PostAsJsonAsync("/facturas", new
+        {
+            ClienteId = clienteId,
+            Lineas = new[] { new { ProductoId = prod.Id, Cantidad = 3m } }, // ingreso 300, coste 180
+        });
+        await cliente.PostAsJsonAsync("/gastos", new { Concepto = "Luz", BaseImponible = 50m, CodigoIva = "IVA21" });
+
+        var b = await cliente.GetFromJsonAsync<BeneficioResp>($"/informes/beneficio?desde={hoy.Year}-01-01&hasta={hoy.Year}-12-31");
+
+        b!.Ingresos.Should().Be(300m);
+        b.Coste.Should().Be(180m);
+        b.MargenBruto.Should().Be(120m);   // 300 - 180
+        b.Gastos.Should().Be(50m);
+        b.BeneficioNeto.Should().Be(70m);  // 120 - 50
+        b.PorProducto.Should().ContainSingle(p => p.Margen == 120m);
     }
 }

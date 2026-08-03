@@ -16,7 +16,8 @@ public sealed record LineaComando(
     decimal? PrecioUnitario = null,
     string? CodigoIva = null,
     decimal PorcentajeDescuento = 0m,
-    Guid? ProductoId = null);
+    Guid? ProductoId = null,
+    decimal? CosteUnitario = null);
 
 /// <summary>Datos para emitir una factura. <c>DiasVencimiento</c> es el plazo de pago (0 = contado).</summary>
 public sealed record EmitirFacturaComando(
@@ -151,6 +152,7 @@ internal static class ResolucionLineasFactura
             string? descripcion = linea.Descripcion;
             decimal? precio = linea.PrecioUnitario;
             string? codigoIva = linea.CodigoIva;
+            decimal? coste = linea.CosteUnitario;
 
             if (linea.ProductoId is not null)
             {
@@ -163,6 +165,7 @@ internal static class ResolucionLineasFactura
                 descripcion ??= producto.Nombre;
                 precio ??= producto.PrecioUnitario;
                 codigoIva ??= producto.CodigoIva;
+                coste ??= producto.PrecioCompra;
             }
 
             if (string.IsNullOrWhiteSpace(descripcion))
@@ -182,7 +185,7 @@ internal static class ResolucionLineasFactura
             }
 
             resueltas.Add(new NuevaLinea(
-                descripcion, linea.Cantidad, precio.Value, impuesto.Valor.Codigo, impuesto.Valor.Porcentaje, linea.PorcentajeDescuento, linea.ProductoId));
+                descripcion, linea.Cantidad, precio.Value, impuesto.Valor.Codigo, impuesto.Valor.Porcentaje, linea.PorcentajeDescuento, linea.ProductoId, coste ?? 0m));
         }
 
         return Resultado.Ok(resueltas);

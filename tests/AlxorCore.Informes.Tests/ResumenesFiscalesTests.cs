@@ -21,6 +21,9 @@ public class ResumenesFiscalesTests
         public Task<FacturaDto?> ObtenerAsync(Guid facturaId, CancellationToken ct = default) => Task.FromResult<FacturaDto?>(null);
 
         public Task<IReadOnlyList<FacturaResumen>> ListarAsync(Guid empresaId, CancellationToken ct = default) => Task.FromResult(lista);
+
+        public Task<IReadOnlyList<LineaMargenDto>> ListarLineasMargenAsync(Guid empresaId, DateOnly desde, DateOnly hasta, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<LineaMargenDto>>([]);
     }
 
     private sealed class FakeGastos(IReadOnlyList<GastoDto> lista) : IConsultaGastos

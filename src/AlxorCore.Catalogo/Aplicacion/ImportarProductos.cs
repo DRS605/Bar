@@ -15,12 +15,14 @@ public sealed record FilaImportacionProducto(int Fila, DatosProducto Datos);
 public sealed class ImportarProductos
 {
     private readonly IRepositorioProductos _productos;
+    private readonly IRepositorioHistoricoPrecios _historico;
     private readonly IUnidadDeTrabajoCatalogo _unidadDeTrabajo;
     private readonly IReloj _reloj;
 
-    public ImportarProductos(IRepositorioProductos productos, IUnidadDeTrabajoCatalogo unidadDeTrabajo, IReloj reloj)
+    public ImportarProductos(IRepositorioProductos productos, IRepositorioHistoricoPrecios historico, IUnidadDeTrabajoCatalogo unidadDeTrabajo, IReloj reloj)
     {
         _productos = productos;
+        _historico = historico;
         _unidadDeTrabajo = unidadDeTrabajo;
         _reloj = reloj;
     }
@@ -36,7 +38,7 @@ public sealed class ImportarProductos
         foreach (var fila in filas)
         {
             var d = fila.Datos;
-            var producto = Producto.Crear(empresaId, d.Referencia, d.Nombre, d.Tipo, d.PrecioUnitario, d.CodigoIva, d.Unidad, _reloj);
+            var producto = Producto.Crear(empresaId, d.Referencia, d.Nombre, d.Tipo, d.PrecioUnitario, d.PrecioCompra, d.CodigoIva, d.Unidad, _reloj);
             if (producto.EsFallo)
             {
                 errores.Add(new ErrorFila(fila.Fila, producto.Error.Mensaje));
@@ -52,6 +54,7 @@ public sealed class ImportarProductos
             foreach (var producto in validos)
             {
                 _productos.Agregar(producto);
+                _historico.Agregar(HistoricoPrecio.Registrar(empresaId, producto.Id, producto.PrecioUnitario, producto.PrecioCompra, _reloj.AhoraUtc));
             }
 
             await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);

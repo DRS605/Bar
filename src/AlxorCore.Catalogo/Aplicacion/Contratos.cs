@@ -14,13 +14,20 @@ public sealed record ProductoDto(
     string CodigoIva,
     decimal PorcentajeIva,
     string Unidad,
-    bool Activo)
+    bool Activo,
+    decimal PrecioCompra)
 {
     public static ProductoDto Desde(Producto p)
     {
         var porcentaje = Impuesto.PorCodigoImpuesto(p.CodigoIva).Valor.Porcentaje;
-        return new ProductoDto(p.Id, p.Referencia, p.Nombre, p.Tipo, p.PrecioUnitario, p.CodigoIva, porcentaje, p.Unidad, p.Activo);
+        return new ProductoDto(p.Id, p.Referencia, p.Nombre, p.Tipo, p.PrecioUnitario, p.CodigoIva, porcentaje, p.Unidad, p.Activo, p.PrecioCompra);
     }
+}
+
+/// <summary>Fila del histórico de precios de un producto.</summary>
+public sealed record HistoricoPrecioDto(DateTimeOffset RegistradoEn, decimal PrecioVenta, decimal PrecioCompra)
+{
+    public static HistoricoPrecioDto Desde(HistoricoPrecio h) => new(h.RegistradoEn, h.PrecioVenta, h.PrecioCompra);
 }
 
 /// <summary>Vista de un tipo de impuesto del catálogo.</summary>
@@ -43,6 +50,18 @@ public interface IConsultaProductos
     Task<ProductoDto?> ObtenerAsync(Guid productoId, CancellationToken ct = default);
 
     Task<IReadOnlyList<ProductoDto>> ListarAsync(Guid empresaId, bool incluirInactivos = false, CancellationToken ct = default);
+}
+
+/// <summary>Repositorio del histórico de precios (solo escritura: se añaden filas).</summary>
+public interface IRepositorioHistoricoPrecios
+{
+    void Agregar(HistoricoPrecio historico);
+}
+
+/// <summary>Consulta del histórico de precios de un producto.</summary>
+public interface IConsultaHistoricoPrecios
+{
+    Task<IReadOnlyList<HistoricoPrecioDto>> ListarPorProductoAsync(Guid productoId, CancellationToken ct = default);
 }
 
 /// <summary>Unidad de trabajo del módulo Catálogo.</summary>

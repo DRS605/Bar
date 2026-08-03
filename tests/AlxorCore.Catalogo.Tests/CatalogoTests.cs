@@ -40,18 +40,19 @@ public class ProductoTests
     [Fact]
     public void Crear_producto_valido_usa_iva_general_por_defecto()
     {
-        var producto = Producto.Crear(Empresa, "REF1", "Servicio de consultoría", TipoProducto.Servicio, 100m, null, null, Reloj);
+        var producto = Producto.Crear(Empresa, "REF1", "Servicio de consultoría", TipoProducto.Servicio, 100m, 40m, null, null, Reloj);
 
         producto.EsCorrecto.Should().BeTrue();
         producto.Valor.CodigoIva.Should().Be("IVA21");
         producto.Valor.Unidad.Should().Be("ud");
+        producto.Valor.PrecioCompra.Should().Be(40m);
         producto.Valor.EventosDominio.Should().ContainSingle(e => e is ProductoCreado);
     }
 
     [Fact]
     public void Crear_producto_con_iva_reducido()
     {
-        var producto = Producto.Crear(Empresa, null, "Libro", TipoProducto.Bien, 20m, "IVA4", "ud", Reloj);
+        var producto = Producto.Crear(Empresa, null, "Libro", TipoProducto.Bien, 20m, 0m, "IVA4", "ud", Reloj);
         producto.Valor.CodigoIva.Should().Be("IVA4");
     }
 
@@ -60,18 +61,24 @@ public class ProductoTests
     [InlineData(null)]
     public void Crear_rechaza_nombre_vacio(string? nombre)
     {
-        Producto.Crear(Empresa, null, nombre, TipoProducto.Servicio, 10m, null, null, Reloj).EsFallo.Should().BeTrue();
+        Producto.Crear(Empresa, null, nombre, TipoProducto.Servicio, 10m, 0m, null, null, Reloj).EsFallo.Should().BeTrue();
     }
 
     [Fact]
     public void Crear_rechaza_precio_negativo()
     {
-        Producto.Crear(Empresa, null, "X", TipoProducto.Servicio, -1m, null, null, Reloj).EsFallo.Should().BeTrue();
+        Producto.Crear(Empresa, null, "X", TipoProducto.Servicio, -1m, 0m, null, null, Reloj).EsFallo.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Crear_rechaza_precio_compra_negativo()
+    {
+        Producto.Crear(Empresa, null, "X", TipoProducto.Servicio, 10m, -5m, null, null, Reloj).EsFallo.Should().BeTrue();
     }
 
     [Fact]
     public void Crear_rechaza_iva_desconocido()
     {
-        Producto.Crear(Empresa, null, "X", TipoProducto.Servicio, 10m, "IVA99", null, Reloj).EsFallo.Should().BeTrue();
+        Producto.Crear(Empresa, null, "X", TipoProducto.Servicio, 10m, 0m, "IVA99", null, Reloj).EsFallo.Should().BeTrue();
     }
 }

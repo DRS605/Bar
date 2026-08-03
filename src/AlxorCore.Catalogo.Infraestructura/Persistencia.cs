@@ -22,6 +22,8 @@ public sealed class CatalogoDbContext : DbContextEmpresaBase, IUnidadDeTrabajoCa
 
     public DbSet<Producto> Productos => Set<Producto>();
 
+    public DbSet<HistoricoPrecio> HistoricoPrecios => Set<HistoricoPrecio>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Esquema);
@@ -42,6 +44,7 @@ internal sealed class ConfiguracionProducto : IEntityTypeConfiguration<Producto>
         builder.Property(p => p.Nombre).HasColumnName("nombre").HasMaxLength(Producto.LongitudMaximaNombre).IsRequired();
         builder.Property(p => p.Tipo).HasColumnName("tipo").HasMaxLength(20).HasConversion<string>().IsRequired();
         builder.Property(p => p.PrecioUnitario).HasColumnName("precio_unitario").HasColumnType("numeric(12,2)").IsRequired();
+        builder.Property(p => p.PrecioCompra).HasColumnName("precio_compra").HasColumnType("numeric(12,2)").IsRequired();
         builder.Property(p => p.CodigoIva).HasColumnName("codigo_iva").HasMaxLength(10).IsRequired();
         builder.Property(p => p.Unidad).HasColumnName("unidad").HasMaxLength(20).IsRequired();
         builder.Property(p => p.Activo).HasColumnName("activo").IsRequired();
@@ -50,6 +53,42 @@ internal sealed class ConfiguracionProducto : IEntityTypeConfiguration<Producto>
 
         builder.HasIndex(p => new { p.EmpresaId, p.Nombre }).HasDatabaseName("ix_producto_empresa_nombre");
         builder.Ignore(p => p.EventosDominio);
+    }
+}
+
+internal sealed class ConfiguracionHistoricoPrecio : IEntityTypeConfiguration<HistoricoPrecio>
+{
+    public void Configure(EntityTypeBuilder<HistoricoPrecio> builder)
+    {
+        builder.ToTable("historico_precio");
+        builder.HasKey(h => h.Id);
+        builder.Property(h => h.Id).HasColumnName("id");
+        builder.Property(h => h.EmpresaId).HasColumnName("empresa_id").IsRequired();
+        builder.Property(h => h.ProductoId).HasColumnName("producto_id").IsRequired();
+        builder.Property(h => h.PrecioVenta).HasColumnName("precio_venta").HasColumnType("numeric(12,2)").IsRequired();
+        builder.Property(h => h.PrecioCompra).HasColumnName("precio_compra").HasColumnType("numeric(12,2)").IsRequired();
+        builder.Property(h => h.RegistradoEn).HasColumnName("registrado_en").IsRequired();
+
+        builder.HasIndex(h => new { h.EmpresaId, h.ProductoId, h.RegistradoEn }).HasDatabaseName("ix_historico_precio_producto");
+        builder.Ignore(h => h.EventosDominio);
+    }
+}
+
+internal sealed class RepositorioHistoricoPrecios : IRepositorioHistoricoPrecios, IConsultaHistoricoPrecios
+{
+    private readonly CatalogoDbContext _contexto;
+
+    public RepositorioHistoricoPrecios(CatalogoDbContext contexto) => _contexto = contexto;
+
+    public void Agregar(HistoricoPrecio historico) => _contexto.HistoricoPrecios.Add(historico);
+
+    public async Task<IReadOnlyList<HistoricoPrecioDto>> ListarPorProductoAsync(Guid productoId, CancellationToken ct = default)
+    {
+        var filas = await _contexto.HistoricoPrecios
+            .Where(h => h.ProductoId == productoId)
+            .OrderByDescending(h => h.RegistradoEn)
+            .ToListAsync(ct).ConfigureAwait(false);
+        return filas.Select(HistoricoPrecioDto.Desde).ToList();
     }
 }
 

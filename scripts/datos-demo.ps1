@@ -118,7 +118,8 @@ $articulos = @(
     @{ n = "Menu del dia"; ref = "MENU"; p = 13; iva = "IVA10" }
 )
 foreach ($a in $articulos) {
-    Call POST "/productos" @{ nombre = $a.n; referencia = $a.ref; precioUnitario = $a.p; codigoIva = $a.iva; tipo = "Servicio" } | Out-Null
+    # Precio de compra ~55% del de venta (para que el informe de beneficio muestre margen).
+    Call POST "/productos" @{ nombre = $a.n; referencia = $a.ref; precioUnitario = $a.p; precioCompra = [math]::Round($a.p * 0.55, 2); codigoIva = $a.iva; tipo = "Servicio" } | Out-Null
 }
 Paso "6 articulos"
 
