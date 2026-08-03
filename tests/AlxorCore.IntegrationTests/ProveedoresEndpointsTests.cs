@@ -12,7 +12,7 @@ public sealed class ProveedoresEndpointsTests : IClassFixture<FabricaApiPruebas>
 
     public ProveedoresEndpointsTests(FabricaApiPruebas fabrica) => _fabrica = fabrica;
 
-    private sealed record ProveedorDto(Guid Id, string Nombre, string? NifFiscal, bool Activo);
+    private sealed record ProveedorDto(Guid Id, string Nombre, string? NifFiscal, bool Activo, string FormaPago);
     private sealed record GastoDto(Guid Id, Guid? ProveedorId, string? ProveedorTexto, string Concepto, decimal Total);
 
     [Fact]
@@ -29,6 +29,18 @@ public sealed class ProveedoresEndpointsTests : IClassFixture<FabricaApiPruebas>
 
         var obtenido = await cliente.GetFromJsonAsync<ProveedorDto>($"/proveedores/{creado!.Id}");
         obtenido!.Nombre.Should().Be("Suministros Turia SL");
+    }
+
+    [Fact]
+    public async Task Guarda_la_forma_de_pago_del_proveedor()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+
+        var creado = await (await cliente.PostAsJsonAsync("/proveedores", new { Nombre = "Mayorista SL", FormaPago = "Domiciliacion" })).Content.ReadFromJsonAsync<ProveedorDto>();
+        creado!.FormaPago.Should().Be("Domiciliacion");
+
+        var obtenido = await cliente.GetFromJsonAsync<ProveedorDto>($"/proveedores/{creado.Id}");
+        obtenido!.FormaPago.Should().Be("Domiciliacion");
     }
 
     [Fact]

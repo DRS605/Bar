@@ -45,4 +45,7 @@ en `/productos/importar` (columnas *nombre*, *código/ean*, *precio*, *iva*, *ti
 
 ## Proveedores
 
-`Proveedor` { Nombre, NifFiscal opcional, Email, Direccion, PorcentajeIrpfDefecto, Activo }. CRUD en `/proveedores` (escritura con permiso `gasto.gestionar`). Los usa el módulo Gastos para enlazar cada gasto a un proveedor y copiar su nombre.
+`Proveedor` { Nombre, NifFiscal opcional, Email, Direccion, PorcentajeIrpfDefecto, **FormaPago**
+(forma de pago habitual: transferencia, domiciliación, efectivo, tarjeta, pagaré, confirming u otro),
+Activo }. CRUD en `/proveedores` (escritura con permiso `gasto.gestionar`). Los usa el módulo Gastos
+para enlazar cada gasto a un proveedor y copiar su nombre.

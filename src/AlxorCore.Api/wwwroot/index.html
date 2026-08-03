@@ -507,8 +507,9 @@
       view('<div class="muted">Cargando…</div>');
       const ps=await api("/proveedores");
       const ini = n => `<span class="avatar mini">${(n||'?').slice(0,1).toUpperCase()}</span>`;
-      const filas=ps.map(p=>`<tr><td>${ini(p.nombre)}<strong>${p.nombre}</strong></td><td class="muted">${p.nifFiscal||"—"}</td><td class="muted">${p.email||"—"}</td><td class="num">${p.porcentajeIrpfDefecto>0?p.porcentajeIrpfDefecto+"%":"—"}</td></tr>`).join("");
-      const cuerpo=ps.length?`<table><thead><tr><th>Nombre</th><th>NIF</th><th>Email</th><th class="num">IRPF</th></tr></thead><tbody>${filas}</tbody></table>`:vacio("proveedores","Sin proveedores todavía","Da de alta a tus proveedores para asociarlos a tus gastos.",`<button class="btn small" onclick="modalProveedor()">+ Nuevo proveedor</button>`);
+      const pago=c=>({NoIndicada:"—",Transferencia:"Transferencia",Domiciliacion:"Domiciliación",Efectivo:"Efectivo",Tarjeta:"Tarjeta",Pagare:"Pagaré",Confirming:"Confirming",Otro:"Otro"}[c]||"—");
+      const filas=ps.map(p=>`<tr><td>${ini(p.nombre)}<strong>${p.nombre}</strong></td><td class="muted">${p.nifFiscal||"—"}</td><td class="muted">${pago(p.formaPago)}</td><td class="muted">${p.email||"—"}</td><td class="num">${p.porcentajeIrpfDefecto>0?p.porcentajeIrpfDefecto+"%":"—"}</td></tr>`).join("");
+      const cuerpo=ps.length?`<table><thead><tr><th>Nombre</th><th>NIF</th><th>Forma de pago</th><th>Email</th><th class="num">IRPF</th></tr></thead><tbody>${filas}</tbody></table>`:vacio("proveedores","Sin proveedores todavía","Da de alta a tus proveedores para asociarlos a tus gastos.",`<button class="btn small" onclick="modalProveedor()">+ Nuevo proveedor</button>`);
       view(panel("Proveedores",cuerpo,`<button class="btn small" onclick="modalProveedor()">+ Nuevo proveedor</button>`));
     }
     async function vProductos() {
@@ -693,8 +694,10 @@
 
     function modalCliente(){ abrir("Nuevo cliente",`<label>Nombre</label><input id="c_nombre" placeholder="Nombre o razón social"/><div class="grid2"><div><label>NIF (opcional)</label><input id="c_nif"/></div><div><label>Email (opcional)</label><input id="c_email"/></div></div>`,
       async()=>{ await api("/clientes",{method:"POST",body:JSON.stringify({nombre:val("c_nombre"),nifFiscal:val("c_nif")||null,email:val("c_email")||null})}); vClientes(); }); }
-    function modalProveedor(){ abrir("Nuevo proveedor",`<label>Nombre</label><input id="pr_nombre" placeholder="Nombre o razón social"/><div class="grid2"><div><label>NIF (opcional)</label><input id="pr_nif"/></div><div><label>IRPF (opcional)</label><input id="pr_irpf" type="number" value="0"/></div></div>`,
-      async()=>{ await api("/proveedores",{method:"POST",body:JSON.stringify({nombre:val("pr_nombre"),nifFiscal:val("pr_nif")||null,porcentajeIrpfDefecto:Number(val("pr_irpf"))})}); vProveedores(); }); }
+    function modalProveedor(){ const fp=[["NoIndicada","Sin especificar"],["Transferencia","Transferencia"],["Domiciliacion","Domiciliación"],["Efectivo","Efectivo"],["Tarjeta","Tarjeta"],["Pagare","Pagaré"],["Confirming","Confirming"],["Otro","Otro"]].map(o=>`<option value="${o[0]}">${o[1]}</option>`).join("");
+      abrir("Nuevo proveedor",`<label>Nombre</label><input id="pr_nombre" placeholder="Nombre o razón social"/><div class="grid2"><div><label>NIF (opcional)</label><input id="pr_nif"/></div><div><label>IRPF (opcional)</label><input id="pr_irpf" type="number" value="0"/></div></div>
+      <div class="grid2"><div><label>Forma de pago</label><select id="pr_pago">${fp}</select></div><div><label>Email (opcional)</label><input id="pr_email"/></div></div>`,
+      async()=>{ await api("/proveedores",{method:"POST",body:JSON.stringify({nombre:val("pr_nombre"),nifFiscal:val("pr_nif")||null,email:val("pr_email")||null,porcentajeIrpfDefecto:Number(val("pr_irpf")),formaPago:val("pr_pago")})}); vProveedores(); }); }
     function modalProducto(){ abrir("Nuevo artículo",`<label>Nombre</label><input id="p_nombre" placeholder="Nombre del producto o servicio"/>
       <div class="grid2"><div><label>Código / EAN (opcional)</label><input id="p_ref" placeholder="Ej. 8412345678901"/></div><div><label>IVA</label>${ivaSel("p_iva")}</div></div>
       <div class="grid2"><div><label>Precio de venta (€)</label><input id="p_precio" type="number" step="0.01" value="0"/></div><div><label>Precio de compra / coste (€)</label><input id="p_compra" type="number" step="0.01" value="0"/></div></div>

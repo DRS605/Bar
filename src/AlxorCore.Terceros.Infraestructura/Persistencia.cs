@@ -111,6 +111,7 @@ internal sealed class ConfiguracionProveedor : IEntityTypeConfiguration<Proveedo
             d.Property(x => x.Pais).HasColumnName("direccion_pais").HasMaxLength(2);
         });
         builder.Property(p => p.PorcentajeIrpfDefecto).HasColumnName("irpf_defecto").HasColumnType("numeric(5,2)").IsRequired();
+        builder.Property(p => p.FormaPago).HasColumnName("forma_pago").HasMaxLength(20).HasConversion<string>().IsRequired();
         builder.Property(p => p.Activo).HasColumnName("activo").IsRequired();
         builder.Property(p => p.CreadoEn).HasColumnName("creado_en").IsRequired();
         builder.Property(p => p.ActualizadoEn).HasColumnName("actualizado_en").IsRequired();
