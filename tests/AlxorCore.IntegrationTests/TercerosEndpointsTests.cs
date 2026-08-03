@@ -15,6 +15,22 @@ public sealed class TercerosEndpointsTests : IClassFixture<FabricaApiPruebas>
     private sealed record ClienteDto(Guid Id, string Nombre, string? NifFiscal, decimal PorcentajeIrpfDefecto, bool Activo, bool RecargoEquivalencia);
 
     [Fact]
+    public async Task Exportar_datos_incluye_los_clientes_de_la_empresa()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        await cliente.PostAsJsonAsync("/clientes", new { Nombre = "Cliente Exportable SL", NifFiscal = "B12345674" });
+
+        var resp = await cliente.GetAsync(new Uri("/cuenta/exportar", UriKind.Relative));
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        resp.Content.Headers.ContentType!.MediaType.Should().Be("application/json");
+
+        var json = await resp.Content.ReadAsStringAsync();
+        json.Should().Contain("Cliente Exportable SL");
+        json.Should().Contain("\"empresa\"");
+        json.Should().Contain("\"facturas\"");
+    }
+
+    [Fact]
     public async Task Cliente_guarda_el_indicador_de_recargo_de_equivalencia()
     {
         var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
