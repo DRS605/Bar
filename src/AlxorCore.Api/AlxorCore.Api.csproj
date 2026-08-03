@@ -25,6 +25,8 @@
     <ProjectReference Include="..\AlxorCore.Documentos.Infraestructura\AlxorCore.Documentos.Infraestructura.csproj" />
     <ProjectReference Include="..\AlxorCore.Informes\AlxorCore.Informes.csproj" />
     <ProjectReference Include="..\AlxorCore.Informes.Infraestructura\AlxorCore.Informes.Infraestructura.csproj" />
+    <ProjectReference Include="..\AlxorCore.Auditoria\AlxorCore.Auditoria.csproj" />
+    <ProjectReference Include="..\AlxorCore.Auditoria.Infraestructura\AlxorCore.Auditoria.Infraestructura.csproj" />
   </ItemGroup>
 
   <ItemGroup>

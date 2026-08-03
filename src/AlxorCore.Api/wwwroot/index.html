@@ -690,7 +690,18 @@
       const panelSeries=panel("Series de facturación",intro+cuerpo,`<button class="btn small" onclick="modalSerie()">+ Nueva serie</button>`);
       let panelUsuarios="";
       try{ panelUsuarios=await panelUsuariosHtml(); }catch(e){ panelUsuarios=""; }
-      view(panelSeries+panelUsuarios);
+      let panelAudit="";
+      try{ panelAudit=await panelAuditoriaHtml(); }catch(e){ panelAudit=""; }
+      view(panelSeries+panelUsuarios+panelAudit);
+    }
+    async function panelAuditoriaHtml(){
+      const rs=await api("/auditoria?limite=50");
+      if(!rs.length) return panel("Actividad reciente",'<p class="muted">Todavía no hay actividad registrada.</p>');
+      const fmt=f=>{ const d=new Date(f); return d.toLocaleDateString("es-ES")+" "+d.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}); };
+      const badge=c=>c<400?'<span class="pill ok">OK</span>':'<span class="pill neg">'+c+'</span>';
+      const filas=rs.map(r=>`<tr><td class="muted">${fmt(r.ocurridoEn)}</td><td>${r.usuarioNombre}</td><td><strong>${r.accion}</strong></td><td class="muted mono">${r.metodo} ${r.ruta}</td><td class="right">${badge(r.codigoEstado)}</td></tr>`).join("");
+      const intro='<p class="muted" style="margin:0 0 14px">Registro de quién hace qué y cuándo en la empresa (altas, cambios y bajas). Solo lectura, no se puede modificar.</p>';
+      return panel("Actividad reciente",intro+`<table><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalle</th><th class="right">Resultado</th></tr></thead><tbody>${filas}</tbody></table>`);
     }
     const ROLES=[["propietario","Propietario"],["usuario","Usuario"],["solo_lectura","Solo lectura"]];
     const rolNombre=c=>(ROLES.find(r=>r[0]===c)||[,c])[1];

@@ -143,11 +143,11 @@ dotnet ef migrations add <Nombre> \
 | **Gastos** | ✅ Terminado |
 | **Tesorería** (cobros y pagos) | ✅ Terminado |
 | **Documentos** (PDF y email) | ✅ Terminado |
-| **Informes** (dashboard, libros de IVA, gestoría) | ✅ Terminado |
+| **Informes** (dashboard, libros de IVA, gestoría, beneficio) | ✅ Terminado |
+| **Auditoría** (registro de quién hizo qué y cuándo) | ✅ Terminado |
 
-**MVP completo**: los 9 módulos están terminados (dominio · API · persistencia · tests · docs), con
-136 tests en verde. El desarrollo ha avanzado **módulo a módulo**, cada uno entregado por completo
-antes del siguiente.
+**MVP completo**: los módulos están terminados (dominio · API · persistencia · tests · docs). El
+desarrollo ha avanzado **módulo a módulo**, cada uno entregado por completo antes del siguiente.
 
 ## Flujo de extremo a extremo (API)
 

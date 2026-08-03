@@ -14,6 +14,7 @@ using AlxorCore.Gastos.Infraestructura;
 using AlxorCore.Tesoreria.Infraestructura;
 using AlxorCore.Documentos.Infraestructura;
 using AlxorCore.Informes.Infraestructura;
+using AlxorCore.Auditoria.Infraestructura;
 using AlxorCore.Organizacion.Infraestructura.Persistencia;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -38,6 +39,7 @@ builder.Services.AgregarModuloGastos(builder.Configuration);
 builder.Services.AgregarModuloTesoreria(builder.Configuration);
 builder.Services.AgregarModuloDocumentos();
 builder.Services.AgregarModuloInformes();
+builder.Services.AgregarModuloAuditoria(builder.Configuration);
 
 // --- Facturación automática periódica (proceso en segundo plano) ---
 builder.Services.Configure<AlxorCore.Api.Servicios.OpcionesFacturacionRecurrente>(
@@ -110,6 +112,7 @@ if (app.Environment.IsDevelopment())
     await ambito.ServiceProvider.GetRequiredService<AlxorCore.Facturacion.Infraestructura.FacturacionDbContext>().Database.MigrateAsync().ConfigureAwait(false);
     await ambito.ServiceProvider.GetRequiredService<AlxorCore.Gastos.Infraestructura.GastosDbContext>().Database.MigrateAsync().ConfigureAwait(false);
     await ambito.ServiceProvider.GetRequiredService<AlxorCore.Tesoreria.Infraestructura.TesoreriaDbContext>().Database.MigrateAsync().ConfigureAwait(false);
+    await ambito.ServiceProvider.GetRequiredService<AlxorCore.Auditoria.Infraestructura.AuditoriaDbContext>().Database.MigrateAsync().ConfigureAwait(false);
 
     app.UseSwagger();
     app.UseSwaggerUI();
@@ -121,6 +124,9 @@ app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Auditoría: registra las operaciones que modifican datos (tras autenticar, para conocer al autor).
+app.UseMiddleware<AlxorCore.Api.Comun.MiddlewareAuditoria>();
 
 app.MapGet("/salud", () => Results.Ok(new { estado = "ok" }))
     .WithTags("Salud")
@@ -137,6 +143,7 @@ app.MapearGastos();
 app.MapearTesoreria();
 app.MapearDocumentos();
 app.MapearInformes();
+app.MapearAuditoria();
 
 // Cualquier ruta no-API devuelve la SPA (enrutado en el cliente).
 app.MapFallbackToFile("index.html");
