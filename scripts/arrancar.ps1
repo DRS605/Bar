@@ -23,11 +23,18 @@ Set-Location $raiz
 
 Write-Host "ALXOR Core - arranque sin Docker`n"
 
-# 1) .NET 8.
+# 1) .NET 8 (el proyecto usa net8.0; otras versiones pueden dar errores).
 if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
     Write-Host "Falta .NET 8. Instalalo con este comando y vuelve a intentarlo:" -ForegroundColor Yellow
     Write-Host "    winget install --id Microsoft.DotNet.SDK.8 -e"
     Write-Host "(cierra y abre PowerShell despues de instalar)"
+    exit 1
+}
+$sdks8 = (& dotnet --list-sdks) | Where-Object { $_ -match "^8\." }
+if (-not $sdks8) {
+    Write-Host "Tienes .NET instalado, pero falta el SDK de .NET 8 (el que usa este proyecto)." -ForegroundColor Yellow
+    Write-Host "Instalalo con este comando, cierra y abre PowerShell, y vuelve a intentarlo:"
+    Write-Host "    winget install --id Microsoft.DotNet.SDK.8 -e"
     exit 1
 }
 
