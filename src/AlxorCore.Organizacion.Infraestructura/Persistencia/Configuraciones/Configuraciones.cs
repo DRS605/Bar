@@ -37,6 +37,8 @@ internal sealed class ConfiguracionEmpresa : IEntityTypeConfiguration<Empresa>
         builder.Property(e => e.RegimenIva).HasColumnName("regimen_iva").HasMaxLength(30).HasConversion<string>().IsRequired();
         builder.Property(e => e.Moneda).HasColumnName("moneda").HasMaxLength(3).IsRequired();
         builder.Property(e => e.Pais).HasColumnName("pais").HasMaxLength(2).IsRequired();
+        builder.Property(e => e.Iban).HasColumnName("iban").HasMaxLength(34);
+        builder.Property(e => e.IdentificadorAcreedor).HasColumnName("identificador_acreedor").HasMaxLength(35);
         builder.Property(e => e.CreadoEn).HasColumnName("creado_en").IsRequired();
         builder.Property(e => e.ActualizadoEn).HasColumnName("actualizado_en").IsRequired();
 

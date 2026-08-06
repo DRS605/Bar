@@ -25,7 +25,7 @@ public sealed class Cliente : RaizAgregadoEmpresa<Guid>
         Direccion = Direccion.Vacia;
     }
 
-    private Cliente(Guid id, Guid empresaId, string nombre, string? nifFiscal, string? email, Direccion direccion, decimal irpf, bool recargoEquivalencia, DateTimeOffset ahora)
+    private Cliente(Guid id, Guid empresaId, string nombre, string? nifFiscal, string? email, Direccion direccion, decimal irpf, bool recargoEquivalencia, string? iban, string? mandatoReferencia, DateOnly? mandatoFecha, DateTimeOffset ahora)
         : base(id, empresaId)
     {
         Nombre = nombre;
@@ -34,6 +34,9 @@ public sealed class Cliente : RaizAgregadoEmpresa<Guid>
         Direccion = direccion;
         PorcentajeIrpfDefecto = irpf;
         RecargoEquivalencia = recargoEquivalencia;
+        Iban = NormalizarIban(iban);
+        MandatoReferencia = Normalizar(mandatoReferencia);
+        MandatoFecha = mandatoFecha;
         Activo = true;
         CreadoEn = ahora;
         ActualizadoEn = ahora;
@@ -53,6 +56,18 @@ public sealed class Cliente : RaizAgregadoEmpresa<Guid>
     /// <summary>El cliente está en régimen de recargo de equivalencia (minorista): al facturarle se aplica por defecto.</summary>
     public bool RecargoEquivalencia { get; private set; }
 
+    /// <summary>IBAN del cliente para domiciliar sus recibos (adeudos SEPA). Opcional.</summary>
+    public string? Iban { get; private set; }
+
+    /// <summary>Referencia única del mandato de domiciliación firmado por el cliente. Opcional.</summary>
+    public string? MandatoReferencia { get; private set; }
+
+    /// <summary>Fecha de firma del mandato de domiciliación. Opcional.</summary>
+    public DateOnly? MandatoFecha { get; private set; }
+
+    /// <summary>¿Tiene los datos necesarios para domiciliar (IBAN, mandato y fecha)?</summary>
+    public bool DomiciliacionCompleta => !string.IsNullOrWhiteSpace(Iban) && !string.IsNullOrWhiteSpace(MandatoReferencia) && MandatoFecha is not null;
+
     public bool Activo { get; private set; }
 
     public DateTimeOffset CreadoEn { get; private set; }
@@ -67,7 +82,10 @@ public sealed class Cliente : RaizAgregadoEmpresa<Guid>
         Direccion direccion,
         decimal porcentajeIrpfDefecto,
         IReloj reloj,
-        bool recargoEquivalencia = false)
+        bool recargoEquivalencia = false,
+        string? iban = null,
+        string? mandatoReferencia = null,
+        DateOnly? mandatoFecha = null)
     {
         ArgumentNullException.ThrowIfNull(direccion);
         ArgumentNullException.ThrowIfNull(reloj);
@@ -79,12 +97,12 @@ public sealed class Cliente : RaizAgregadoEmpresa<Guid>
         }
 
         var cliente = new Cliente(
-            Guid.NewGuid(), empresaId, nombre!.Trim(), Normalizar(nifFiscal), Normalizar(email), direccion, porcentajeIrpfDefecto, recargoEquivalencia, reloj.AhoraUtc);
+            Guid.NewGuid(), empresaId, nombre!.Trim(), Normalizar(nifFiscal), Normalizar(email), direccion, porcentajeIrpfDefecto, recargoEquivalencia, iban, mandatoReferencia, mandatoFecha, reloj.AhoraUtc);
         cliente.RegistrarEvento(new ClienteCreado(cliente.Id, empresaId, reloj.AhoraUtc));
         return Resultado.Ok(cliente);
     }
 
-    public Resultado Actualizar(string? nombre, string? nifFiscal, string? email, Direccion direccion, decimal porcentajeIrpfDefecto, IReloj reloj, bool recargoEquivalencia = false)
+    public Resultado Actualizar(string? nombre, string? nifFiscal, string? email, Direccion direccion, decimal porcentajeIrpfDefecto, IReloj reloj, bool recargoEquivalencia = false, string? iban = null, string? mandatoReferencia = null, DateOnly? mandatoFecha = null)
     {
         ArgumentNullException.ThrowIfNull(direccion);
         ArgumentNullException.ThrowIfNull(reloj);
@@ -101,6 +119,9 @@ public sealed class Cliente : RaizAgregadoEmpresa<Guid>
         Direccion = direccion;
         PorcentajeIrpfDefecto = porcentajeIrpfDefecto;
         RecargoEquivalencia = recargoEquivalencia;
+        Iban = NormalizarIban(iban);
+        MandatoReferencia = Normalizar(mandatoReferencia);
+        MandatoFecha = mandatoFecha;
         ActualizadoEn = reloj.AhoraUtc;
         return Resultado.Ok();
     }
@@ -132,4 +153,7 @@ public sealed class Cliente : RaizAgregadoEmpresa<Guid>
     }
 
     private static string? Normalizar(string? valor) => string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
+
+    private static string? NormalizarIban(string? iban) =>
+        string.IsNullOrWhiteSpace(iban) ? null : iban.Replace(" ", string.Empty, StringComparison.Ordinal).ToUpperInvariant();
 }

@@ -5,11 +5,14 @@
     <AssemblyName>AlxorCore.Tesoreria</AssemblyName>
   </PropertyGroup>
 
-  <!-- Tesorería consulta los totales de facturas (Facturación) y gastos (Gastos). -->
+  <!-- Tesorería consulta facturas (Facturación), gastos (Gastos) y, para las remesas SEPA,
+       clientes (Terceros) y la empresa emisora (Organización). -->
   <ItemGroup>
     <ProjectReference Include="..\AlxorCore.Nucleo\AlxorCore.Nucleo.csproj" />
     <ProjectReference Include="..\AlxorCore.Facturacion\AlxorCore.Facturacion.csproj" />
     <ProjectReference Include="..\AlxorCore.Gastos\AlxorCore.Gastos.csproj" />
+    <ProjectReference Include="..\AlxorCore.Terceros\AlxorCore.Terceros.csproj" />
+    <ProjectReference Include="..\AlxorCore.Organizacion\AlxorCore.Organizacion.csproj" />
   </ItemGroup>
 
 </Project>

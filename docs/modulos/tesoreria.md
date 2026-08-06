@@ -19,6 +19,7 @@ del **saldo** de cada documento.
 | `GET` | `/facturas/{id}/saldo` | permiso `factura.leer` | Total, liquidado, pendiente y estado. |
 | `GET` | `/gastos/{id}/saldo` | permiso `gasto.leer` | Total, liquidado, pendiente y estado. |
 | `POST` | `/tesoreria/conciliacion` | permiso `cobro.registrar` | Lee un extracto Norma 43 y propone casaciones. |
+| `POST` | `/tesoreria/remesa` | permiso `cobro.registrar` | Genera una remesa de adeudos SEPA (pain.008 / Norma 19). |
 
 ## Conciliación bancaria (Norma 43)
 
@@ -34,10 +35,27 @@ La casación es solo una sugerencia (por importe exacto, sin reutilizar un docum
 apuntes); el usuario la confirma registrando el cobro o el pago con los endpoints habituales
 (`/cobros`, `/pagos`). No se persiste el extracto: es una ayuda de conciliación, no un libro contable.
 
+## Remesas de adeudos SEPA (Norma 19)
+
+`POST /tesoreria/remesa` recibe una lista de facturas y genera un fichero **pain.008.001.02** (el
+adeudo directo SEPA, equivalente a la Norma 19) para cobrarlas por **domiciliación**. Requiere:
+
+- En la **empresa** (Organización): IBAN de ingreso e **identificador de acreedor** SEPA
+  (Ajustes → Datos de cobro).
+- En cada **cliente** (Terceros): IBAN, **referencia de mandato** y fecha de firma del mandato.
+
+`GenerarRemesaSepa` cobra el **importe pendiente** de cada factura (consulta los movimientos), **omite
+informando** las que no se pueden domiciliar (cliente sin mandato o factura ya cobrada) y compone el
+XML con `System.Xml.Linq` (una `PmtInf` con secuencia `OOFF`). Devuelve el fichero, el número de
+adeudos, el total y la lista de omitidas; el usuario lo descarga y lo sube a su banco. No se registra
+el cobro automáticamente (se hará al confirmarse el adeudo en el banco).
+
 ## Composición
 
 Tesorería consulta los totales de los documentos a **Facturación** (`IConsultaFacturas`) y **Gastos**
-(`IConsultaGastos`); no duplica esa información. Guarda solo los movimientos.
+(`IConsultaGastos`); no duplica esa información. Guarda solo los movimientos. Para las remesas SEPA
+también lee **Terceros** (`IConsultaClientes`, para el IBAN y el mandato) y **Organización**
+(`IConsultaEmpresas`, para los datos de cobro del acreedor).
 
 ## Persistencia
 

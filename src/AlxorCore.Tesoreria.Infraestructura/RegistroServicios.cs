@@ -35,6 +35,7 @@ public static class RegistroServicios
         servicios.AddScoped<RegistrarPago>();
         servicios.AddScoped<ConsultarSaldo>();
         servicios.AddScoped<ConciliarExtracto>();
+        servicios.AddScoped<GenerarRemesaSepa>();
 
         return servicios;
     }

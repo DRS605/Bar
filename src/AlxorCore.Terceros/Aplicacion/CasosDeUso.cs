@@ -16,7 +16,10 @@ public sealed record DatosCliente(
     string? Provincia = null,
     string? Pais = null,
     decimal PorcentajeIrpfDefecto = 0m,
-    bool RecargoEquivalencia = false);
+    bool RecargoEquivalencia = false,
+    string? Iban = null,
+    string? MandatoReferencia = null,
+    DateOnly? MandatoFecha = null);
 
 /// <summary>Caso de uso: crear un cliente en la empresa activa.</summary>
 public sealed class CrearCliente
@@ -37,7 +40,7 @@ public sealed class CrearCliente
         ArgumentNullException.ThrowIfNull(datos);
 
         var direccion = Direccion.Crear(datos.Calle, datos.CodigoPostal, datos.Poblacion, datos.Provincia, datos.Pais);
-        var cliente = Cliente.Crear(empresaId, datos.Nombre, datos.NifFiscal, datos.Email, direccion, datos.PorcentajeIrpfDefecto, _reloj, datos.RecargoEquivalencia);
+        var cliente = Cliente.Crear(empresaId, datos.Nombre, datos.NifFiscal, datos.Email, direccion, datos.PorcentajeIrpfDefecto, _reloj, datos.RecargoEquivalencia, datos.Iban, datos.MandatoReferencia, datos.MandatoFecha);
         if (cliente.EsFallo)
         {
             return Resultado.Fallo<ClienteDto>(cliente.Error);
@@ -74,7 +77,7 @@ public sealed class ActualizarCliente
         }
 
         var direccion = Direccion.Crear(datos.Calle, datos.CodigoPostal, datos.Poblacion, datos.Provincia, datos.Pais);
-        var actualizado = cliente.Actualizar(datos.Nombre, datos.NifFiscal, datos.Email, direccion, datos.PorcentajeIrpfDefecto, _reloj, datos.RecargoEquivalencia);
+        var actualizado = cliente.Actualizar(datos.Nombre, datos.NifFiscal, datos.Email, direccion, datos.PorcentajeIrpfDefecto, _reloj, datos.RecargoEquivalencia, datos.Iban, datos.MandatoReferencia, datos.MandatoFecha);
         if (actualizado.EsFallo)
         {
             return Resultado.Fallo<ClienteDto>(actualizado.Error);

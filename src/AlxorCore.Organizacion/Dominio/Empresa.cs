@@ -47,6 +47,12 @@ public sealed class Empresa : RaizAgregado<Guid>
 
     public string Pais { get; private set; } = "ES";
 
+    /// <summary>IBAN de la empresa donde ingresar los adeudos domiciliados (remesas SEPA). Opcional.</summary>
+    public string? Iban { get; private set; }
+
+    /// <summary>Identificador del acreedor SEPA (lo asigna el banco). Necesario para emitir remesas. Opcional.</summary>
+    public string? IdentificadorAcreedor { get; private set; }
+
     public DateTimeOffset CreadoEn { get; private set; }
 
     public DateTimeOffset ActualizadoEn { get; private set; }
@@ -86,6 +92,16 @@ public sealed class Empresa : RaizAgregado<Guid>
 
         Direccion = direccion;
         RegimenIva = regimenIva;
+        ActualizadoEn = reloj.AhoraUtc;
+    }
+
+    /// <summary>Fija los datos de cobro por domiciliación (IBAN de ingreso e identificador del acreedor SEPA).</summary>
+    public void EstablecerDatosCobro(string? iban, string? identificadorAcreedor, IReloj reloj)
+    {
+        ArgumentNullException.ThrowIfNull(reloj);
+
+        Iban = string.IsNullOrWhiteSpace(iban) ? null : iban.Replace(" ", string.Empty, StringComparison.Ordinal).ToUpperInvariant();
+        IdentificadorAcreedor = string.IsNullOrWhiteSpace(identificadorAcreedor) ? null : identificadorAcreedor.Replace(" ", string.Empty, StringComparison.Ordinal).ToUpperInvariant();
         ActualizadoEn = reloj.AhoraUtc;
     }
 }

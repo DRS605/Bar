@@ -10,6 +10,9 @@ multiempresa** que usarán todos los módulos posteriores.
 - **Seleccionar la empresa activa**: emite un nuevo JWT con el alcance de la empresa (empresa, rol y
   permisos), que el resto de módulos usan para autorizar y aislar datos.
 - Gestionar **series de numeración** y ofrecer la **numeración correlativa** a otros módulos.
+- Guardar los **datos de cobro** de la empresa —IBAN e **identificador de acreedor SEPA**— que usa
+  Tesorería para generar las remesas de adeudos domiciliados (`PUT /empresas/actual/cobro`,
+  caso de uso `ActualizarDatosCobro`, permiso `empresa.ajustes`).
 
 ## Multiempresa (cómo funciona)
 

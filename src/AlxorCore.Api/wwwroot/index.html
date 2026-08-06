@@ -278,13 +278,13 @@
     // Menú agrupado en carpetas: Ventas, Compras y Artículos.
     const NAV = [
       { t:"item", k:"inicio", l:"Inicio" },
-      { t:"grupo", k:"ventas", l:"Ventas", items:[["presupuestos","Presupuestos"],["facturas","Facturas"],["tpv","TPV · Tickets"],["recurrentes","Periódicas"],["clientes","Clientes"],["cobros","Cobros"]] },
+      { t:"grupo", k:"ventas", l:"Ventas", items:[["presupuestos","Presupuestos"],["facturas","Facturas"],["tpv","TPV · Tickets"],["recurrentes","Periódicas"],["clientes","Clientes"],["cobros","Cobros"],["remesas","Remesas SEPA"]] },
       { t:"grupo", k:"compras", l:"Compras", items:[["gastos","Gastos"],["proveedores","Proveedores"],["pagos","Pagos"],["conciliacion","Conciliación banco"]] },
       { t:"grupo", k:"articulos", l:"Artículos", items:[["productos","Productos"]] },
       { t:"item", k:"informes", l:"Informes" },
       { t:"item", k:"ajustes", l:"Ajustes" },
     ];
-    const TITULOS = { inicio:"Inicio", presupuestos:"Presupuestos", facturas:"Facturas", tpv:"TPV · Tickets", recurrentes:"Facturación periódica", clientes:"Clientes", cobros:"Cobros", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", conciliacion:"Conciliación bancaria", productos:"Artículos", informes:"Informes", ajustes:"Ajustes" };
+    const TITULOS = { inicio:"Inicio", presupuestos:"Presupuestos", facturas:"Facturas", tpv:"TPV · Tickets", recurrentes:"Facturación periódica", clientes:"Clientes", cobros:"Cobros", remesas:"Remesas SEPA", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", conciliacion:"Conciliación bancaria", productos:"Artículos", informes:"Informes", ajustes:"Ajustes" };
     function renderNav() {
       return NAV.map(n => {
         if (n.t === "item") return `<a class="navitem" data-k="${n.k}" onclick="ir('${n.k}')">${ICON[n.k]}<span>${n.l}</span></a>`;
@@ -378,7 +378,7 @@
     function ir(k){ if(vista==="tpv" && k!=="tpv" && typeof tpvParar==="function") tpvParar(); vista=k;
       document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("active",a.dataset.k===k));
       document.getElementById("viewTitle").textContent=TITULOS[k]||k;
-      ({inicio:vInicio,presupuestos:vPresupuestos,facturas:vFacturas,tpv:vTpv,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,pagos:vPagos,conciliacion:vConciliacion,informes:vInformes,ajustes:vAjustes}[k])();
+      ({inicio:vInicio,presupuestos:vPresupuestos,facturas:vFacturas,tpv:vTpv,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,remesas:vRemesa,pagos:vPagos,conciliacion:vConciliacion,informes:vInformes,ajustes:vAjustes}[k])();
     }
     const view = h => document.getElementById("view").innerHTML=h;
     const panel = (t,c,a="") => `<div class="panel"><div class="panel-head"><h2>${t}</h2>${a}</div>${c}</div>`;
@@ -487,6 +487,30 @@
       }catch(e){ toast(e.message,"err"); } }
     async function enviarPresupuesto(id){ const email=prompt("Email del cliente para enviarle el presupuesto:"); if(!email)return;
       try{ await api("/presupuestos/"+id+"/enviar",{method:"POST",body:JSON.stringify({email})}); toast("Presupuesto enviado a "+email,"ok"); }catch(e){ toast(e.message,"err"); } }
+    /* ---------- Remesas SEPA (adeudos domiciliados, Norma 19) ---------- */
+    async function vRemesa(){
+      view('<div class="muted">Cargando…</div>');
+      const fs=(await api("/facturas")).filter(f=>f.estado==="Emitida");
+      const aviso=(!empresa.iban||!empresa.identificadorAcreedor)?`<div style="background:var(--accent-soft);border-radius:12px;padding:10px 14px;margin-bottom:14px">Configura primero el <strong>IBAN e identificador de acreedor</strong> de la empresa en <a onclick="ir('ajustes')" style="cursor:pointer;text-decoration:underline">Ajustes → Datos de cobro</a>.</div>`:"";
+      const filas=fs.map(f=>`<tr><td><input type="checkbox" class="rem_chk" value="${f.id}" style="width:auto"/></td><td><strong>${f.numeroCompleto}</strong></td><td>${f.clienteNombre}</td><td class="muted">${f.fechaEmision}</td><td class="num"><strong>${eur(f.total)}</strong></td></tr>`).join("");
+      const cuerpo=fs.length?`${aviso}<table><thead><tr><th></th><th>Número</th><th>Cliente</th><th>Fecha</th><th class="num">Total</th></tr></thead><tbody>${filas}</tbody></table>
+        <p class="muted" style="font-size:12px;margin:12px 0 0">Marca las facturas a domiciliar y genera el fichero SEPA (pain.008) para subirlo a tu banco. Solo se incluirán las de clientes con IBAN y mandato; el resto se listan como omitidas.</p>`
+        :vacio("facturas","No hay facturas emitidas","Emite facturas para poder domiciliarlas.");
+      const acc=`<button class="btn small" onclick="generarRemesa()">Generar remesa SEPA</button>`;
+      view(panel("Remesas de adeudos SEPA",cuerpo,fs.length?acc:""));
+    }
+    async function generarRemesa(){
+      const ids=[...document.querySelectorAll(".rem_chk:checked")].map(c=>c.value);
+      if(!ids.length){ toast("Marca al menos una factura","err"); return; }
+      try{
+        const r=await api("/tesoreria/remesa",{method:"POST",body:JSON.stringify({facturaIds:ids})});
+        const blob=new Blob([r.ficheroXml],{type:"application/xml"});
+        const u=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=u; a.download=r.nombreArchivo; a.click(); setTimeout(()=>URL.revokeObjectURL(u),60000);
+        let msg=`Remesa generada: ${r.numeroAdeudos} adeudo(s), ${eur(r.total)}.`;
+        if(r.omitidas&&r.omitidas.length) msg+=` ${r.omitidas.length} omitida(s).`;
+        toast(msg,"ok");
+        if(r.omitidas&&r.omitidas.length) alert("Facturas omitidas:\n\n"+r.omitidas.join("\n"));
+      }catch(e){ toast(e.message,"err"); } }
     /* ---------- Conciliación bancaria (Norma 43) ---------- */
     let _concApuntes=null;
     function vConciliacion(){
@@ -816,8 +840,18 @@
       try{ panelUsuarios=await panelUsuariosHtml(); }catch(e){ panelUsuarios=""; }
       let panelAudit="";
       try{ panelAudit=await panelAuditoriaHtml(); }catch(e){ panelAudit=""; }
-      view(panelSeries+panelUsuarios+panelDatosHtml()+panelAudit);
+      view(panelSeries+panelCobroHtml()+panelUsuarios+panelDatosHtml()+panelAudit);
     }
+    function panelCobroHtml(){
+      const cuerpo=`<p class="muted" style="margin:0 0 14px">Para cobrar por <strong>domiciliación bancaria</strong> (remesas SEPA) necesitas el IBAN donde ingresar los recibos y tu <strong>identificador de acreedor</strong> (te lo da tu banco).</p>
+        <div class="grid2"><div><label>IBAN de la empresa</label><input id="cb_iban" value="${empresa.iban||""}" placeholder="ES.."/></div><div><label>Identificador de acreedor SEPA</label><input id="cb_id" value="${empresa.identificadorAcreedor||""}" placeholder="ES..M.."/></div></div>
+        <button class="btn small" style="margin-top:12px" onclick="guardarCobro()">Guardar datos de cobro</button>`;
+      return panel("Datos de cobro (domiciliaciones)",cuerpo);
+    }
+    async function guardarCobro(){ try{
+        const e=await api("/empresas/actual/cobro",{method:"PUT",body:JSON.stringify({iban:val("cb_iban")||null,identificadorAcreedor:val("cb_id")||null})});
+        empresa.iban=e.iban; empresa.identificadorAcreedor=e.identificadorAcreedor; toast("Datos de cobro guardados","ok");
+      }catch(err){ toast(err.message,"err"); } }
     function panelDatosHtml(){
       const cuerpo=`<p class="muted" style="margin:0 0 14px">Tus datos son tuyos. Puedes descargar una copia completa de la empresa (clientes, artículos, facturas, gastos…) en cualquier momento (RGPD: derecho de acceso y portabilidad).</p>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
@@ -910,9 +944,12 @@
     function editarProveedor(id){ modalProveedor(_cacheProv.find(p=>p.id===id)); }
     function editarProducto(id,ev){ if(ev) ev.stopPropagation(); modalProducto(_cacheProd.find(p=>p.id===id)); }
     function modalCliente(c){ abrir(c?"Editar cliente":"Nuevo cliente",`<label>Nombre</label><input id="c_nombre" placeholder="Nombre o razón social"/><div class="grid2"><div><label>NIF (opcional)</label><input id="c_nif"/></div><div><label>Email (opcional)</label><input id="c_email"/></div></div><label>IRPF por defecto (%)</label><input id="c_irpf" type="number" value="0"/>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-weight:500;cursor:pointer"><input id="c_recargo" type="checkbox" style="width:auto"/> Cliente en recargo de equivalencia (minorista)</label>`,
-      async()=>{ const b=JSON.stringify({nombre:val("c_nombre"),nifFiscal:val("c_nif")||null,email:val("c_email")||null,porcentajeIrpfDefecto:Number(val("c_irpf")),recargoEquivalencia:document.getElementById("c_recargo").checked}); await api("/clientes"+(c?"/"+c.id:""),{method:c?"PUT":"POST",body:b}); vClientes(); });
-      if(c){ rellenar({c_nombre:c.nombre,c_nif:c.nifFiscal,c_email:c.email,c_irpf:c.porcentajeIrpfDefecto}); document.getElementById("c_recargo").checked=!!c.recargoEquivalencia; } }
+      <label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-weight:500;cursor:pointer"><input id="c_recargo" type="checkbox" style="width:auto"/> Cliente en recargo de equivalencia (minorista)</label>
+      <label style="margin-top:14px">Domiciliación bancaria (opcional, para remesas SEPA)</label>
+      <input id="c_iban" placeholder="IBAN del cliente (ES..)"/>
+      <div class="grid2"><div><label>Referencia del mandato</label><input id="c_mref" placeholder="Ej. MND-0001"/></div><div><label>Fecha del mandato</label><input id="c_mfecha" type="date"/></div></div>`,
+      async()=>{ const b=JSON.stringify({nombre:val("c_nombre"),nifFiscal:val("c_nif")||null,email:val("c_email")||null,porcentajeIrpfDefecto:Number(val("c_irpf")),recargoEquivalencia:document.getElementById("c_recargo").checked,iban:val("c_iban")||null,mandatoReferencia:val("c_mref")||null,mandatoFecha:val("c_mfecha")||null}); await api("/clientes"+(c?"/"+c.id:""),{method:c?"PUT":"POST",body:b}); vClientes(); });
+      if(c){ rellenar({c_nombre:c.nombre,c_nif:c.nifFiscal,c_email:c.email,c_irpf:c.porcentajeIrpfDefecto,c_iban:c.iban,c_mref:c.mandatoReferencia,c_mfecha:c.mandatoFecha}); document.getElementById("c_recargo").checked=!!c.recargoEquivalencia; } }
     function modalProveedor(pr){ const fp=[["NoIndicada","Sin especificar"],["Transferencia","Transferencia"],["Domiciliacion","Domiciliación"],["Efectivo","Efectivo"],["Tarjeta","Tarjeta"],["Pagare","Pagaré"],["Confirming","Confirming"],["Otro","Otro"]].map(o=>`<option value="${o[0]}">${o[1]}</option>`).join("");
       abrir(pr?"Editar proveedor":"Nuevo proveedor",`<label>Nombre</label><input id="pr_nombre" placeholder="Nombre o razón social"/><div class="grid2"><div><label>NIF (opcional)</label><input id="pr_nif"/></div><div><label>IRPF (opcional)</label><input id="pr_irpf" type="number" value="0"/></div></div>
       <div class="grid2"><div><label>Forma de pago</label><select id="pr_pago">${fp}</select></div><div><label>Email (opcional)</label><input id="pr_email"/></div></div>`,

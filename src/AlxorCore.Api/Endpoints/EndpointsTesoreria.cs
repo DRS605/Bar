@@ -36,7 +36,22 @@ public static class EndpointsTesoreria
             .WithTags("Tesorería").WithSummary("Lee un extracto bancario (Norma 43) y propone casaciones con facturas y gastos pendientes.")
             .RequierePermiso(Permisos.CobroRegistrar);
 
+        rutas.MapPost("/tesoreria/remesa", RemesaAsync)
+            .WithTags("Tesorería").WithSummary("Genera una remesa de adeudos SEPA (pain.008 / Norma 19) para las facturas indicadas.")
+            .RequierePermiso(Permisos.CobroRegistrar);
+
         return rutas;
+    }
+
+    private static async Task<IResult> RemesaAsync(GenerarRemesaComando comando, IContextoEmpresa contexto, GenerarRemesaSepa caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, comando, ct).ConfigureAwait(false);
+        return resultado.AOk();
     }
 
     private static async Task<IResult> ConciliarAsync(ConciliarPeticion peticion, IContextoEmpresa contexto, ConciliarExtracto caso, CancellationToken ct)
