@@ -424,7 +424,7 @@
       const estadoPill=f=>{const c=f.estado==="Rectificada"?"wait":(f.estado==="Anulada"?"wait":"ok");return `<span class="pill ${c}">${f.estado}</span>`;};
       // Solo se puede rectificar una factura ordinaria emitida (no tickets, rectificativas ni ya rectificadas).
       const rectBtn=f=>(f.estado==="Emitida"&&f.tipo==="Ordinaria")?`<button class="btn small secondary" onclick="modalRectificar('${f.id}')">Rectificar</button>`:"";
-      const filas=fs.map(f=>`<tr><td><strong>${f.numeroCompleto}</strong>${tipoPill(f)}</td><td>${f.clienteNombre}</td><td class="muted">${f.fechaEmision}</td><td class="num">${eur(f.baseImponible)}</td><td class="num">${eur(f.cuotaIva)}</td><td class="num"><strong>${eur(f.total)}</strong></td><td class="right">${estadoPill(f)}</td><td class="right" style="white-space:nowrap">${rectBtn(f)} <button class="btn small ghost" onclick="abrirPdf('${f.id}')">PDF</button> <button class="btn small ghost" onclick="abrirXml('${f.id}')" title="Registro VeriFactu">XML</button></td></tr>`).join("");
+      const filas=fs.map(f=>`<tr><td><strong>${f.numeroCompleto}</strong>${tipoPill(f)}</td><td>${f.clienteNombre}</td><td class="muted">${f.fechaEmision}</td><td class="num">${eur(f.baseImponible)}</td><td class="num">${eur(f.cuotaIva)}</td><td class="num"><strong>${eur(f.total)}</strong></td><td class="right">${estadoPill(f)}</td><td class="right" style="white-space:nowrap">${rectBtn(f)} <button class="btn small ghost" onclick="duplicarFactura('${f.id}')" title="Duplicar">⎘</button> <button class="btn small ghost" onclick="abrirPdf('${f.id}')">PDF</button> <button class="btn small ghost" onclick="abrirXml('${f.id}')" title="Registro VeriFactu">XML</button></td></tr>`).join("");
       const cuerpo=fs.length?`<table><thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th class="num">Base</th><th class="num">IVA</th><th class="num">Total</th><th class="right">Estado</th><th></th></tr></thead><tbody>${filas}</tbody></table>`:vacio("facturas","Todavía no hay facturas","Emite la primera; el número y los impuestos los ponemos nosotros.",`<button class="btn small" onclick="modalFactura()">+ Nueva factura</button>`);
       view(panel("Facturas emitidas",cuerpo,`<button class="btn small" onclick="modalFactura()">+ Nueva factura</button>`));
     }
@@ -477,20 +477,27 @@
     function tpvAdd(id){ const p=tpvProductos.find(x=>x.id===id); if(!p)return;
       const ex=tpvCart.find(l=>l.productoId===id); if(ex) ex.cantidad++; else tpvCart.push({productoId:id,descripcion:p.nombre,referencia:p.referencia,precioUnitario:p.precioUnitario,codigoIva:p.codigoIva,porcentajeIva:p.porcentajeIva,cantidad:1});
       tpvPintarCarrito(); }
-    function tpvPaso(i,d){ tpvCart[i].cantidad+=d; if(tpvCart[i].cantidad<=0) tpvCart.splice(i,1); tpvPintarCarrito(); }
+    function tpvPaso(i,d){ tpvCart[i].cantidad=Math.round((tpvCart[i].cantidad+d)*1000)/1000; if(tpvCart[i].cantidad<=0) tpvCart.splice(i,1); tpvPintarCarrito(); }
+    function tpvSetCant(i,v){ const n=Number(String(v).replace(",",".")); tpvCart[i].cantidad=isNaN(n)||n<0?0:n; if(tpvCart[i].cantidad===0) tpvCart.splice(i,1); tpvPintarCarrito(); }
+    const numCant=n=>Number.isInteger(n)?n:n.toLocaleString("es-ES",{maximumFractionDigits:3});
     function tpvPintarCarrito(){ const el=document.getElementById("tpvCart"); if(!el)return;
       if(!tpvCart.length){ el.innerHTML=`<div class="empty" style="padding:28px 6px"><div class="big">${ICON.tpv}</div><h3>Ticket vacío</h3><p>Escanea o toca un artículo para añadirlo.</p></div>`; return; }
       let base=0,iva=0;
       const filas=tpvCart.map((l,i)=>{ const b=l.cantidad*l.precioUnitario; base+=b; iva+=b*l.porcentajeIva/100;
-        return `<div class="cart-line"><div class="cl-n">${l.descripcion}<br><small>${eur(l.precioUnitario)} · IVA ${l.porcentajeIva}%</small></div><div class="step"><button onclick="tpvPaso(${i},-1)">−</button><b>${l.cantidad}</b><button onclick="tpvPaso(${i},1)">+</button></div><div class="num" style="width:74px;text-align:right"><strong>${eur(b)}</strong></div></div>`; }).join("");
+        return `<div class="cart-line"><div class="cl-n">${l.descripcion}<br><small>${eur(l.precioUnitario)} · IVA ${l.porcentajeIva}%</small></div><div class="step"><button onclick="tpvPaso(${i},-1)">−</button><input type="text" inputmode="decimal" value="${numCant(l.cantidad)}" onchange="tpvSetCant(${i},this.value)" style="width:58px;text-align:center;padding:4px" title="Cantidad (admite decimales, p. ej. 1,25 kg)"/><button onclick="tpvPaso(${i},1)">+</button></div><div class="num" style="width:74px;text-align:right"><strong>${eur(b)}</strong></div></div>`; }).join("");
       const total=base+iva;
       const metodos=["Efectivo","Tarjeta","Bizum"].map(m=>`<option value="${m}"${m===tpvMetodo?" selected":""}>${m}</option>`).join("");
+      const cambio=tpvMetodo==="Efectivo"?`<div class="grid2" style="margin-top:10px"><div><label>Entregado (€)</label><input id="tpvEnt" type="number" step="0.01" placeholder="0,00" oninput="tpvCambio(${total})"/></div><div><label>Cambio a devolver</label><div id="tpvCambioOut" style="font-weight:750;font-size:18px;padding:8px 0">—</div></div></div>`:"";
       el.innerHTML=filas+`<div style="margin-top:12px">
         <div class="cart-tot"><span>Base</span><span>${eur(base)}</span></div>
         <div class="cart-tot"><span>IVA</span><span>${eur(iva)}</span></div>
         <div class="cart-tot big"><span>Total</span><span>${eur(total)}</span></div>
-        <label style="margin-top:12px">Método de pago</label><select id="tpvMetodo" onchange="tpvMetodo=this.value">${metodos}</select>
+        <label style="margin-top:12px">Método de pago</label><select id="tpvMetodo" onchange="tpvMetodo=this.value;tpvPintarCarrito()">${metodos}</select>
+        ${cambio}
         <button class="btn" style="margin-top:14px" onclick="tpvCobrar()">Cobrar y emitir ticket · ${eur(total)}</button></div>`; }
+    function tpvCambio(total){ const e=Number(document.getElementById("tpvEnt").value||0); const out=document.getElementById("tpvCambioOut"); if(!out)return;
+      if(e<=0){ out.textContent="—"; out.style.color=""; return; }
+      const c=e-total; out.textContent=c>=0?eur(c):"Falta "+eur(-c); out.style.color=c>=0?"var(--pos)":"var(--neg)"; }
     async function tpvCobrar(){ if(!tpvCart.length){ toast("Añade artículos al ticket.","err"); return; }
       const lineas=tpvCart.map(l=>({descripcion:l.descripcion,cantidad:l.cantidad,precioUnitario:l.precioUnitario,codigoIva:l.codigoIva}));
       try{ const t=await api("/tickets",{method:"POST",body:JSON.stringify({lineas})});
@@ -548,7 +555,7 @@
       const [ps,provs]=await Promise.all([api("/productos"),api("/proveedores").catch(()=>[])]); _cacheProd=ps;
       const provNombre=id=>{ const p=provs.find(x=>x.id===id); return p?p.nombre:"—"; };
       const margen=p=>{ const m=p.precioUnitario-(p.precioCompra||0); return p.precioCompra?`<span class="pill ${m>=0?'ok':'neg'}">${eur(m)}</span>`:'<span class="muted">—</span>'; };
-      const filas=ps.map(p=>`<tr data-b="${(p.nombre+' '+(p.referencia||'')).toLowerCase()}" style="cursor:pointer" onclick="verHistorico('${p.id}','${p.nombre.replace(/'/g,"")}')"><td><strong>${p.nombre}</strong></td><td class="muted mono">${p.referencia||"—"}</td><td class="muted">${p.proveedorHabitualId?provNombre(p.proveedorHabitualId):"—"}</td><td class="num">${eur(p.precioUnitario)}</td><td class="num muted">${p.precioCompra?eur(p.precioCompra):"—"}</td><td class="num">${margen(p)}</td><td class="num">${p.porcentajeIva}%</td><td class="right"><button class="btn small secondary" onclick="editarProducto('${p.id}',event)">Editar</button></td></tr>`).join("");
+      const filas=ps.map(p=>`<tr data-b="${(p.nombre+' '+(p.referencia||'')).toLowerCase()}" style="cursor:pointer" onclick="verHistorico('${p.id}','${p.nombre.replace(/'/g,"")}')"><td><strong>${p.nombre}</strong></td><td class="muted mono">${p.referencia||"—"}</td><td class="muted">${p.proveedorHabitualId?provNombre(p.proveedorHabitualId):"—"}</td><td class="num">${eur(p.precioUnitario)}</td><td class="num muted">${p.precioCompra?eur(p.precioCompra):"—"}</td><td class="num">${margen(p)}</td><td class="num">${p.porcentajeIva}%</td><td class="right" style="white-space:nowrap"><button class="btn small secondary" onclick="editarProducto('${p.id}',event)">Editar</button> <button class="btn small secondary" onclick="event.stopPropagation();duplicarProducto('${p.id}')" title="Duplicar">⎘</button></td></tr>`).join("");
       const acciones=`<div style="display:flex;gap:10px;align-items:center"><input id="prodBuscar" placeholder="Buscar por nombre o código…" style="max-width:220px;padding:8px 12px" oninput="filtrarProductos()"/><button class="btn small ghost" onclick="modalImportar('productos')">↥ Importar CSV</button><button class="btn small" onclick="modalProducto()">+ Nuevo</button></div>`;
       const cuerpo=ps.length?`<table><thead><tr><th>Artículo</th><th>Código / EAN</th><th>Proveedor habitual</th><th class="num">Venta</th><th class="num">Compra</th><th class="num">Margen</th><th class="num">IVA</th><th></th></tr></thead><tbody id="prodBody">${filas}</tbody></table><p class="muted" style="font-size:12px;margin:12px 0 0">Toca un artículo para ver su histórico de precios, o pulsa Editar.</p>`:vacio("articulos","Sin artículos todavía","Crea productos o servicios con su código para reutilizarlos al facturar.",`<button class="btn small" onclick="modalProducto()">+ Nuevo artículo</button>`);
       view(panel("Artículos",cuerpo,acciones));
@@ -800,13 +807,16 @@
       if(pr) rellenar({pr_nombre:pr.nombre,pr_nif:pr.nifFiscal,pr_email:pr.email,pr_irpf:pr.porcentajeIrpfDefecto,pr_pago:pr.formaPago}); }
     async function modalProducto(p){ const provs=await api("/proveedores").catch(()=>[]);
       const provOpts=`<option value="">— Sin asignar —</option>`+provs.map(x=>`<option value="${x.id}">${x.nombre}</option>`).join("");
-      abrir(p?"Editar artículo":"Nuevo artículo",`<label>Nombre</label><input id="p_nombre" placeholder="Nombre del producto o servicio"/>
+      const editar=p&&p.id;
+      abrir(editar?"Editar artículo":(p?"Nuevo artículo (copia)":"Nuevo artículo"),`<label>Nombre</label><input id="p_nombre" placeholder="Nombre del producto o servicio"/>
       <div class="grid2"><div><label>Código / EAN (opcional)</label><input id="p_ref" placeholder="Ej. 8412345678901"/></div><div><label>IVA</label>${ivaSel("p_iva")}</div></div>
       <div class="grid2"><div><label>Precio de venta (€)</label><input id="p_precio" type="number" step="0.01" value="0"/></div><div><label>Precio de compra / coste (€)</label><input id="p_compra" type="number" step="0.01" value="0"/></div></div>
       <label>Proveedor habitual (opcional)</label><select id="p_prov">${provOpts}</select>
       <p class="muted" style="font-size:12px;margin:10px 0 0">El precio de compra sirve para calcular el margen en el informe de beneficio. Déjalo en 0 si no aplica.</p>`,
-      async()=>{ const b=JSON.stringify({nombre:val("p_nombre"),referencia:val("p_ref")||null,precioUnitario:Number(val("p_precio")),precioCompra:Number(val("p_compra")),codigoIva:val("p_iva"),tipo:p?p.tipo:"Servicio",proveedorHabitualId:val("p_prov")||null}); await api("/productos"+(p?"/"+p.id:""),{method:p?"PUT":"POST",body:b}); vProductos(); });
+      async()=>{ const b=JSON.stringify({nombre:val("p_nombre"),referencia:val("p_ref")||null,precioUnitario:Number(val("p_precio")),precioCompra:Number(val("p_compra")),codigoIva:val("p_iva"),tipo:(p&&p.tipo)?p.tipo:"Servicio",proveedorHabitualId:val("p_prov")||null}); await api("/productos"+(editar?"/"+p.id:""),{method:editar?"PUT":"POST",body:b}); vProductos(); });
       if(p) rellenar({p_nombre:p.nombre,p_ref:p.referencia,p_precio:p.precioUnitario,p_compra:p.precioCompra,p_iva:p.codigoIva,p_prov:p.proveedorHabitualId}); }
+    function duplicarProducto(id){ const p=_cacheProd.find(x=>x.id===id); if(!p)return;
+      modalProducto({nombre:p.nombre+" (copia)",referencia:null,precioUnitario:p.precioUnitario,precioCompra:p.precioCompra,codigoIva:p.codigoIva,tipo:p.tipo,proveedorHabitualId:p.proveedorHabitualId}); }
     /* Importación CSV (clientes / productos) */
     let impTipo=null, impContenido=null;
     function modalImportar(tipo){ impTipo=tipo; impContenido=null;
@@ -837,13 +847,15 @@
         <div class="grid2"><div><label>Proveedor</label><select id="g_prov">${opts}</select></div><div><label>Base (€)</label><input id="g_base" type="number" value="0"/></div></div>
         <label>IVA</label>${ivaSel("g_iva")}`,
         async()=>{ await api("/gastos",{method:"POST",body:JSON.stringify({concepto:val("g_conc"),proveedorId:val("g_prov")||null,baseImponible:Number(val("g_base")),codigoIva:val("g_iva")})}); vGastos(); }); }
-    async function modalFactura(){ const [cs,series]=await Promise.all([api("/clientes"),api("/series").catch(()=>[])]); _cacheCli=cs;
+    async function modalFactura(src){ const [cs,series]=await Promise.all([api("/clientes"),api("/series").catch(()=>[])]); _cacheCli=cs;
       const opts=cs.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join("");
       const prefijos=[...new Set(["FA",...series.map(s=>s.prefijo)])];
       const serieBox=prefijos.length>1?`<div><label>Serie</label><select id="f_serie">${prefijos.map(p=>`<option value="${p}">${p}</option>`).join("")}</select></div>`:`<div></div>`;
       const vencSel=`<select id="f_venc"><option value="0">Contado</option><option value="15">15 días</option><option value="30">30 días</option><option value="60">60 días</option><option value="90">90 días</option></select>`;
-      _facLineas=[{descripcion:"",cantidad:1,precio:0,iva:"IVA21"}];
-      abrir("Nueva factura",`<div class="grid2"><div><label>Cliente</label><select id="f_cli" onchange="ajustarRecargoCliente()">${opts}</select></div><div><label>Vencimiento</label>${vencSel}</div></div>
+      _facLineas = (src&&src.lineas&&src.lineas.length)
+        ? src.lineas.map(l=>({descripcion:l.descripcion,cantidad:l.cantidad,precio:l.precioUnitario,iva:l.codigoIva,dto:l.porcentajeDescuento||0}))
+        : [{descripcion:"",cantidad:1,precio:0,iva:"IVA21",dto:0}];
+      abrir(src?"Nueva factura (copia)":"Nueva factura",`<div class="grid2"><div><label>Cliente</label><select id="f_cli" onchange="ajustarRecargoCliente()">${opts}</select></div><div><label>Vencimiento</label>${vencSel}</div></div>
         <div class="grid2">${serieBox}<div></div></div>
         <label style="margin-top:16px">Líneas</label>
         <div id="f_lineas">${facLineasHtml()}</div>
@@ -851,25 +863,28 @@
         <div id="f_total" class="right" style="margin-top:10px;font-weight:650"></div>
         <label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-weight:500;cursor:pointer"><input id="f_recargo" type="checkbox" style="width:auto"/> Aplicar recargo de equivalencia (cliente minorista)</label>`,
         async()=>{ const serie=document.getElementById("f_serie")?document.getElementById("f_serie").value:null;
-          const lineas=_facLineas.filter(l=>l.descripcion.trim()&&l.cantidad>0).map(l=>({descripcion:l.descripcion,cantidad:l.cantidad,precioUnitario:l.precio,codigoIva:l.iva}));
+          const lineas=_facLineas.filter(l=>l.descripcion.trim()&&l.cantidad>0).map(l=>({descripcion:l.descripcion,cantidad:l.cantidad,precioUnitario:l.precio,codigoIva:l.iva,porcentajeDescuento:l.dto||0}));
           if(!lineas.length) throw new Error("Añade al menos una línea con descripción y cantidad.");
           await api("/facturas",{method:"POST",body:JSON.stringify({clienteId:val("f_cli"),serie,diasVencimiento:Number(val("f_venc")),recargoEquivalencia:document.getElementById("f_recargo").checked,lineas})}); vFacturas(); });
+      if(src&&src.clienteId){ const sel=document.getElementById("f_cli"); if([...sel.options].some(o=>o.value===src.clienteId)) sel.value=src.clienteId; }
       ajustarRecargoCliente(); facTotal(); }
     let _facLineas=[];
     const IVAPCT={IVA21:21,IVA10:10,IVA4:4,IVA0:0};
     function facLineasHtml(){ return _facLineas.map((l,i)=>`<div class="row" style="align-items:end">
-      <div><input placeholder="Descripción" value="${(l.descripcion||'').replace(/"/g,'&quot;')}" oninput="_facLineas[${i}].descripcion=this.value"/></div>
-      <div><label>Cant.</label><input type="number" step="0.01" value="${l.cantidad}" oninput="_facLineas[${i}].cantidad=Number(this.value);facTotal()"/></div>
+      <div style="flex:2"><input placeholder="Descripción" value="${(l.descripcion||'').replace(/"/g,'&quot;')}" oninput="_facLineas[${i}].descripcion=this.value"/></div>
+      <div><label>Cant.</label><input type="number" step="0.001" value="${l.cantidad}" oninput="_facLineas[${i}].cantidad=Number(this.value);facTotal()"/></div>
       <div><label>Precio €</label><input type="number" step="0.01" value="${l.precio}" oninput="_facLineas[${i}].precio=Number(this.value);facTotal()"/></div>
+      <div><label>Dto %</label><input type="number" step="0.01" value="${l.dto||0}" oninput="_facLineas[${i}].dto=Number(this.value);facTotal()"/></div>
       <div><label>IVA</label><select onchange="_facLineas[${i}].iva=this.value;facTotal()">${Object.keys(IVAPCT).map(c=>`<option value="${c}"${c===l.iva?' selected':''}>${c==='IVA0'?'Exento':'IVA '+IVAPCT[c]+'%'}</option>`).join("")}</select></div>
       <div><button class="btn small secondary" onclick="facQuitarLinea(${i})" ${_facLineas.length<=1?'disabled':''}>✕</button></div>
     </div>`).join(""); }
     function facRefrescar(){ document.getElementById("f_lineas").innerHTML=facLineasHtml(); facTotal(); }
-    function facAnadirLinea(){ _facLineas.push({descripcion:"",cantidad:1,precio:0,iva:"IVA21"}); facRefrescar(); }
+    function facAnadirLinea(){ _facLineas.push({descripcion:"",cantidad:1,precio:0,iva:"IVA21",dto:0}); facRefrescar(); }
     function facQuitarLinea(i){ if(_facLineas.length<=1)return; _facLineas.splice(i,1); facRefrescar(); }
     function facTotal(){ const el=document.getElementById("f_total"); if(!el)return;
-      let base=0,iva=0; _facLineas.forEach(l=>{ const b=(l.cantidad||0)*(l.precio||0); base+=b; iva+=b*(IVAPCT[l.iva]||0)/100; });
+      let base=0,iva=0; _facLineas.forEach(l=>{ const b=(l.cantidad||0)*(l.precio||0)*(1-((l.dto||0)/100)); base+=b; iva+=b*(IVAPCT[l.iva]||0)/100; });
       el.textContent=`Base ${eur(base)} · IVA ${eur(iva)} · Total ${eur(base+iva)}`; }
+    async function duplicarFactura(id){ try{ const f=await api("/facturas/"+id); modalFactura(f); }catch(e){ toast(e.message,"err"); } }
     function ajustarRecargoCliente(){ const sel=document.getElementById("f_cli"), chk=document.getElementById("f_recargo"); if(!sel||!chk)return;
       const c=_cacheCli.find(x=>x.id===sel.value); chk.checked=!!(c&&c.recargoEquivalencia); }
     async function modalRectificar(id){ const f=await api("/facturas/"+id);
