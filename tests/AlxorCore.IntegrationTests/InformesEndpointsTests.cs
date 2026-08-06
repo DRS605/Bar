@@ -23,6 +23,8 @@ public sealed class InformesEndpointsTests : IClassFixture<FabricaApiPruebas>
     private sealed record ProductoResp(Guid Id);
     private sealed record BeneficioProductoResp(string Descripcion, decimal Ingresos, decimal Coste, decimal Margen);
     private sealed record BeneficioResp(decimal Ingresos, decimal Coste, decimal MargenBruto, decimal Gastos, decimal BeneficioNeto, List<BeneficioProductoResp> PorProducto);
+    private sealed record CierreMetodoResp(string Metodo, decimal Importe, int Numero);
+    private sealed record CierreResp(decimal TotalCobrado, decimal TotalPagado, decimal Neto, List<CierreMetodoResp> CobrosPorMetodo);
 
     private static async Task<FacturaResp> EmitirFacturaAsync(HttpClient cliente)
     {
@@ -101,6 +103,21 @@ public sealed class InformesEndpointsTests : IClassFixture<FabricaApiPruebas>
         resumen.Modelo130.GastosAcumulados.Should().Be(100m);
         resumen.Modelo130.RendimientoAcumulado.Should().Be(100m);
         resumen.Modelo130.PagoFraccionadoBruto.Should().Be(20m); // 20% de 100
+    }
+
+    [Fact]
+    public async Task Cierre_de_caja_agrupa_los_cobros_del_dia_por_metodo()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var factura = await EmitirFacturaAsync(cliente); // total 242
+        await cliente.PostAsJsonAsync("/cobros", new { FacturaId = factura.Id, Importe = 242m, Metodo = "Efectivo" });
+
+        var hoy = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        var cierre = await cliente.GetFromJsonAsync<CierreResp>($"/informes/cierre-caja?dia={hoy}");
+
+        cierre!.TotalCobrado.Should().Be(242m);
+        cierre.Neto.Should().Be(242m);
+        cierre.CobrosPorMetodo.Should().ContainSingle(m => m.Metodo == "Efectivo" && m.Importe == 242m && m.Numero == 1);
     }
 
     [Fact]

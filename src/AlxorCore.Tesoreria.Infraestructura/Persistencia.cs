@@ -80,6 +80,15 @@ internal sealed class RepositorioMovimientos : IRepositorioMovimientos, IConsult
             .SumAsync(m => (decimal?)m.Importe, ct).ConfigureAwait(false);
         return suma ?? 0m;
     }
+
+    public async Task<IReadOnlyList<MovimientoDto>> ListarPorPeriodoAsync(Guid empresaId, DateOnly desde, DateOnly hasta, CancellationToken ct = default)
+    {
+        var movimientos = await _contexto.Movimientos
+            .Where(m => m.EmpresaId == empresaId && m.Fecha >= desde && m.Fecha <= hasta)
+            .OrderBy(m => m.Fecha)
+            .ToListAsync(ct).ConfigureAwait(false);
+        return movimientos.Select(MovimientoDto.Desde).ToList();
+    }
 }
 
 /// <summary>Factoría en tiempo de diseño para migraciones.</summary>

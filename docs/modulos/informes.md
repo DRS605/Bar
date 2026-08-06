@@ -59,6 +59,13 @@ A partir de ese desglose por artículo, la interfaz muestra un **ranking de art�
 rentables** (mayor margen), el **rey de las ventas** (mayores ingresos) y **dónde se gana menos**
 (menor margen), con el margen en % sobre ingresos. Es una vista derivada, sin endpoint propio.
 
+## Cierre de caja (arqueo diario)
+
+`GET /informes/cierre-caja?dia=` devuelve el **cierre de caja** de un día a partir de los movimientos
+de Tesorería: **total cobrado** desglosado por **método de pago** (efectivo, tarjeta, Bizum…), total
+pagado (salidas) y **neto**. Pensado para cuadrar la caja de una tienda al cerrar; accesible desde el
+botón *Cierre de caja* del TPV.
+
 ## API
 
 | Método | Ruta | Auth | Descripción |
@@ -68,6 +75,7 @@ rentables** (mayor margen), el **rey de las ventas** (mayores ingresos) y **dón
 | `GET` | `/informes/libro-iva/csv` | permiso `datos.exportar` | Exportación CSV. |
 | `GET` | `/informes/resumen-trimestral` | permiso `informe.leer` | Resúmenes 303 (IVA) y 130 (IRPF) del trimestre. |
 | `GET` | `/informes/beneficio` | permiso `informe.leer` | Beneficio del periodo (margen bruto y neto). |
+| `GET` | `/informes/cierre-caja?dia=` | permiso `informe.leer` | Cierre de caja de un día (cobrado por método, pagado, neto). |
 
 ## Tests
 

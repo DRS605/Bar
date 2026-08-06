@@ -37,6 +37,9 @@ public interface IConsultaTesoreria
 {
     /// <summary>Total liquidado (cobrado o pagado) de todos los documentos de un tipo en la empresa activa.</summary>
     Task<decimal> TotalLiquidadoAsync(TipoDocumentoTesoreria tipo, CancellationToken ct = default);
+
+    /// <summary>Movimientos (cobros y pagos) de la empresa en un rango de fechas (para el cierre de caja).</summary>
+    Task<IReadOnlyList<MovimientoDto>> ListarPorPeriodoAsync(Guid empresaId, DateOnly desde, DateOnly hasta, CancellationToken ct = default);
 }
 
 /// <summary>Datos para registrar un cobro contra una factura.</summary>

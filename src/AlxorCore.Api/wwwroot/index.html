@@ -451,7 +451,7 @@
       const scanBtn = soporta
         ? `<button class="btn small" onclick="tpvEscanear()" id="tpvScanBtn">📷 Escanear con cámara</button>`
         : `<button class="btn small secondary" onclick="tpvSinCamara()">📷 Escáner de cámara</button>`;
-      const izq=`<div class="panel"><div class="panel-head"><h2>Punto de venta</h2>${scanBtn}</div>
+      const izq=`<div class="panel"><div class="panel-head"><h2>Punto de venta</h2><div style="display:flex;gap:8px">${scanBtn}<button class="btn small ghost" onclick="modalCierreCaja()">🧾 Cierre de caja</button></div></div>
         <div style="padding:16px 18px">
           <div id="tpvUltimo"></div>
           <div id="tpvVideoWrap"><video id="tpvVideo" playsinline muted></video><div class="scanline"></div><div class="scanhint">Apunta al código de barras del artículo · <a href="#" onclick="tpvParar();return false" style="color:#7fe3f7">detener</a></div></div>
@@ -498,6 +498,15 @@
     function tpvCambio(total){ const e=Number(document.getElementById("tpvEnt").value||0); const out=document.getElementById("tpvCambioOut"); if(!out)return;
       if(e<=0){ out.textContent="—"; out.style.color=""; return; }
       const c=e-total; out.textContent=c>=0?eur(c):"Falta "+eur(-c); out.style.color=c>=0?"var(--pos)":"var(--neg)"; }
+    async function modalCierreCaja(){
+      const hoy=new Date().toISOString().slice(0,10);
+      let c; try{ c=await api("/informes/cierre-caja?dia="+hoy); }catch(e){ toast(e.message,"err"); return; }
+      const filas=(c.cobrosPorMetodo||[]).map(m=>`<div class="cart-tot"><span>${m.metodo} <span class="muted">(${m.numero})</span></span><span>${eur(m.importe)}</span></div>`).join("")||'<p class="muted">Sin cobros hoy.</p>';
+      abrir("Cierre de caja · "+new Date().toLocaleDateString("es-ES"),`${filas}
+        <div class="cart-tot big" style="margin-top:8px"><span>Cobrado</span><span style="color:var(--pos)">${eur(c.totalCobrado)}</span></div>
+        <div class="cart-tot"><span>Pagado (salidas)</span><span style="color:var(--neg)">${eur(c.totalPagado)}</span></div>
+        <div class="cart-tot big"><span>Neto en caja</span><span>${eur(c.neto)}</span></div>
+        <p class="muted" style="font-size:12px;margin-top:12px">Cobros del día por método de pago. Úsalo para cuadrar la caja al cerrar.</p>`,()=>{}); }
     async function tpvCobrar(){ if(!tpvCart.length){ toast("Añade artículos al ticket.","err"); return; }
       const lineas=tpvCart.map(l=>({descripcion:l.descripcion,cantidad:l.cantidad,precioUnitario:l.precioUnitario,codigoIva:l.codigoIva}));
       try{ const t=await api("/tickets",{method:"POST",body:JSON.stringify({lineas})});

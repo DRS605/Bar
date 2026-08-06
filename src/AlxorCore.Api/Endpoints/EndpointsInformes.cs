@@ -36,6 +36,10 @@ public static class EndpointsInformes
             .WithSummary("Beneficio del periodo: margen bruto (venta − compra) y neto (menos gastos).")
             .RequierePermiso(Permisos.InformeLeer);
 
+        informes.MapGet("/cierre-caja", CierreCajaAsync)
+            .WithSummary("Cierre de caja (arqueo) de un día: cobrado por método, pagado y neto.")
+            .RequierePermiso(Permisos.InformeLeer);
+
         return rutas;
     }
 
@@ -107,6 +111,18 @@ public static class EndpointsInformes
 
         var (d, h) = RangoPorDefecto(desde, hasta);
         return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, d, h, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> CierreCajaAsync(
+        IContextoEmpresa contexto, GenerarCierreCaja caso, CancellationToken ct, DateOnly? dia = null)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var d = dia ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, d, ct).ConfigureAwait(false));
     }
 
     private static (DateOnly Desde, DateOnly Hasta) RangoPorDefecto(DateOnly? desde, DateOnly? hasta)
