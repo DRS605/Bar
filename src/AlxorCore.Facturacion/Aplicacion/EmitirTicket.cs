@@ -31,6 +31,7 @@ public sealed class EmitirTicket
     private readonly IRepositorioFacturas _facturas;
     private readonly IConsultaEmpresas _empresas;
     private readonly IUnidadDeTrabajoFacturacion _unidadDeTrabajo;
+    private readonly IStockVentas _stock;
     private readonly IReloj _reloj;
 
     public EmitirTicket(
@@ -40,6 +41,7 @@ public sealed class EmitirTicket
         IRepositorioFacturas facturas,
         IConsultaEmpresas empresas,
         IUnidadDeTrabajoFacturacion unidadDeTrabajo,
+        IStockVentas stock,
         IReloj reloj)
     {
         _clientes = clientes;
@@ -48,6 +50,7 @@ public sealed class EmitirTicket
         _facturas = facturas;
         _empresas = empresas;
         _unidadDeTrabajo = unidadDeTrabajo;
+        _stock = stock;
         _reloj = reloj;
     }
 
@@ -100,6 +103,16 @@ public sealed class EmitirTicket
         await RegistroVerifactu.AplicarAsync(empresaId, ticket.Valor, _empresas, _facturas, _reloj, ct).ConfigureAwait(false);
         _facturas.Agregar(ticket.Valor);
         await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+
+        var lineasVenta = ticket.Valor.Lineas
+            .Where(l => l.ProductoId is not null)
+            .Select(l => new LineaVenta(l.ProductoId!.Value, l.Cantidad))
+            .ToList();
+        if (lineasVenta.Count > 0)
+        {
+            await _stock.DescontarVentaAsync(empresaId, lineasVenta, ct).ConfigureAwait(false);
+        }
+
         return Resultado.Ok(FacturaDto.Desde(ticket.Valor));
     }
 }

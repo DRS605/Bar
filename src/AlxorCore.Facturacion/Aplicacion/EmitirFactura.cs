@@ -43,6 +43,7 @@ public sealed class EmitirFactura
     private readonly IRepositorioFacturas _facturas;
     private readonly IConsultaEmpresas _empresas;
     private readonly IUnidadDeTrabajoFacturacion _unidadDeTrabajo;
+    private readonly IStockVentas _stock;
     private readonly IReloj _reloj;
 
     public EmitirFactura(
@@ -52,6 +53,7 @@ public sealed class EmitirFactura
         IRepositorioFacturas facturas,
         IConsultaEmpresas empresas,
         IUnidadDeTrabajoFacturacion unidadDeTrabajo,
+        IStockVentas stock,
         IReloj reloj)
     {
         _clientes = clientes;
@@ -60,6 +62,7 @@ public sealed class EmitirFactura
         _facturas = facturas;
         _empresas = empresas;
         _unidadDeTrabajo = unidadDeTrabajo;
+        _stock = stock;
         _reloj = reloj;
     }
 
@@ -112,6 +115,18 @@ public sealed class EmitirFactura
         await RegistroVerifactu.AplicarAsync(empresaId, factura.Valor, _empresas, _facturas, _reloj, ct).ConfigureAwait(false);
         _facturas.Agregar(factura.Valor);
         await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+
+        // Descuento de existencias de los artículos con control de stock (mejor esfuerzo; la
+        // factura ya está emitida y es la verdad fiscal).
+        var lineasVenta = factura.Valor.Lineas
+            .Where(l => l.ProductoId is not null)
+            .Select(l => new LineaVenta(l.ProductoId!.Value, l.Cantidad))
+            .ToList();
+        if (lineasVenta.Count > 0)
+        {
+            await _stock.DescontarVentaAsync(empresaId, lineasVenta, ct).ConfigureAwait(false);
+        }
+
         return Resultado.Ok(FacturaDto.Desde(factura.Valor));
     }
 }

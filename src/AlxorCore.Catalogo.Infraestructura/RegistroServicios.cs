@@ -33,6 +33,9 @@ public static class RegistroServicios
         servicios.AddScoped<RepositorioHistoricoPrecios>();
         servicios.AddScoped<IRepositorioHistoricoPrecios>(sp => sp.GetRequiredService<RepositorioHistoricoPrecios>());
         servicios.AddScoped<IConsultaHistoricoPrecios>(sp => sp.GetRequiredService<RepositorioHistoricoPrecios>());
+        servicios.AddScoped<RepositorioMovimientosStock>();
+        servicios.AddScoped<IRepositorioMovimientosStock>(sp => sp.GetRequiredService<RepositorioMovimientosStock>());
+        servicios.AddScoped<IConsultaMovimientosStock>(sp => sp.GetRequiredService<RepositorioMovimientosStock>());
 
         servicios.AddScoped<CrearProducto>();
         servicios.AddScoped<ImportarProductos>();
@@ -40,6 +43,9 @@ public static class RegistroServicios
         servicios.AddScoped<ListarProductos>();
         servicios.AddScoped<ObtenerProducto>();
         servicios.AddScoped<ListarHistoricoPrecios>();
+        servicios.AddScoped<RegistrarMovimientoStock>();
+        servicios.AddScoped<ListarMovimientosStock>();
+        servicios.AddScoped<IStockVentas, StockVentas>();
 
         return servicios;
     }

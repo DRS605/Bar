@@ -91,4 +91,38 @@ public class ProductoTests
     {
         Producto.Crear(Empresa, null, "X", TipoProducto.Servicio, 10m, 0m, "IVA99", null, Reloj).EsFallo.Should().BeTrue();
     }
+
+    [Fact]
+    public void Producto_sin_control_de_stock_no_admite_movimientos()
+    {
+        var producto = Producto.Crear(Empresa, null, "Servicio", TipoProducto.Servicio, 10m, 0m, null, null, Reloj).Valor;
+        var mov = producto.RegistrarMovimientoStock(TipoMovimientoStock.Entrada, 5m, null, Reloj);
+        mov.EsFallo.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Entrada_y_salida_de_stock_actualizan_las_existencias()
+    {
+        var producto = Producto.Crear(Empresa, null, "Café 1kg", TipoProducto.Bien, 10m, 6m, null, null, Reloj, controlarStock: true, stockInicial: 20m).Valor;
+        producto.Stock.Should().Be(20m);
+
+        var entrada = producto.RegistrarMovimientoStock(TipoMovimientoStock.Entrada, 30m, "Compra", Reloj);
+        entrada.EsCorrecto.Should().BeTrue();
+        entrada.Valor.Cantidad.Should().Be(30m);
+        producto.Stock.Should().Be(50m);
+
+        var venta = producto.RegistrarMovimientoStock(TipoMovimientoStock.Venta, 12m, null, Reloj);
+        venta.Valor.Cantidad.Should().Be(-12m);
+        producto.Stock.Should().Be(38m);
+    }
+
+    [Fact]
+    public void Ajuste_fija_el_stock_al_valor_contado()
+    {
+        var producto = Producto.Crear(Empresa, null, "Harina", TipoProducto.Bien, 2m, 1m, null, null, Reloj, controlarStock: true, stockInicial: 100m).Valor;
+        var ajuste = producto.RegistrarMovimientoStock(TipoMovimientoStock.Ajuste, 90m, "Recuento", Reloj);
+        ajuste.Valor.Cantidad.Should().Be(-10m);       // delta aplicado
+        ajuste.Valor.StockResultante.Should().Be(90m);
+        producto.Stock.Should().Be(90m);
+    }
 }

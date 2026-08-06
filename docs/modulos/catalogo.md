@@ -27,6 +27,20 @@ Cada alta de producto y cada **cambio de precio** (de venta o de compra) añade 
 solo-inserción). Permite ver la **evolución de precios** de un artículo en el tiempo.
 `GET /productos/{id}/precios` la expone (más reciente primero).
 
+## Stock (existencias)
+
+Un producto puede llevar **control de stock** (`ControlarStock`). Los servicios normalmente no; una
+tienda sí. Cuando está activo, el artículo tiene existencias (`Stock`) y cada variación queda
+registrada en `movimiento_stock` { ProductoId, Tipo, Cantidad (con signo), StockResultante, Motivo,
+CreadoEn } (RLS por empresa, histórico inmutable).
+
+- **Movimientos manuales**: `Entrada` (compra/reposición), `Salida` (merma, rotura) y `Ajuste`
+  (fija el stock al valor contado en un recuento).
+- **Descuento automático por venta**: al emitir una **factura** o un **ticket**, Facturación llama al
+  puerto `IStockVentas` (implementado por Catálogo), que registra un movimiento de tipo `Venta` por
+  cada línea con producto que lleve control de stock. Es **mejor esfuerzo**: los servicios y los
+  artículos sin control se ignoran, y la factura —verdad fiscal— ya está emitida.
+
 ## API
 
 | Método | Ruta | Auth | Descripción |
@@ -37,15 +51,18 @@ solo-inserción). Permite ver la **evolución de precios** de un artículo en el
 | `GET` | `/productos/{id}/precios` | JWT + empresa | Histórico de precios del producto. |
 | `POST` | `/productos` | permiso `producto.gestionar` | Crea un producto. **201** |
 | `PUT` | `/productos/{id}` | permiso `producto.gestionar` | Actualiza un producto. |
+| `GET` | `/productos/{id}/stock` | JWT + empresa | Histórico de movimientos de stock. |
+| `POST` | `/productos/{id}/stock` | permiso `producto.gestionar` | Registra un movimiento de stock. |
 
 La importación CSV admite una columna opcional de **precio de compra** (`precio compra`, `coste`,
 `compra`).
 
 ## Persistencia
 
-Esquema **`catalogo`**, tablas `producto` e `historico_precio` (RLS por empresa). El repositorio
-ofrece escritura (`IRepositorioProductos`, `IRepositorioHistoricoPrecios`) y consultas
-(`IConsultaProductos`, `IConsultaHistoricoPrecios`), que consumirá **Facturación** e **Informes**.
+Esquema **`catalogo`**, tablas `producto`, `historico_precio` y `movimiento_stock` (RLS por empresa).
+El repositorio ofrece escritura (`IRepositorioProductos`, `IRepositorioHistoricoPrecios`,
+`IRepositorioMovimientosStock`) y consultas (`IConsultaProductos`, `IConsultaHistoricoPrecios`,
+`IConsultaMovimientosStock`), que consumirán **Facturación** e **Informes**.
 
 ## Tests
 

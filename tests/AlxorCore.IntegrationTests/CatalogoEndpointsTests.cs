@@ -99,4 +99,51 @@ public sealed class CatalogoEndpointsTests : IClassFixture<FabricaApiPruebas>
 
         listaB.Should().BeEmpty();
     }
+
+    private sealed record ProductoStockDto(Guid Id, string Nombre, bool ControlarStock, decimal Stock);
+    private sealed record MovimientoResp(string Tipo, decimal Cantidad, decimal StockResultante, string? Motivo);
+    private sealed record ClienteResp(Guid Id);
+    private sealed record FacturaResp(Guid Id);
+
+    [Fact]
+    public async Task Entrada_de_stock_incrementa_las_existencias()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var creado = (await (await cliente.PostAsJsonAsync("/productos", new { Nombre = "Café 1kg", PrecioUnitario = 12m, Tipo = "Bien", ControlarStock = true, StockInicial = 10m })).Content.ReadFromJsonAsync<ProductoStockDto>())!;
+        creado.ControlarStock.Should().BeTrue();
+        creado.Stock.Should().Be(10m);
+
+        var tras = await (await cliente.PostAsJsonAsync($"/productos/{creado.Id}/stock", new { Tipo = "Entrada", Cantidad = 25m, Motivo = "Compra" })).Content.ReadFromJsonAsync<ProductoStockDto>();
+        tras!.Stock.Should().Be(35m);
+
+        var movs = await cliente.GetFromJsonAsync<List<MovimientoResp>>($"/productos/{creado.Id}/stock");
+        movs.Should().ContainSingle(m => m.Tipo == "Entrada" && m.Cantidad == 25m && m.StockResultante == 35m);
+    }
+
+    [Fact]
+    public async Task Emitir_factura_descuenta_el_stock_de_los_articulos_controlados()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var producto = (await (await cliente.PostAsJsonAsync("/productos", new { Nombre = "Filtro A/A", PrecioUnitario = 30m, Tipo = "Bien", ControlarStock = true, StockInicial = 8m })).Content.ReadFromJsonAsync<ProductoStockDto>())!;
+        var clienteId = (await (await cliente.PostAsJsonAsync("/clientes", new { Nombre = "Cliente SL", NifFiscal = "B12345674" })).Content.ReadFromJsonAsync<ClienteResp>())!.Id;
+
+        var comando = new { ClienteId = clienteId, Lineas = new[] { new { Cantidad = 3m, Descripcion = "Filtro", PrecioUnitario = 30m, CodigoIva = "IVA21", ProductoId = producto.Id } } };
+        (await cliente.PostAsJsonAsync("/facturas", comando)).StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var tras = await cliente.GetFromJsonAsync<ProductoStockDto>($"/productos/{producto.Id}");
+        tras!.Stock.Should().Be(5m); // 8 - 3
+
+        var movs = await cliente.GetFromJsonAsync<List<MovimientoResp>>($"/productos/{producto.Id}/stock");
+        movs.Should().ContainSingle(m => m.Tipo == "Venta" && m.Cantidad == -3m);
+    }
+
+    [Fact]
+    public async Task Un_articulo_sin_control_de_stock_no_admite_movimientos()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var creado = (await (await cliente.PostAsJsonAsync("/productos", new { Nombre = "Servicio", PrecioUnitario = 50m })).Content.ReadFromJsonAsync<ProductoStockDto>())!;
+
+        var r = await cliente.PostAsJsonAsync($"/productos/{creado.Id}/stock", new { Tipo = "Entrada", Cantidad = 5m });
+        r.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
 }

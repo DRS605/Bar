@@ -24,6 +24,8 @@ public sealed class CatalogoDbContext : DbContextEmpresaBase, IUnidadDeTrabajoCa
 
     public DbSet<HistoricoPrecio> HistoricoPrecios => Set<HistoricoPrecio>();
 
+    public DbSet<MovimientoStock> MovimientosStock => Set<MovimientoStock>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Esquema);
@@ -48,6 +50,8 @@ internal sealed class ConfiguracionProducto : IEntityTypeConfiguration<Producto>
         builder.Property(p => p.CodigoIva).HasColumnName("codigo_iva").HasMaxLength(10).IsRequired();
         builder.Property(p => p.Unidad).HasColumnName("unidad").HasMaxLength(20).IsRequired();
         builder.Property(p => p.ProveedorHabitualId).HasColumnName("proveedor_habitual_id");
+        builder.Property(p => p.ControlarStock).HasColumnName("controlar_stock").IsRequired();
+        builder.Property(p => p.Stock).HasColumnName("stock").HasColumnType("numeric(14,3)").IsRequired();
         builder.Property(p => p.Activo).HasColumnName("activo").IsRequired();
         builder.Property(p => p.CreadoEn).HasColumnName("creado_en").IsRequired();
         builder.Property(p => p.ActualizadoEn).HasColumnName("actualizado_en").IsRequired();
@@ -72,6 +76,44 @@ internal sealed class ConfiguracionHistoricoPrecio : IEntityTypeConfiguration<Hi
 
         builder.HasIndex(h => new { h.EmpresaId, h.ProductoId, h.RegistradoEn }).HasDatabaseName("ix_historico_precio_producto");
         builder.Ignore(h => h.EventosDominio);
+    }
+}
+
+internal sealed class ConfiguracionMovimientoStock : IEntityTypeConfiguration<MovimientoStock>
+{
+    public void Configure(EntityTypeBuilder<MovimientoStock> builder)
+    {
+        builder.ToTable("movimiento_stock");
+        builder.HasKey(m => m.Id);
+        builder.Property(m => m.Id).HasColumnName("id");
+        builder.Property(m => m.EmpresaId).HasColumnName("empresa_id").IsRequired();
+        builder.Property(m => m.ProductoId).HasColumnName("producto_id").IsRequired();
+        builder.Property(m => m.Tipo).HasColumnName("tipo").HasMaxLength(20).HasConversion<string>().IsRequired();
+        builder.Property(m => m.Cantidad).HasColumnName("cantidad").HasColumnType("numeric(14,3)").IsRequired();
+        builder.Property(m => m.StockResultante).HasColumnName("stock_resultante").HasColumnType("numeric(14,3)").IsRequired();
+        builder.Property(m => m.Motivo).HasColumnName("motivo").HasMaxLength(200);
+        builder.Property(m => m.CreadoEn).HasColumnName("creado_en").IsRequired();
+
+        builder.HasIndex(m => new { m.EmpresaId, m.ProductoId, m.CreadoEn }).HasDatabaseName("ix_movimiento_stock_producto");
+        builder.Ignore(m => m.EventosDominio);
+    }
+}
+
+internal sealed class RepositorioMovimientosStock : IRepositorioMovimientosStock, IConsultaMovimientosStock
+{
+    private readonly CatalogoDbContext _contexto;
+
+    public RepositorioMovimientosStock(CatalogoDbContext contexto) => _contexto = contexto;
+
+    public void Agregar(MovimientoStock movimiento) => _contexto.MovimientosStock.Add(movimiento);
+
+    public async Task<IReadOnlyList<MovimientoStockDto>> ListarPorProductoAsync(Guid productoId, CancellationToken ct = default)
+    {
+        var filas = await _contexto.MovimientosStock
+            .Where(m => m.ProductoId == productoId)
+            .OrderByDescending(m => m.CreadoEn)
+            .ToListAsync(ct).ConfigureAwait(false);
+        return filas.Select(MovimientoStockDto.Desde).ToList();
     }
 }
 

@@ -40,6 +40,14 @@ public static class EndpointsCatalogo
             .WithSummary("Importa productos desde CSV (previsualiza o confirma).")
             .RequierePermiso(Permisos.ProductoGestionar);
 
+        productos.MapGet("/{id:guid}/stock", MovimientosStockAsync)
+            .WithSummary("Histórico de movimientos de stock del producto.")
+            .RequireAuthorization();
+
+        productos.MapPost("/{id:guid}/stock", RegistrarStockAsync)
+            .WithSummary("Registra un movimiento de stock (entrada, salida o ajuste).")
+            .RequierePermiso(Permisos.ProductoGestionar);
+
         rutas.MapGet("/impuestos", () => Results.Ok(ListarImpuestos.Ejecutar()))
             .WithTags("Impuestos")
             .WithSummary("Lista los tipos de IVA disponibles.")
@@ -63,6 +71,12 @@ public static class EndpointsCatalogo
 
     private static async Task<IResult> HistoricoAsync(Guid id, ListarHistoricoPrecios caso, CancellationToken ct) =>
         Results.Ok(await caso.EjecutarAsync(id, ct).ConfigureAwait(false));
+
+    private static async Task<IResult> MovimientosStockAsync(Guid id, ListarMovimientosStock caso, CancellationToken ct) =>
+        Results.Ok(await caso.EjecutarAsync(id, ct).ConfigureAwait(false));
+
+    private static async Task<IResult> RegistrarStockAsync(Guid id, DatosMovimientoStock datos, RegistrarMovimientoStock caso, CancellationToken ct) =>
+        (await caso.EjecutarAsync(id, datos, ct).ConfigureAwait(false)).AOk();
 
     private static async Task<IResult> CrearAsync(DatosProducto datos, IContextoEmpresa contexto, CrearProducto caso, CancellationToken ct)
     {
