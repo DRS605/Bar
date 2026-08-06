@@ -54,7 +54,7 @@
     label { display:block; font-size: 12.5px; color: var(--muted); margin: 14px 0 6px; font-weight: 500; }
     input, select { width: 100%; padding: 11px 13px; border: 1px solid var(--line); border-radius: 11px; background:#fff; font-size: 14px; color: var(--ink); outline: none; transition: border-color .15s, box-shadow .15s; }
     input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-    .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; background: var(--grad); color:#fff; border:none; border-radius:11px; padding: 12px 16px; font-weight:650; font-size:14px; width:100%; margin-top: 22px; box-shadow: 0 6px 16px rgba(23,182,214,.30); }
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; background: var(--grad); color:#fff; border:none; border-radius:11px; padding: 12px 16px; font-weight:650; font-size:14px; width:100%; margin-top: 22px; box-shadow: 0 6px 16px rgba(23,182,214,.30); white-space:nowrap; }
     .btn:hover { filter: brightness(1.03); }
     .btn.secondary { background:#fff; color:var(--ink); border:1px solid var(--line); box-shadow:none; width:auto; margin:0; padding:10px 15px; }
     .btn.small { width:auto; margin:0; padding: 9px 15px; font-size: 13.5px; }
@@ -136,8 +136,8 @@
     tbody tr { border-bottom: 1px solid #f3f4f6; }
     tbody tr:last-child { border-bottom:none; }
     tbody tr:hover { background:#fafbfc; }
-    td.num, th.num { text-align:right; font-variant-numeric: tabular-nums; }
-    .pill { display:inline-block; padding: 3px 10px; border-radius:999px; font-size:11.5px; font-weight:650; }
+    td.num, th.num { text-align:right; font-variant-numeric: tabular-nums; white-space:nowrap; }
+    .pill { display:inline-block; padding: 3px 10px; border-radius:999px; font-size:11.5px; font-weight:650; white-space:nowrap; }
     .pill.ok { background:#e7f6ee; color:var(--pos); } .pill.wait { background:#fdf2e3; color:var(--warn); } .pill.part { background: var(--accent-soft); color: var(--accent); } .pill.neg { background:#fdecea; color:var(--neg); }
     .muted { color: var(--muted); } .right { text-align:right; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; letter-spacing:.2px; }
@@ -252,6 +252,7 @@
     const API = "";
     let token=null, empresa=null, usuario=null, vista="inicio";
     const eur = n => (Number(n)||0).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
+    const fdate = s => { if(!s) return ""; const p=String(s).slice(0,10).split("-"); return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:String(s); };
     const check = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M20 6L9 17l-5-5"/></svg>';
     document.querySelector('.promo ul').innerHTML =
       ['Emite una factura en menos de 5 minutos','IVA e IRPF calculados por ti','Libros de IVA listos para tu gestoría']
@@ -381,7 +382,7 @@
       ({inicio:vInicio,presupuestos:vPresupuestos,facturas:vFacturas,tpv:vTpv,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,remesas:vRemesa,pagos:vPagos,conciliacion:vConciliacion,informes:vInformes,ajustes:vAjustes}[k])();
     }
     const view = h => document.getElementById("view").innerHTML=h;
-    const panel = (t,c,a="") => `<div class="panel"><div class="panel-head"><h2>${t}</h2>${a}</div>${c}</div>`;
+    const panel = (t,c,a="") => `<div class="panel">${(t||a)?`<div class="panel-head">${t?`<h2>${t}</h2>`:'<span></span>'}${a}</div>`:''}${c}</div>`;
     const vacio = (ico,titulo,texto,accion="") => `<div class="empty"><div class="big">${ICON[ico]}</div><h3>${titulo}</h3><p>${texto}</p><div style="margin-top:16px">${accion}</div></div>`;
     const kIcon = { fact:'<svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6z"/><path d="M9 13h6M9 17h6"/></svg>', cobro:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 12h6"/></svg>', gasto:'<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>', pago:'<svg viewBox="0 0 24 24"><path d="M4 7h16v10H4z"/><path d="M4 11h16"/></svg>' };
 
@@ -405,13 +406,13 @@
         <div class="kpi warn"><div class="top"><div class="chipico">${kIcon.cobro}</div></div><div class="lbl">Pendiente de cobro</div><div class="val ${d.pendienteCobro>0?'neg':''}">${eur(d.pendienteCobro)}</div></div>
         <div class="kpi"><div class="top"><div class="chipico">${kIcon.gasto}</div></div><div class="lbl">Gastos este mes</div><div class="val">${eur(d.gastadoMes)}</div></div>
         <div class="kpi pos"><div class="top"><div class="chipico">${kIcon.pago}</div></div><div class="lbl">Pendiente de pago</div><div class="val">${eur(d.pendientePago)}</div></div></div>`;
-      const filas=facturas.slice(0,6).map(f=>`<tr><td><strong>${f.numeroCompleto}</strong></td><td>${f.clienteNombre}</td><td class="muted">${f.fechaEmision}</td><td class="num"><strong>${eur(f.total)}</strong></td><td class="right"><span class="pill ok">${f.estado}</span></td></tr>`).join("");
+      const filas=facturas.slice(0,6).map(f=>`<tr><td><strong>${f.numeroCompleto}</strong></td><td>${f.clienteNombre}</td><td class="muted">${fdate(f.fechaEmision)}</td><td class="num"><strong>${eur(f.total)}</strong></td><td class="right"><span class="pill ok">${f.estado}</span></td></tr>`).join("");
       const tabla=facturas.length?`<table><thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th class="num">Total</th><th class="right">Estado</th></tr></thead><tbody>${filas}</tbody></table>`
         :vacio("facturas","Aún no has emitido facturas","Crea tu primera factura y cóbrala en un minuto.",`<button class="btn small" onclick="modalFactura()">+ Nueva factura</button>`);
       const activas=recurrentes.filter(r=>r.activa).sort((a,b)=>a.proximaEmision<b.proximaEmision?-1:1).slice(0,4);
       let periodicas="";
       if(activas.length){
-        const pf=activas.map(r=>`<tr><td><strong>${r.nombre}</strong></td><td>${r.clienteNombre}</td><td class="muted">${r.periodicidad}</td><td class="muted">${r.proximaEmision}</td><td class="num"><strong>${eur(r.total)}</strong></td></tr>`).join("");
+        const pf=activas.map(r=>`<tr><td><strong>${r.nombre}</strong></td><td>${r.clienteNombre}</td><td class="muted">${r.periodicidad}</td><td class="muted">${fdate(r.proximaEmision)}</td><td class="num"><strong>${eur(r.total)}</strong></td></tr>`).join("");
         periodicas=panel("Próximas facturas automáticas",`<table><thead><tr><th>Concepto</th><th>Cliente</th><th>Cada</th><th>Próxima</th><th class="num">Importe</th></tr></thead><tbody>${pf}</tbody></table>`,`<button class="btn small ghost" onclick="ir('recurrentes')">Gestionar</button>`);
       }
       view(hero+kpis+panel("Últimas facturas",tabla)+periodicas);
@@ -424,7 +425,7 @@
       const estadoPill=f=>{const c=f.estado==="Rectificada"?"wait":(f.estado==="Anulada"?"wait":"ok");return `<span class="pill ${c}">${f.estado}</span>`;};
       // Solo se puede rectificar una factura ordinaria emitida (no tickets, rectificativas ni ya rectificadas).
       const rectBtn=f=>(f.estado==="Emitida"&&f.tipo==="Ordinaria")?`<button class="btn small secondary" onclick="modalRectificar('${f.id}')">Rectificar</button>`:"";
-      const filas=fs.map(f=>`<tr><td><strong>${f.numeroCompleto}</strong>${tipoPill(f)}</td><td>${f.clienteNombre}</td><td class="muted">${f.fechaEmision}</td><td class="num">${eur(f.baseImponible)}</td><td class="num">${eur(f.cuotaIva)}</td><td class="num"><strong>${eur(f.total)}</strong></td><td class="right">${estadoPill(f)}</td><td class="right" style="white-space:nowrap">${rectBtn(f)} <button class="btn small ghost" onclick="duplicarFactura('${f.id}')" title="Duplicar">⎘</button> <button class="btn small ghost" onclick="abrirPdf('${f.id}')">PDF</button> <button class="btn small ghost" onclick="abrirXml('${f.id}')" title="Registro VeriFactu">XML</button></td></tr>`).join("");
+      const filas=fs.map(f=>`<tr><td><strong>${f.numeroCompleto}</strong>${tipoPill(f)}</td><td>${f.clienteNombre}</td><td class="muted">${fdate(f.fechaEmision)}</td><td class="num">${eur(f.baseImponible)}</td><td class="num">${eur(f.cuotaIva)}</td><td class="num"><strong>${eur(f.total)}</strong></td><td class="right">${estadoPill(f)}</td><td class="right" style="white-space:nowrap">${rectBtn(f)} <button class="btn small ghost" onclick="duplicarFactura('${f.id}')" title="Duplicar">⎘</button> <button class="btn small ghost" onclick="abrirPdf('${f.id}')">PDF</button> <button class="btn small ghost" onclick="abrirXml('${f.id}')" title="Registro VeriFactu">XML</button></td></tr>`).join("");
       const cuerpo=fs.length?`<table><thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th class="num">Base</th><th class="num">IVA</th><th class="num">Total</th><th class="right">Estado</th><th></th></tr></thead><tbody>${filas}</tbody></table>`:vacio("facturas","Todavía no hay facturas","Emite la primera; el número y los impuestos los ponemos nosotros.",`<button class="btn small" onclick="modalFactura()">+ Nueva factura</button>`);
       view(panel("Facturas emitidas",cuerpo,`<button class="btn small" onclick="modalFactura()">+ Nueva factura</button>`));
     }
@@ -432,7 +433,7 @@
       view('<div class="muted">Cargando…</div>');
       const rs=await api("/facturas-recurrentes");
       const badge = a => a?'<span class="pill ok">Activa</span>':'<span class="pill wait">Pausada</span>';
-      const filas=rs.map(r=>`<tr><td><strong>${r.nombre}</strong></td><td>${r.clienteNombre}</td><td class="muted">${r.periodicidad}</td><td class="muted">${r.proximaEmision}</td><td class="num"><strong>${eur(r.total)}</strong></td><td class="right">${badge(r.activa)}</td><td class="right"><button class="btn small secondary" onclick="toggleRecurrente('${r.id}',${!r.activa})">${r.activa?'Pausar':'Reanudar'}</button></td></tr>`).join("");
+      const filas=rs.map(r=>`<tr><td><strong>${r.nombre}</strong></td><td>${r.clienteNombre}</td><td class="muted">${r.periodicidad}</td><td class="muted">${fdate(r.proximaEmision)}</td><td class="num"><strong>${eur(r.total)}</strong></td><td class="right">${badge(r.activa)}</td><td class="right"><button class="btn small secondary" onclick="toggleRecurrente('${r.id}',${!r.activa})">${r.activa?'Pausar':'Reanudar'}</button></td></tr>`).join("");
       const acciones=`<div style="display:flex;gap:10px;align-items:center"><button class="btn small ghost" onclick="procesarRecurrentes()">↻ Emitir vencidas</button><button class="btn small" onclick="modalRecurrente()">+ Nueva periódica</button></div>`;
       const cuerpo=rs.length?`<table><thead><tr><th>Concepto</th><th>Cliente</th><th>Cada</th><th>Próxima</th><th class="num">Importe</th><th class="right">Estado</th><th></th></tr></thead><tbody>${filas}</tbody></table>`
         :vacio("recurrentes","Sin facturación periódica todavía","Crea una suscripción o cuota y ALXOR emitirá la factura solo cuando toque.",`<button class="btn small" onclick="modalRecurrente()">+ Nueva periódica</button>`);
@@ -450,10 +451,10 @@
         ? `<button class="btn small" onclick="aceptarPresupuesto('${p.id}')">Convertir en factura</button> <button class="btn small ghost" onclick="editarPresupuesto('${p.id}')">Editar</button> <button class="btn small secondary" onclick="rechazarPresupuesto('${p.id}')">Rechazar</button> `
         : "";
       const acciones=p=>`${gestion(p)}<button class="btn small ghost" onclick="pdfPresupuesto('${p.id}')">PDF</button> <button class="btn small ghost" onclick="enviarPresupuesto('${p.id}')" title="Enviar por email">✉</button>`;
-      const filas=ps.map(p=>`<tr><td><strong>${p.numeroCompleto}</strong></td><td>${p.clienteNombre}</td><td class="muted">${p.fecha}</td><td class="muted">${p.validez}</td><td class="num"><strong>${eur(p.total)}</strong></td><td class="right">${badge(p.estado)}</td><td class="right" style="white-space:nowrap">${acciones(p)}</td></tr>`).join("");
+      const filas=ps.map(p=>`<tr><td><strong>${p.numeroCompleto}</strong></td><td>${p.clienteNombre}</td><td class="muted">${fdate(p.fecha)}</td><td class="muted">${fdate(p.validez)}</td><td class="num"><strong>${eur(p.total)}</strong></td><td class="right">${badge(p.estado)}</td><td class="right" style="white-space:nowrap">${acciones(p)}</td></tr>`).join("");
       const cuerpo=ps.length?`<table><thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th>Válido hasta</th><th class="num">Total</th><th class="right">Estado</th><th></th></tr></thead><tbody>${filas}</tbody></table>`
         :vacio("facturas","Todavía no hay presupuestos","Prepara una oferta para tu cliente; cuando la acepte, se convierte en factura con un clic.",`<button class="btn small" onclick="modalPresupuesto()">+ Nuevo presupuesto</button>`);
-      view(panel("Presupuestos",cuerpo,`<button class="btn small" onclick="modalPresupuesto()">+ Nuevo presupuesto</button>`));
+      view(panel("",cuerpo,`<button class="btn small" onclick="modalPresupuesto()">+ Nuevo presupuesto</button>`));
     }
     async function modalPresupuesto(src){ const cs=await api("/clientes"); _cacheCli=cs;
       if(!cs.length){ alert("Primero crea un cliente para poder hacerle un presupuesto."); return; }
@@ -492,7 +493,7 @@
       view('<div class="muted">Cargando…</div>');
       const fs=(await api("/facturas")).filter(f=>f.estado==="Emitida");
       const aviso=(!empresa.iban||!empresa.identificadorAcreedor)?`<div style="background:var(--accent-soft);border-radius:12px;padding:10px 14px;margin-bottom:14px">Configura primero el <strong>IBAN e identificador de acreedor</strong> de la empresa en <a onclick="ir('ajustes')" style="cursor:pointer;text-decoration:underline">Ajustes → Datos de cobro</a>.</div>`:"";
-      const filas=fs.map(f=>`<tr><td><input type="checkbox" class="rem_chk" value="${f.id}" style="width:auto"/></td><td><strong>${f.numeroCompleto}</strong></td><td>${f.clienteNombre}</td><td class="muted">${f.fechaEmision}</td><td class="num"><strong>${eur(f.total)}</strong></td></tr>`).join("");
+      const filas=fs.map(f=>`<tr><td><input type="checkbox" class="rem_chk" value="${f.id}" style="width:auto"/></td><td><strong>${f.numeroCompleto}</strong></td><td>${f.clienteNombre}</td><td class="muted">${fdate(f.fechaEmision)}</td><td class="num"><strong>${eur(f.total)}</strong></td></tr>`).join("");
       const cuerpo=fs.length?`${aviso}<table><thead><tr><th></th><th>Número</th><th>Cliente</th><th>Fecha</th><th class="num">Total</th></tr></thead><tbody>${filas}</tbody></table>
         <p class="muted" style="font-size:12px;margin:12px 0 0">Marca las facturas a domiciliar y genera el fichero SEPA (pain.008) para subirlo a tu banco. Solo se incluirán las de clientes con IBAN y mandato; el resto se listan como omitidas.</p>`
         :vacio("facturas","No hay facturas emitidas","Emite facturas para poder domiciliarlas.");
@@ -515,11 +516,12 @@
     let _concApuntes=null;
     function vConciliacion(){
       const intro=`<p class="muted" style="margin:0 0 14px">Sube el extracto de tu banco en formato <strong>Norma 43</strong> (Cuaderno 43 / AEB43; casi todos los bancos lo exportan). Casaremos automáticamente cada apunte con la factura o el gasto pendiente que coincida en importe, y podrás registrar el cobro o el pago con un clic.</p>
-        <input type="file" id="conc_file" accept=".n43,.q43,.txt,text/plain" onchange="concLeer()"/>
+        <label class="btn small" style="cursor:pointer;width:auto;margin:0">Elegir fichero…<input type="file" id="conc_file" accept=".n43,.q43,.txt,text/plain" onchange="concLeer()" style="display:none"/></label> <span id="conc_fname" class="muted" style="font-size:12.5px;margin-left:8px"></span>
         <div id="conc_res" style="margin-top:16px"></div>`;
-      view(panel("Conciliación bancaria",intro));
+      view(panel("",intro));
     }
     function concLeer(){ const f=document.getElementById("conc_file").files[0]; if(!f)return;
+      document.getElementById("conc_fname").textContent=f.name;
       const rd=new FileReader(); rd.onload=async()=>{
         try{ _concApuntes=await api("/tesoreria/conciliacion",{method:"POST",body:JSON.stringify({contenido:rd.result})}); concPintar(); }
         catch(e){ document.getElementById("conc_res").innerHTML=`<div class="muted">${e.message}</div>`; } };
@@ -533,7 +535,7 @@
         if(a.hecho){ acc='<span class="pill ok">Registrado ✓</span>'; }
         else if(a.sugerencia){ acc=`<button class="btn small" onclick="concRegistrar(${i})">${a.sugerencia.tipo==='Cobro'?'Registrar cobro':'Registrar pago'}</button><br><small class="muted">${a.sugerencia.documento}</small>`; }
         else { acc='<span class="muted">Sin casar</span>'; }
-        return `<tr><td class="muted">${a.fecha}</td><td>${a.concepto}</td><td class="num"><strong>${imp}</strong></td><td class="right">${acc}</td></tr>`;
+        return `<tr><td class="muted">${fdate(a.fecha)}</td><td>${a.concepto}</td><td class="num"><strong>${imp}</strong></td><td class="right">${acc}</td></tr>`;
       }).join("");
       document.getElementById("conc_res").innerHTML=cab+`<table><thead><tr><th>Fecha</th><th>Concepto</th><th class="num">Importe</th><th class="right">Casación</th></tr></thead><tbody>${filas}</tbody></table>
         <p class="muted" style="font-size:12px;margin:12px 0 0">Solo se sugiere casar apuntes cuyo importe coincide exactamente con el pendiente de una factura (abonos) o un gasto (cargos).</p>`;
@@ -672,7 +674,7 @@
       const filas=ps.map(p=>`<tr data-b="${(p.nombre+' '+(p.referencia||'')).toLowerCase()}" style="cursor:pointer" onclick="verHistorico('${p.id}','${p.nombre.replace(/'/g,"")}')"><td><strong>${p.nombre}</strong></td><td class="muted mono">${p.referencia||"—"}</td><td class="muted">${p.proveedorHabitualId?provNombre(p.proveedorHabitualId):"—"}</td><td class="num">${eur(p.precioUnitario)}</td><td class="num muted">${p.precioCompra?eur(p.precioCompra):"—"}</td><td class="num">${margen(p)}</td><td class="num">${p.porcentajeIva}%</td><td class="num">${stockCell(p)}</td><td class="right" style="white-space:nowrap">${stockBtn(p)}<button class="btn small secondary" onclick="editarProducto('${p.id}',event)">Editar</button> <button class="btn small secondary" onclick="event.stopPropagation();duplicarProducto('${p.id}')" title="Duplicar">⎘</button></td></tr>`).join("");
       const acciones=`<div style="display:flex;gap:10px;align-items:center"><input id="prodBuscar" placeholder="Buscar por nombre o código…" style="max-width:220px;padding:8px 12px" oninput="filtrarProductos()"/><button class="btn small ghost" onclick="modalImportar('productos')">↥ Importar CSV</button><button class="btn small" onclick="modalProducto()">+ Nuevo</button></div>`;
       const cuerpo=ps.length?`<table><thead><tr><th>Artículo</th><th>Código / EAN</th><th>Proveedor habitual</th><th class="num">Venta</th><th class="num">Compra</th><th class="num">Margen</th><th class="num">IVA</th><th class="num">Stock</th><th></th></tr></thead><tbody id="prodBody">${filas}</tbody></table><p class="muted" style="font-size:12px;margin:12px 0 0">Toca un artículo para ver su histórico de precios, o pulsa Editar. El stock se descuenta solo al facturar.</p>`:vacio("articulos","Sin artículos todavía","Crea productos o servicios con su código para reutilizarlos al facturar.",`<button class="btn small" onclick="modalProducto()">+ Nuevo artículo</button>`);
-      view(panel("Artículos",cuerpo,acciones));
+      view(panel("",cuerpo,acciones));
     }
     async function verHistorico(id,nombre){
       const h=await api(`/productos/${id}/precios`);
@@ -694,7 +696,7 @@
     async function vGastos() {
       view('<div class="muted">Cargando…</div>');
       const gs=await api("/gastos");
-      const filas=gs.map(g=>`<tr><td><strong>${g.concepto}</strong></td><td class="muted">${g.proveedorTexto||"—"}</td><td class="muted">${g.fecha}</td><td class="num">${eur(g.baseImponible)}</td><td class="num"><strong>${eur(g.total)}</strong></td></tr>`).join("");
+      const filas=gs.map(g=>`<tr><td><strong>${g.concepto}</strong></td><td class="muted">${g.proveedorTexto||"—"}</td><td class="muted">${fdate(g.fecha)}</td><td class="num">${eur(g.baseImponible)}</td><td class="num"><strong>${eur(g.total)}</strong></td></tr>`).join("");
       const cuerpo=gs.length?`<table><thead><tr><th>Concepto</th><th>Proveedor</th><th>Fecha</th><th class="num">Base</th><th class="num">Total</th></tr></thead><tbody>${filas}</tbody></table>`:vacio("gastos","Sin gastos todavía","Registra tus gastos y asígnalos a un proveedor.",`<button class="btn small" onclick="modalGasto()">+ Nuevo gasto</button>`);
       view(panel("Gastos",cuerpo,`<button class="btn small" onclick="modalGasto()">+ Nuevo gasto</button>`));
     }
@@ -710,7 +712,7 @@
         const pill=cobrada?'<span class="pill ok">Cobrada</span>':(est==="Parcial"?'<span class="pill part">Parcial</span>':'<span class="pill wait">Pendiente</span>');
         const venc=vencida?` <span class="pill" style="background:#fdecea;color:var(--neg)">Vencida</span>`:"";
         const cobrar=!cobrada?`<button class="btn small secondary" onclick="modalCobro('${f.id}','${f.numeroCompleto}',${pend})">Cobrar</button>`:"";
-        return `<tr><td><strong>${f.numeroCompleto}</strong></td><td>${f.clienteNombre}</td><td class="muted">${f.fechaVencimiento}${venc}</td><td class="num">${eur(f.total)}</td><td class="num">${eur(liq)}</td><td class="num"><strong>${eur(pend)}</strong></td><td class="right">${pill}</td><td class="right">${cobrar}</td></tr>`;}).join("");
+        return `<tr><td><strong>${f.numeroCompleto}</strong></td><td>${f.clienteNombre}</td><td class="muted">${fdate(f.fechaVencimiento)}${venc}</td><td class="num">${eur(f.total)}</td><td class="num">${eur(liq)}</td><td class="num"><strong>${eur(pend)}</strong></td><td class="right">${pill}</td><td class="right">${cobrar}</td></tr>`;}).join("");
       const kpis=`<div class="kpis" style="grid-template-columns:repeat(2,1fr);max-width:560px">
         <div class="kpi"><div class="lbl">Pendiente de cobro</div><div class="val">${eur(totalPend)}</div></div>
         <div class="kpi ${totalVenc>0?'warn':''}"><div class="lbl">Vencido${nVenc?` · ${nVenc} factura${nVenc>1?'s':''}`:''}</div><div class="val ${totalVenc>0?'neg':''}">${eur(totalVenc)}</div></div></div>`;
@@ -733,7 +735,7 @@
         api(`/informes/beneficio?desde=${anio}-01-01&hasta=${anio}-12-31`).catch(()=>null),
         api(`/informes/declaracion-anual?anio=${anio}`).catch(()=>null),
       ]);
-      const filas=libro.asientos.map(a=>`<tr><td class="muted">${a.fecha}</td><td><strong>${a.documento}</strong></td><td>${a.tercero}</td><td class="num">${eur(a.base)}</td><td class="num">${eur(a.cuota)}</td></tr>`).join("");
+      const filas=libro.asientos.map(a=>`<tr><td class="muted">${fdate(a.fecha)}</td><td><strong>${a.documento}</strong></td><td>${a.tercero}</td><td class="num">${eur(a.base)}</td><td class="num">${eur(a.cuota)}</td></tr>`).join("");
       const total=`<tr><td colspan="3" class="right"><strong>Totales</strong></td><td class="num"><strong>${eur(libro.totalBase)}</strong></td><td class="num"><strong>${eur(libro.totalCuota)}</strong></td></tr>`;
       const cuerpo=libro.asientos.length?`<table><thead><tr><th>Fecha</th><th>Documento</th><th>Cliente</th><th class="num">Base</th><th class="num">Cuota IVA</th></tr></thead><tbody>${filas}${total}</tbody></table>`:vacio("informes","Sin movimientos en el periodo","Emite facturas para ver aquí tu libro de IVA repercutido.");
       const panelLibro=panel(`Libro de IVA repercutido · ${anio}`,cuerpo,`<button class="btn small ghost" onclick="descargarCsv()">↓ Exportar CSV (gestoría)</button>`);
@@ -986,9 +988,10 @@
       const q=tipo==="clientes"?"clientes":"artículos";
       abrir(`Importar ${q} desde CSV`,`<p class="muted" style="margin:0 0 6px">Sube un CSV. Columnas reconocidas: <strong>${cols}</strong>. Separador <span class="mono">;</span> o <span class="mono">,</span>.</p>
         <p class="muted" style="margin:0 0 14px;font-size:12px">Ejemplo de cabecera: <span class="mono">${ej}</span></p>
-        <input type="file" id="imp_file" accept=".csv,text/csv,text/plain" onchange="impLeer()"/>
+        <label class="btn small" style="cursor:pointer;width:auto;margin:0">Elegir CSV…<input type="file" id="imp_file" accept=".csv,text/csv,text/plain" onchange="impLeer()" style="display:none"/></label> <span id="imp_fname" class="muted" style="font-size:12.5px;margin-left:8px"></span>
         <div id="imp_res" style="margin-top:14px"></div>`, impConfirmar); }
     function impLeer(){ const f=document.getElementById("imp_file").files[0]; if(!f)return;
+      { const fn=document.getElementById("imp_fname"); if(fn) fn.textContent=f.name; }
       const rd=new FileReader(); rd.onload=async()=>{ impContenido=rd.result;
         try{ const r=await api(`/${impTipo}/importar`,{method:"POST",body:JSON.stringify({contenido:impContenido,previsualizar:true})}); impPintar(r); }
         catch(e){ document.getElementById("imp_res").innerHTML=`<div class="muted">${e.message}</div>`; } };
