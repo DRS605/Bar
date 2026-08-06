@@ -22,6 +22,16 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>, IAsyncLi
         Environment.GetEnvironmentVariable("ALXOR_TEST_CONEXION")
         ?? "Host=localhost;Port=5432;Database=alxor_test;Username=postgres;Password=postgres";
 
+    static FabricaApiPruebas()
+    {
+        // El host lee la cadena de conexión de forma anticipada al registrar los módulos
+        // (RegistroServicios.GetConnectionString), antes de que se aplique la configuración
+        // en memoria de la fábrica. La fuente de variables de entorno de WebApplication.CreateBuilder
+        // sí tiene prioridad sobre appsettings.json, así que fijamos aquí la base de pruebas para
+        // que ningún test toque la base de datos de desarrollo.
+        Environment.SetEnvironmentVariable("ConnectionStrings__AlxorCore", CadenaConexion);
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -64,7 +74,7 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>, IAsyncLi
         await auditoria.Database.MigrateAsync().ConfigureAwait(false);
 
         await identidad.Database.ExecuteSqlRawAsync(
-            "TRUNCATE identidad.usuario, organizacion.empresa, organizacion.membresia, organizacion.serie_numeracion, terceros.cliente, terceros.proveedor, catalogo.producto, facturacion.factura, facturacion.linea_factura, facturacion.factura_recurrente, facturacion.linea_recurrente, gastos.gasto, tesoreria.movimiento, auditoria.registro_auditoria")
+            "TRUNCATE identidad.usuario, organizacion.empresa, organizacion.membresia, organizacion.serie_numeracion, terceros.cliente, terceros.proveedor, catalogo.producto, facturacion.factura, facturacion.linea_factura, facturacion.factura_recurrente, facturacion.linea_recurrente, facturacion.presupuesto, facturacion.linea_presupuesto, gastos.gasto, tesoreria.movimiento, auditoria.registro_auditoria")
             .ConfigureAwait(false);
     }
 

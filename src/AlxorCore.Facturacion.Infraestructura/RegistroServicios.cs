@@ -48,6 +48,16 @@ public static class RegistroServicios
         servicios.AddScoped<ObtenerFacturaRecurrente>();
         servicios.AddScoped<EmitirFacturasRecurrentesVencidas>();
 
+        servicios.AddScoped<RepositorioPresupuestos>();
+        servicios.AddScoped<IRepositorioPresupuestos>(sp => sp.GetRequiredService<RepositorioPresupuestos>());
+        servicios.AddScoped<IConsultaPresupuestos>(sp => sp.GetRequiredService<RepositorioPresupuestos>());
+        servicios.AddScoped<CrearPresupuesto>();
+        servicios.AddScoped<ActualizarPresupuesto>();
+        servicios.AddScoped<ListarPresupuestos>();
+        servicios.AddScoped<ObtenerPresupuesto>();
+        servicios.AddScoped<AceptarPresupuesto>();
+        servicios.AddScoped<RechazarPresupuesto>();
+
         return servicios;
     }
 }

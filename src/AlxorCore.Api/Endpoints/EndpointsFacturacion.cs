@@ -66,6 +66,32 @@ public static class EndpointsFacturacion
             .WithSummary("Emite ahora todas las facturas recurrentes vencidas de la empresa activa.")
             .RequierePermiso(Permisos.FacturaEmitir);
 
+        var presupuestos = rutas.MapGroup("/presupuestos").WithTags("Presupuestos");
+
+        presupuestos.MapGet("", ListarPresupuestosAsync)
+            .WithSummary("Lista los presupuestos de la empresa activa.")
+            .RequierePermiso(Permisos.FacturaLeer);
+
+        presupuestos.MapGet("/{id:guid}", ObtenerPresupuestoAsync)
+            .WithSummary("Obtiene un presupuesto con sus líneas.")
+            .RequierePermiso(Permisos.FacturaLeer);
+
+        presupuestos.MapPost("", CrearPresupuestoAsync)
+            .WithSummary("Crea un presupuesto.")
+            .RequierePermiso(Permisos.FacturaEmitir);
+
+        presupuestos.MapPut("/{id:guid}", ActualizarPresupuestoAsync)
+            .WithSummary("Actualiza un presupuesto en borrador.")
+            .RequierePermiso(Permisos.FacturaEmitir);
+
+        presupuestos.MapPost("/{id:guid}/aceptar", AceptarPresupuestoAsync)
+            .WithSummary("Acepta el presupuesto y lo convierte en factura.")
+            .RequierePermiso(Permisos.FacturaEmitir);
+
+        presupuestos.MapPost("/{id:guid}/rechazar", RechazarPresupuestoAsync)
+            .WithSummary("Marca el presupuesto como rechazado.")
+            .RequierePermiso(Permisos.FacturaEmitir);
+
         return rutas;
     }
 
@@ -78,6 +104,50 @@ public static class EndpointsFacturacion
 
         var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, id, comando, ct).ConfigureAwait(false);
         return resultado.EsCorrecto ? resultado.ACreado($"/facturas/{resultado.Valor.Id}") : ResultadosHttp.AProblema(resultado.Error);
+    }
+
+    private static async Task<IResult> ListarPresupuestosAsync(IContextoEmpresa contexto, ListarPresupuestos caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> ObtenerPresupuestoAsync(Guid id, ObtenerPresupuesto caso, CancellationToken ct) =>
+        (await caso.EjecutarAsync(id, ct).ConfigureAwait(false)).AOk();
+
+    private static async Task<IResult> CrearPresupuestoAsync(DatosPresupuesto datos, IContextoEmpresa contexto, CrearPresupuesto caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, datos, ct).ConfigureAwait(false);
+        return resultado.EsCorrecto ? resultado.ACreado($"/presupuestos/{resultado.Valor.Id}") : ResultadosHttp.AProblema(resultado.Error);
+    }
+
+    private static async Task<IResult> ActualizarPresupuestoAsync(Guid id, DatosPresupuesto datos, ActualizarPresupuesto caso, CancellationToken ct) =>
+        (await caso.EjecutarAsync(id, datos, ct).ConfigureAwait(false)).AOk();
+
+    private static async Task<IResult> AceptarPresupuestoAsync(Guid id, AceptarPresupuestoCuerpo? cuerpo, IContextoEmpresa contexto, AceptarPresupuesto caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, id, cuerpo?.Serie, cuerpo?.DiasVencimiento ?? 0, ct).ConfigureAwait(false);
+        return resultado.EsCorrecto ? resultado.ACreado($"/facturas/{resultado.Valor.Id}") : ResultadosHttp.AProblema(resultado.Error);
+    }
+
+    private static async Task<IResult> RechazarPresupuestoAsync(Guid id, RechazarPresupuesto caso, CancellationToken ct)
+    {
+        var r = await caso.EjecutarAsync(id, ct).ConfigureAwait(false);
+        return r.EsCorrecto ? Results.Ok() : ResultadosHttp.AProblema(r.Error);
     }
 
     private static async Task<IResult> EmitirTicketAsync(EmitirTicketComando comando, IContextoEmpresa contexto, EmitirTicket caso, CancellationToken ct)
@@ -183,3 +253,6 @@ public static class EndpointsFacturacion
 
 /// <summary>Cuerpo para activar/pausar una factura recurrente.</summary>
 public sealed record CambioEstadoRecurrente(bool Activa);
+
+/// <summary>Opciones al aceptar un presupuesto (serie y vencimiento de la factura resultante).</summary>
+public sealed record AceptarPresupuestoCuerpo(string? Serie = null, int DiasVencimiento = 0);

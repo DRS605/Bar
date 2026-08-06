@@ -137,10 +137,38 @@ invariantes F1–F5) reutilizando el caso de uso de emisión.
 | `POST` | `/facturas-recurrentes/{id}/estado` | permiso `factura.emitir` | Activa o pausa. |
 | `POST` | `/facturas-recurrentes/procesar` | permiso `factura.emitir` | Emite ahora las vencidas. |
 
+## Presupuestos (oferta → factura)
+
+Un **presupuesto** (`presupuesto`) es una **oferta al cliente**: cliente, líneas, fecha y **fecha de
+validez**. **No es un documento fiscal**: es editable mientras está en borrador, **no** lleva
+numeración correlativa legal ni VeriFactu. Su numeración es meramente informativa (`P{año}/NNNNNN`).
+
+Estados: `Borrador → Aceptado | Rechazado`. Solo un presupuesto en **borrador** se puede editar,
+aceptar o rechazar.
+
+- **Aceptar = convertir en factura**: `AceptarPresupuesto` construye un `EmitirFacturaComando` con
+  las líneas del presupuesto y **reutiliza el caso de uso de emisión** (`EmitirFactura`), de modo que
+  la factura resultante aplica todos los invariantes fiscales (numeración correlativa, congelado de
+  datos, VeriFactu, F1–F5). El presupuesto queda `Aceptado` con `factura_id` apuntando a la factura
+  emitida. Puede indicarse la **serie** y el **vencimiento** de la factura al aceptar.
+- **Rechazar**: marca el presupuesto como `Rechazado` (no se puede aceptar después).
+
+| Método | Ruta | Auth | Descripción |
+|---|---|---|---|
+| `GET` | `/presupuestos` | permiso `factura.leer` | Lista los presupuestos de la empresa. |
+| `GET` | `/presupuestos/{id}` | permiso `factura.leer` | Presupuesto con sus líneas. |
+| `POST` | `/presupuestos` | permiso `factura.emitir` | Crea un presupuesto. **201** |
+| `PUT` | `/presupuestos/{id}` | permiso `factura.emitir` | Edita un presupuesto en borrador. |
+| `POST` | `/presupuestos/{id}/aceptar` | permiso `factura.emitir` | Lo convierte en factura. **201** |
+| `POST` | `/presupuestos/{id}/rechazar` | permiso `factura.emitir` | Lo marca como rechazado. |
+
 ## Persistencia
 
 - Esquema **`facturacion`**: `factura` y `linea_factura`; `factura_recurrente` y `linea_recurrente`
-  para las suscripciones (todas con RLS por empresa).
+  para las suscripciones; `presupuesto` y `linea_presupuesto` para las ofertas (todas con RLS por
+  empresa). Las líneas editables (`linea_recurrente`, `linea_presupuesto`) mapean su clave con
+  `ValueGeneratedNever`, para que al reemplazar la colección EF genere `DELETE`+`INSERT` (y no un
+  `UPDATE` sobre una fila inexistente).
 - Índice único de número: `(empresa_id, prefijo, ejercicio, numero)`.
 - Índice de barrido de vencidas: `(empresa_id, activa, proxima_emision)`.
 - El repositorio ofrece escritura (`IRepositorioFacturas`) y consultas (`IConsultaFacturas`), que

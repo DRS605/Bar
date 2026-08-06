@@ -25,6 +25,8 @@ public sealed class FacturacionDbContext : DbContextEmpresaBase, IUnidadDeTrabaj
 
     public DbSet<FacturaRecurrente> FacturasRecurrentes => Set<FacturaRecurrente>();
 
+    public DbSet<Presupuesto> Presupuestos => Set<Presupuesto>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Esquema);
@@ -141,7 +143,7 @@ internal sealed class ConfiguracionFacturaRecurrente : IEntityTypeConfiguration<
             linea.ToTable("linea_recurrente");
             linea.WithOwner().HasForeignKey("factura_recurrente_id");
             linea.HasKey(l => l.Id);
-            linea.Property(l => l.Id).HasColumnName("id");
+            linea.Property(l => l.Id).HasColumnName("id").ValueGeneratedNever();
             linea.Property(l => l.EmpresaId).HasColumnName("empresa_id").IsRequired();
             linea.Property(l => l.ProductoId).HasColumnName("producto_id");
             linea.Property(l => l.Descripcion).HasColumnName("descripcion").HasMaxLength(300).IsRequired();
@@ -269,6 +271,86 @@ internal sealed class RepositorioFacturas : IRepositorioFacturas, IConsultaFactu
 
         return facturas
             .SelectMany(f => f.Lineas.Select(l => new LineaMargenDto(l.ProductoId, l.Descripcion, l.Cantidad, l.Base, l.CosteTotal)))
+            .ToList();
+    }
+}
+
+internal sealed class ConfiguracionPresupuesto : IEntityTypeConfiguration<Presupuesto>
+{
+    public void Configure(EntityTypeBuilder<Presupuesto> builder)
+    {
+        builder.ToTable("presupuesto");
+        builder.HasKey(p => p.Id);
+        builder.Property(p => p.Id).HasColumnName("id");
+        builder.Property(p => p.EmpresaId).HasColumnName("empresa_id").IsRequired();
+        builder.Property(p => p.NumeroCompleto).HasColumnName("numero_completo").HasMaxLength(30).IsRequired();
+        builder.Property(p => p.ClienteId).HasColumnName("cliente_id").IsRequired();
+        builder.Property(p => p.ClienteNombre).HasColumnName("cliente_nombre").HasMaxLength(200).IsRequired();
+        builder.Property(p => p.Fecha).HasColumnName("fecha").IsRequired();
+        builder.Property(p => p.Validez).HasColumnName("validez").IsRequired();
+        builder.Property(p => p.Estado).HasColumnName("estado").HasMaxLength(20).HasConversion<string>().IsRequired();
+        builder.Property(p => p.BaseImponible).HasColumnName("base_imponible").HasColumnType("numeric(14,2)").IsRequired();
+        builder.Property(p => p.CuotaIva).HasColumnName("cuota_iva").HasColumnType("numeric(14,2)").IsRequired();
+        builder.Property(p => p.Total).HasColumnName("total").HasColumnType("numeric(14,2)").IsRequired();
+        builder.Property(p => p.FacturaId).HasColumnName("factura_id");
+        builder.Property(p => p.CreadoEn).HasColumnName("creado_en").IsRequired();
+
+        builder.OwnsMany(p => p.Lineas, linea =>
+        {
+            linea.ToTable("linea_presupuesto");
+            linea.WithOwner().HasForeignKey("presupuesto_id");
+            linea.HasKey(l => l.Id);
+            linea.Property(l => l.Id).HasColumnName("id").ValueGeneratedNever();
+            linea.Property(l => l.EmpresaId).HasColumnName("empresa_id").IsRequired();
+            linea.Property(l => l.ProductoId).HasColumnName("producto_id");
+            linea.Property(l => l.Descripcion).HasColumnName("descripcion").HasMaxLength(300).IsRequired();
+            linea.Property(l => l.Cantidad).HasColumnName("cantidad").HasColumnType("numeric(14,3)").IsRequired();
+            linea.Property(l => l.PrecioUnitario).HasColumnName("precio_unitario").HasColumnType("numeric(14,4)").IsRequired();
+            linea.Property(l => l.PorcentajeDescuento).HasColumnName("descuento").HasColumnType("numeric(5,2)").IsRequired();
+            linea.Property(l => l.CodigoIva).HasColumnName("codigo_iva").HasMaxLength(10).IsRequired();
+            linea.Property(l => l.PorcentajeIva).HasColumnName("porcentaje_iva").HasColumnType("numeric(5,2)").IsRequired();
+            linea.Property(l => l.Base).HasColumnName("base").HasColumnType("numeric(14,2)").IsRequired();
+            linea.Property(l => l.CuotaIva).HasColumnName("cuota_iva").HasColumnType("numeric(14,2)").IsRequired();
+        });
+
+        builder.HasIndex(p => new { p.EmpresaId, p.Fecha }).HasDatabaseName("ix_presupuesto_empresa_fecha");
+        builder.Ignore(p => p.EventosDominio);
+    }
+}
+
+internal sealed class RepositorioPresupuestos : IRepositorioPresupuestos, IConsultaPresupuestos
+{
+    private readonly FacturacionDbContext _contexto;
+
+    public RepositorioPresupuestos(FacturacionDbContext contexto) => _contexto = contexto;
+
+    public Task<Presupuesto?> ObtenerPorIdAsync(Guid id, CancellationToken ct = default) =>
+        _contexto.Presupuestos.SingleOrDefaultAsync(p => p.Id == id, ct);
+
+    public void Agregar(Presupuesto presupuesto) => _contexto.Presupuestos.Add(presupuesto);
+
+    public async Task<long> SiguienteNumeroAsync(Guid empresaId, int ejercicio, CancellationToken ct = default)
+    {
+        var count = await _contexto.Presupuestos
+            .Where(p => p.EmpresaId == empresaId && p.Fecha.Year == ejercicio)
+            .CountAsync(ct).ConfigureAwait(false);
+        return count + 1;
+    }
+
+    public async Task<PresupuestoDto?> ObtenerAsync(Guid id, CancellationToken ct = default)
+    {
+        var p = await _contexto.Presupuestos.SingleOrDefaultAsync(x => x.Id == id, ct).ConfigureAwait(false);
+        return p is null ? null : PresupuestoDto.Desde(p);
+    }
+
+    public async Task<IReadOnlyList<PresupuestoResumen>> ListarAsync(Guid empresaId, CancellationToken ct = default)
+    {
+        var presupuestos = await _contexto.Presupuestos
+            .Where(p => p.EmpresaId == empresaId)
+            .OrderByDescending(p => p.Fecha).ThenByDescending(p => p.NumeroCompleto)
+            .ToListAsync(ct).ConfigureAwait(false);
+        return presupuestos
+            .Select(p => new PresupuestoResumen(p.Id, p.NumeroCompleto, p.Fecha, p.Validez, p.ClienteNombre, p.Total, p.Estado.ToString(), p.FacturaId))
             .ToList();
     }
 }

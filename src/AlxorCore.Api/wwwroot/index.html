@@ -278,13 +278,13 @@
     // Menú agrupado en carpetas: Ventas, Compras y Artículos.
     const NAV = [
       { t:"item", k:"inicio", l:"Inicio" },
-      { t:"grupo", k:"ventas", l:"Ventas", items:[["facturas","Facturas"],["tpv","TPV · Tickets"],["recurrentes","Periódicas"],["clientes","Clientes"],["cobros","Cobros"]] },
+      { t:"grupo", k:"ventas", l:"Ventas", items:[["presupuestos","Presupuestos"],["facturas","Facturas"],["tpv","TPV · Tickets"],["recurrentes","Periódicas"],["clientes","Clientes"],["cobros","Cobros"]] },
       { t:"grupo", k:"compras", l:"Compras", items:[["gastos","Gastos"],["proveedores","Proveedores"],["pagos","Pagos"]] },
       { t:"grupo", k:"articulos", l:"Artículos", items:[["productos","Productos"]] },
       { t:"item", k:"informes", l:"Informes" },
       { t:"item", k:"ajustes", l:"Ajustes" },
     ];
-    const TITULOS = { inicio:"Inicio", facturas:"Facturas", tpv:"TPV · Tickets", recurrentes:"Facturación periódica", clientes:"Clientes", cobros:"Cobros", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", productos:"Artículos", informes:"Informes", ajustes:"Ajustes" };
+    const TITULOS = { inicio:"Inicio", presupuestos:"Presupuestos", facturas:"Facturas", tpv:"TPV · Tickets", recurrentes:"Facturación periódica", clientes:"Clientes", cobros:"Cobros", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", productos:"Artículos", informes:"Informes", ajustes:"Ajustes" };
     function renderNav() {
       return NAV.map(n => {
         if (n.t === "item") return `<a class="navitem" data-k="${n.k}" onclick="ir('${n.k}')">${ICON[n.k]}<span>${n.l}</span></a>`;
@@ -378,7 +378,7 @@
     function ir(k){ if(vista==="tpv" && k!=="tpv" && typeof tpvParar==="function") tpvParar(); vista=k;
       document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("active",a.dataset.k===k));
       document.getElementById("viewTitle").textContent=TITULOS[k]||k;
-      ({inicio:vInicio,facturas:vFacturas,tpv:vTpv,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,pagos:vPagos,informes:vInformes,ajustes:vAjustes}[k])();
+      ({inicio:vInicio,presupuestos:vPresupuestos,facturas:vFacturas,tpv:vTpv,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,pagos:vPagos,informes:vInformes,ajustes:vAjustes}[k])();
     }
     const view = h => document.getElementById("view").innerHTML=h;
     const panel = (t,c,a="") => `<div class="panel"><div class="panel-head"><h2>${t}</h2>${a}</div>${c}</div>`;
@@ -441,6 +441,43 @@
     async function toggleRecurrente(id,activa){ try{ await api(`/facturas-recurrentes/${id}/estado`,{method:"POST",body:JSON.stringify({activa})}); vRecurrentes(); }catch(e){ alert(e.message);} }
     async function procesarRecurrentes(){ try{ const r=await api("/facturas-recurrentes/procesar",{method:"POST"});
       alert(r.emitidas?`Se ${r.emitidas===1?"ha emitido 1 factura":"han emitido "+r.emitidas+" facturas"} automáticamente.`:"No había facturas periódicas vencidas."); vRecurrentes(); }catch(e){ alert(e.message);} }
+    /* ---------- Presupuestos ---------- */
+    async function vPresupuestos() {
+      view('<div class="muted">Cargando…</div>');
+      const ps=await api("/presupuestos");
+      const badge=e=>e==="Aceptado"?'<span class="pill ok">Facturado</span>':(e==="Rechazado"?'<span class="pill wait">Rechazado</span>':'<span class="pill part">Borrador</span>');
+      const acciones=p=>p.estado==="Borrador"
+        ? `<button class="btn small" onclick="aceptarPresupuesto('${p.id}')">Convertir en factura</button> <button class="btn small ghost" onclick="editarPresupuesto('${p.id}')">Editar</button> <button class="btn small secondary" onclick="rechazarPresupuesto('${p.id}')">Rechazar</button>`
+        : "";
+      const filas=ps.map(p=>`<tr><td><strong>${p.numeroCompleto}</strong></td><td>${p.clienteNombre}</td><td class="muted">${p.fecha}</td><td class="muted">${p.validez}</td><td class="num"><strong>${eur(p.total)}</strong></td><td class="right">${badge(p.estado)}</td><td class="right" style="white-space:nowrap">${acciones(p)}</td></tr>`).join("");
+      const cuerpo=ps.length?`<table><thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th>Válido hasta</th><th class="num">Total</th><th class="right">Estado</th><th></th></tr></thead><tbody>${filas}</tbody></table>`
+        :vacio("facturas","Todavía no hay presupuestos","Prepara una oferta para tu cliente; cuando la acepte, se convierte en factura con un clic.",`<button class="btn small" onclick="modalPresupuesto()">+ Nuevo presupuesto</button>`);
+      view(panel("Presupuestos",cuerpo,`<button class="btn small" onclick="modalPresupuesto()">+ Nuevo presupuesto</button>`));
+    }
+    async function modalPresupuesto(src){ const cs=await api("/clientes"); _cacheCli=cs;
+      if(!cs.length){ alert("Primero crea un cliente para poder hacerle un presupuesto."); return; }
+      const opts=cs.map(c=>`<option value="${c.id}">${c.nombre}</option>`).join("");
+      const editando=src&&src.id;
+      _facLineas=(src&&src.lineas&&src.lineas.length)
+        ? src.lineas.map(l=>({descripcion:l.descripcion,cantidad:l.cantidad,precio:l.precioUnitario,iva:l.codigoIva,dto:l.porcentajeDescuento||0}))
+        : [{descripcion:"",cantidad:1,precio:0,iva:"IVA21",dto:0}];
+      abrir(editando?"Editar presupuesto":"Nuevo presupuesto",`<div class="grid2"><div><label>Cliente</label><select id="f_cli">${opts}</select></div><div><label>Validez</label><select id="f_validez"><option value="15">15 días</option><option value="30" selected>30 días</option><option value="60">60 días</option><option value="90">90 días</option></select></div></div>
+        <label style="margin-top:16px">Líneas</label>
+        <div id="f_lineas">${facLineasHtml()}</div>
+        <button class="btn small ghost" style="margin-top:6px" onclick="facAnadirLinea()">+ Añadir línea</button>
+        <div id="f_total" class="right" style="margin-top:10px;font-weight:650"></div>
+        <p class="muted" style="font-size:12px;margin:10px 0 0">Un presupuesto no es un documento fiscal: es editable y no lleva numeración legal. Al aceptarlo se emite una factura real.</p>`,
+        async()=>{ const lineas=_facLineas.filter(l=>l.descripcion.trim()&&l.cantidad>0).map(l=>({descripcion:l.descripcion,cantidad:l.cantidad,precioUnitario:l.precio,codigoIva:l.iva,porcentajeDescuento:l.dto||0}));
+          if(!lineas.length) throw new Error("Añade al menos una línea con descripción y cantidad.");
+          const b=JSON.stringify({clienteId:val("f_cli"),diasValidez:Number(val("f_validez")),lineas});
+          await api("/presupuestos"+(editando?"/"+src.id:""),{method:editando?"PUT":"POST",body:b}); vPresupuestos(); });
+      if(src&&src.clienteId){ const sel=document.getElementById("f_cli"); if([...sel.options].some(o=>o.value===src.clienteId)) sel.value=src.clienteId; }
+      facTotal(); }
+    async function editarPresupuesto(id){ try{ const p=await api("/presupuestos/"+id); modalPresupuesto(p); }catch(e){ toast(e.message,"err"); } }
+    async function aceptarPresupuesto(id){ if(!confirm("Se emitirá una factura real a partir de este presupuesto. ¿Continuar?"))return;
+      try{ const f=await api("/presupuestos/"+id+"/aceptar",{method:"POST",body:JSON.stringify({})}); toast("Factura "+f.numeroCompleto+" emitida","ok"); vPresupuestos(); }catch(e){ toast(e.message,"err"); } }
+    async function rechazarPresupuesto(id){ if(!confirm("¿Marcar este presupuesto como rechazado?"))return;
+      try{ await api("/presupuestos/"+id+"/rechazar",{method:"POST"}); vPresupuestos(); }catch(e){ toast(e.message,"err"); } }
     /* ---------- TPV / Tickets ---------- */
     let tpvProductos=[], tpvCart=[], tpvStream=null, tpvTimer=null, tpvDetector=null, tpvUltimo=0, tpvMetodo="Efectivo", tpvUltimoTicket=null;
     async function vTpv() {
