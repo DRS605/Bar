@@ -668,16 +668,39 @@
     async function vInformes() {
       view('<div class="muted">Cargando…</div>');
       const anio=new Date().getFullYear();
-      const [libro,resumen,benef]=await Promise.all([
+      const [libro,resumen,benef,anual]=await Promise.all([
         api(`/informes/libro-iva?tipo=Repercutido&desde=${anio}-01-01&hasta=${anio}-12-31`),
         api(`/informes/resumen-trimestral?anio=${anio}&trimestre=${trimSel}`).catch(()=>null),
         api(`/informes/beneficio?desde=${anio}-01-01&hasta=${anio}-12-31`).catch(()=>null),
+        api(`/informes/declaracion-anual?anio=${anio}`).catch(()=>null),
       ]);
       const filas=libro.asientos.map(a=>`<tr><td class="muted">${a.fecha}</td><td><strong>${a.documento}</strong></td><td>${a.tercero}</td><td class="num">${eur(a.base)}</td><td class="num">${eur(a.cuota)}</td></tr>`).join("");
       const total=`<tr><td colspan="3" class="right"><strong>Totales</strong></td><td class="num"><strong>${eur(libro.totalBase)}</strong></td><td class="num"><strong>${eur(libro.totalCuota)}</strong></td></tr>`;
       const cuerpo=libro.asientos.length?`<table><thead><tr><th>Fecha</th><th>Documento</th><th>Cliente</th><th class="num">Base</th><th class="num">Cuota IVA</th></tr></thead><tbody>${filas}${total}</tbody></table>`:vacio("informes","Sin movimientos en el periodo","Emite facturas para ver aquí tu libro de IVA repercutido.");
       const panelLibro=panel(`Libro de IVA repercutido · ${anio}`,cuerpo,`<button class="btn small ghost" onclick="descargarCsv()">↓ Exportar CSV (gestoría)</button>`);
-      view((benef?panelBeneficio(benef,anio):"")+(benef&&benef.porProducto.length?panelRanking(benef,anio):"")+(resumen?panelResumen(resumen,anio):"")+panelLibro);
+      view((benef?panelBeneficio(benef,anio):"")+(benef&&benef.porProducto.length?panelRanking(benef,anio):"")+(resumen?panelResumen(resumen,anio):"")+(anual?panelAnual(anual,anio):"")+panelLibro);
+    }
+    function panelAnual(d,anio){
+      const m9=d.modelo390, m7=d.modelo347;
+      const signo=m9.resultado>0.005?'A ingresar':(m9.resultado<-0.005?'A compensar':'Sin cuota');
+      const cls=m9.resultado>0.005?'neg':(m9.resultado<-0.005?'ok':'part');
+      const fila=(l,v,fuerte)=>`<tr><td class="${fuerte?'':'muted'}">${l}</td><td class="num">${fuerte?'<strong>':''}${eur(v)}${fuerte?'</strong>':''}</td></tr>`;
+      const t390=`<table><tbody>
+        ${fila('IVA repercutido (año)',m9.ivaDevengadoCuota)}
+        ${fila('IVA soportado (año)',m9.ivaDeducibleCuota)}
+        <tr><td><strong>Resultado anual</strong> <span class="pill ${cls}">${signo}</span></td><td class="num"><strong>${eur(Math.abs(m9.resultado))}</strong></td></tr>
+        </tbody></table>`;
+      const linea=l=>`<tr><td><strong>${l.nombre}</strong>${l.nif?` <span class="muted">${l.nif}</span>`:''}</td><td class="num"><strong>${eur(l.importeAnual)}</strong></td></tr>`;
+      const bloque347=(titulo,arr)=>arr.length
+        ? `<div><h4 style="margin:0 0 8px">${titulo}</h4><table><tbody>${arr.map(linea).join("")}</tbody></table></div>`
+        : `<div><h4 style="margin:0 0 8px">${titulo}</h4><p class="muted" style="font-size:12.5px">Ninguno supera el umbral.</p></div>`;
+      const cuerpo=`<div class="grid2">
+        <div><h4 style="margin:0 0 8px">Modelo 390 · Resumen anual de IVA</h4>${t390}</div>
+        <div><h4 style="margin:0 0 8px">Modelo 347 · Operaciones &gt; ${eur(m7.umbral)}</h4>
+          <div style="display:grid;gap:14px">${bloque347('Clientes',m7.clientes)}${bloque347('Proveedores',m7.proveedores)}</div>
+        </div></div>
+        <p class="muted" style="font-size:12px;margin:14px 0 0">El 390 es el resumen anual del IVA (suma de los cuatro 303). El 347 lista los terceros con los que has superado ${eur(m7.umbral)} en el año (IVA incluido). Ayuda informativa para la gestoría; no es un envío oficial a la AEAT.</p>`;
+      return panel(`Declaración anual · ${anio}`,cuerpo);
     }
     function panelRanking(b,anio){
       const pct=p=>p.ingresos>0?(p.margen/p.ingresos*100):0;

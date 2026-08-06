@@ -32,6 +32,10 @@ public static class EndpointsInformes
             .WithSummary("Resúmenes fiscales del trimestre: modelo 303 (IVA) y modelo 130 (IRPF).")
             .RequierePermiso(Permisos.InformeLeer);
 
+        informes.MapGet("/declaracion-anual", DeclaracionAnualAsync)
+            .WithSummary("Declaraciones anuales: modelo 390 (resumen IVA) y modelo 347 (operaciones con terceros).")
+            .RequierePermiso(Permisos.InformeLeer);
+
         informes.MapGet("/beneficio", BeneficioAsync)
             .WithSummary("Beneficio del periodo: margen bruto (venta − compra) y neto (menos gastos).")
             .RequierePermiso(Permisos.InformeLeer);
@@ -98,6 +102,18 @@ public static class EndpointsInformes
 
         var ejercicio = anio ?? DateTime.UtcNow.Year;
         return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, ejercicio, trimestre, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> DeclaracionAnualAsync(
+        IContextoEmpresa contexto, GenerarDeclaracionAnual caso, CancellationToken ct, int? anio = null)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var ejercicio = anio ?? DateTime.UtcNow.Year;
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, ejercicio, ct).ConfigureAwait(false));
     }
 
     private static async Task<IResult> BeneficioAsync(

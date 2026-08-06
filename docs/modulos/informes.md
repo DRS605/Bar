@@ -43,6 +43,19 @@ Solo cuentan las facturas en estado **Emitida**: se excluyen las **anuladas** y 
 **rectificadas** (sustituidas por su rectificativa, que aporta los importes corregidos). Requiere el
 permiso `informe.leer`.
 
+## Declaraciones anuales (390 y 347)
+
+`GET /informes/declaracion-anual?anio=` calcula, para el ejercicio indicado, los dos resúmenes
+anuales. Como los trimestrales, es **ayuda informativa** para la gestoría, no un envío a la AEAT.
+
+- **Modelo 390 (resumen anual de IVA)** — es la suma de los cuatro `303` del año: IVA repercutido
+  (facturas emitidas del ejercicio) menos IVA soportado (gastos del ejercicio).
+- **Modelo 347 (operaciones con terceros)** — relación de **clientes** y **proveedores** con los que
+  el volumen de operaciones del año (**IVA incluido**) supera el umbral legal de **3.005,06 €**. Los
+  clientes se agrupan por NIF (o por nombre si la factura no lo llevaba) sumando el total de sus
+  facturas; los proveedores se agrupan por el maestro de proveedores (resolviendo nombre y NIF) o,
+  en su defecto, por el texto libre del gasto. Requiere el permiso `informe.leer`.
+
 ## Beneficio (margen bruto y neto)
 
 `GET /informes/beneficio?desde=&hasta=` calcula el beneficio del periodo a partir del **margen por
@@ -74,6 +87,7 @@ botón *Cierre de caja* del TPV.
 | `GET` | `/informes/libro-iva` | permiso `informe.leer` | Libro de IVA del periodo. |
 | `GET` | `/informes/libro-iva/csv` | permiso `datos.exportar` | Exportación CSV. |
 | `GET` | `/informes/resumen-trimestral` | permiso `informe.leer` | Resúmenes 303 (IVA) y 130 (IRPF) del trimestre. |
+| `GET` | `/informes/declaracion-anual` | permiso `informe.leer` | Declaraciones anuales 390 (IVA) y 347 (terceros). |
 | `GET` | `/informes/beneficio` | permiso `informe.leer` | Beneficio del periodo (margen bruto y neto). |
 | `GET` | `/informes/cierre-caja?dia=` | permiso `informe.leer` | Cierre de caja de un día (cobrado por método, pagado, neto). |
 

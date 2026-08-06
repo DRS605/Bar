@@ -105,6 +105,43 @@ public sealed class InformesEndpointsTests : IClassFixture<FabricaApiPruebas>
         resumen.Modelo130.PagoFraccionadoBruto.Should().Be(20m); // 20% de 100
     }
 
+    private sealed record Linea347Resp(string Nombre, string? Nif, string Sentido, decimal ImporteAnual);
+    private sealed record Modelo347Resp(decimal Umbral, List<Linea347Resp> Clientes, List<Linea347Resp> Proveedores);
+    private sealed record Modelo390Resp(decimal IvaDevengadoCuota, decimal IvaDeducibleCuota, decimal Resultado);
+    private sealed record DeclaracionAnualResp(Modelo390Resp Modelo390, Modelo347Resp Modelo347);
+
+    [Fact]
+    public async Task Declaracion_anual_calcula_390_y_347()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var hoy = DateTime.UtcNow;
+
+        // Cliente por encima del umbral 347 (4.000 base → 4.840 con IVA > 3.005,06).
+        var clienteId = (await (await cliente.PostAsJsonAsync("/clientes", new { Nombre = "Gran Cliente SL", NifFiscal = "B12345674" })).Content.ReadFromJsonAsync<ClienteResp>())!.Id;
+        await cliente.PostAsJsonAsync("/facturas", new { ClienteId = clienteId, Lineas = new[] { new { Cantidad = 1m, Descripcion = "Proyecto", PrecioUnitario = 4000m, CodigoIva = "IVA21" } } });
+        // Cliente pequeño, por debajo del umbral (no debe aparecer en el 347).
+        var pequenoId = (await (await cliente.PostAsJsonAsync("/clientes", new { Nombre = "Cliente Pequeño", NifFiscal = "B00000000" })).Content.ReadFromJsonAsync<ClienteResp>())!.Id;
+        await cliente.PostAsJsonAsync("/facturas", new { ClienteId = pequenoId, Lineas = new[] { new { Cantidad = 1m, Descripcion = "Consulta", PrecioUnitario = 100m, CodigoIva = "IVA21" } } });
+        // Gasto de un proveedor por encima del umbral.
+        var proveedorId = (await (await cliente.PostAsJsonAsync("/proveedores", new { Nombre = "Gran Proveedor SL", NifFiscal = "B99999999", FormaPago = "Transferencia" })).Content.ReadFromJsonAsync<ClienteResp>())!.Id;
+        await cliente.PostAsJsonAsync("/gastos", new { ProveedorId = proveedorId, Concepto = "Mercancía", BaseImponible = 5000m, CodigoIva = "IVA21" });
+
+        var dec = await cliente.GetFromJsonAsync<DeclaracionAnualResp>($"/informes/declaracion-anual?anio={hoy.Year}");
+
+        // 390: IVA devengado 4100*0.21=861; deducible 5000*0.21=1050; resultado 861-1050 = -189.
+        dec!.Modelo390.IvaDevengadoCuota.Should().Be(861m);
+        dec.Modelo390.IvaDeducibleCuota.Should().Be(1050m);
+        dec.Modelo390.Resultado.Should().Be(-189m);
+
+        // 347: solo el gran cliente y el gran proveedor superan el umbral.
+        dec.Modelo347.Umbral.Should().Be(3005.06m);
+        dec.Modelo347.Clientes.Should().ContainSingle(c => c.Nombre == "Gran Cliente SL");
+        dec.Modelo347.Clientes.Should().NotContain(c => c.Nombre == "Cliente Pequeño");
+        dec.Modelo347.Clientes.Single().ImporteAnual.Should().Be(4840m); // 4000 + 21% IVA
+        dec.Modelo347.Proveedores.Should().ContainSingle(p => p.Nombre == "Gran Proveedor SL" && p.Nif == "B99999999");
+        dec.Modelo347.Proveedores.Single().ImporteAnual.Should().Be(6050m); // 5000 + 21% IVA
+    }
+
     [Fact]
     public async Task Cierre_de_caja_agrupa_los_cobros_del_dia_por_metodo()
     {

@@ -13,6 +13,7 @@ public static class RegistroServicios
         servicios.AddScoped<ObtenerDashboard>();
         servicios.AddScoped<GenerarLibroIva>();
         servicios.AddScoped<GenerarResumenesFiscales>();
+        servicios.AddScoped<GenerarDeclaracionAnual>();
         servicios.AddScoped<GenerarBeneficio>();
         servicios.AddScoped<GenerarCierreCaja>();
 
