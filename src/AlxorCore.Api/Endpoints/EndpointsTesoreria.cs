@@ -6,6 +6,9 @@ using AlxorCore.Tesoreria.Aplicacion;
 
 namespace AlxorCore.Api.Endpoints;
 
+/// <summary>Petición para conciliar un extracto bancario en formato Norma 43.</summary>
+public sealed record ConciliarPeticion(string Contenido);
+
 /// <summary>Endpoints REST del módulo Tesorería (cobros y pagos).</summary>
 public static class EndpointsTesoreria
 {
@@ -29,7 +32,23 @@ public static class EndpointsTesoreria
             .WithTags("Tesorería").WithSummary("Saldo de un gasto.")
             .RequierePermiso(Permisos.GastoLeer);
 
+        rutas.MapPost("/tesoreria/conciliacion", ConciliarAsync)
+            .WithTags("Tesorería").WithSummary("Lee un extracto bancario (Norma 43) y propone casaciones con facturas y gastos pendientes.")
+            .RequierePermiso(Permisos.CobroRegistrar);
+
         return rutas;
+    }
+
+    private static async Task<IResult> ConciliarAsync(ConciliarPeticion peticion, IContextoEmpresa contexto, ConciliarExtracto caso, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(peticion);
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, peticion.Contenido, ct).ConfigureAwait(false);
+        return resultado.AOk();
     }
 
     private static async Task<IResult> CobrarAsync(RegistrarCobroComando comando, IContextoEmpresa contexto, RegistrarCobro caso, CancellationToken ct)

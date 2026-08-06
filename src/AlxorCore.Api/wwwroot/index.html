@@ -279,12 +279,12 @@
     const NAV = [
       { t:"item", k:"inicio", l:"Inicio" },
       { t:"grupo", k:"ventas", l:"Ventas", items:[["presupuestos","Presupuestos"],["facturas","Facturas"],["tpv","TPV · Tickets"],["recurrentes","Periódicas"],["clientes","Clientes"],["cobros","Cobros"]] },
-      { t:"grupo", k:"compras", l:"Compras", items:[["gastos","Gastos"],["proveedores","Proveedores"],["pagos","Pagos"]] },
+      { t:"grupo", k:"compras", l:"Compras", items:[["gastos","Gastos"],["proveedores","Proveedores"],["pagos","Pagos"],["conciliacion","Conciliación banco"]] },
       { t:"grupo", k:"articulos", l:"Artículos", items:[["productos","Productos"]] },
       { t:"item", k:"informes", l:"Informes" },
       { t:"item", k:"ajustes", l:"Ajustes" },
     ];
-    const TITULOS = { inicio:"Inicio", presupuestos:"Presupuestos", facturas:"Facturas", tpv:"TPV · Tickets", recurrentes:"Facturación periódica", clientes:"Clientes", cobros:"Cobros", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", productos:"Artículos", informes:"Informes", ajustes:"Ajustes" };
+    const TITULOS = { inicio:"Inicio", presupuestos:"Presupuestos", facturas:"Facturas", tpv:"TPV · Tickets", recurrentes:"Facturación periódica", clientes:"Clientes", cobros:"Cobros", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", conciliacion:"Conciliación bancaria", productos:"Artículos", informes:"Informes", ajustes:"Ajustes" };
     function renderNav() {
       return NAV.map(n => {
         if (n.t === "item") return `<a class="navitem" data-k="${n.k}" onclick="ir('${n.k}')">${ICON[n.k]}<span>${n.l}</span></a>`;
@@ -378,7 +378,7 @@
     function ir(k){ if(vista==="tpv" && k!=="tpv" && typeof tpvParar==="function") tpvParar(); vista=k;
       document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("active",a.dataset.k===k));
       document.getElementById("viewTitle").textContent=TITULOS[k]||k;
-      ({inicio:vInicio,presupuestos:vPresupuestos,facturas:vFacturas,tpv:vTpv,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,pagos:vPagos,informes:vInformes,ajustes:vAjustes}[k])();
+      ({inicio:vInicio,presupuestos:vPresupuestos,facturas:vFacturas,tpv:vTpv,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,pagos:vPagos,conciliacion:vConciliacion,informes:vInformes,ajustes:vAjustes}[k])();
     }
     const view = h => document.getElementById("view").innerHTML=h;
     const panel = (t,c,a="") => `<div class="panel"><div class="panel-head"><h2>${t}</h2>${a}</div>${c}</div>`;
@@ -487,6 +487,39 @@
       }catch(e){ toast(e.message,"err"); } }
     async function enviarPresupuesto(id){ const email=prompt("Email del cliente para enviarle el presupuesto:"); if(!email)return;
       try{ await api("/presupuestos/"+id+"/enviar",{method:"POST",body:JSON.stringify({email})}); toast("Presupuesto enviado a "+email,"ok"); }catch(e){ toast(e.message,"err"); } }
+    /* ---------- Conciliación bancaria (Norma 43) ---------- */
+    let _concApuntes=null;
+    function vConciliacion(){
+      const intro=`<p class="muted" style="margin:0 0 14px">Sube el extracto de tu banco en formato <strong>Norma 43</strong> (Cuaderno 43 / AEB43; casi todos los bancos lo exportan). Casaremos automáticamente cada apunte con la factura o el gasto pendiente que coincida en importe, y podrás registrar el cobro o el pago con un clic.</p>
+        <input type="file" id="conc_file" accept=".n43,.q43,.txt,text/plain" onchange="concLeer()"/>
+        <div id="conc_res" style="margin-top:16px"></div>`;
+      view(panel("Conciliación bancaria",intro));
+    }
+    function concLeer(){ const f=document.getElementById("conc_file").files[0]; if(!f)return;
+      const rd=new FileReader(); rd.onload=async()=>{
+        try{ _concApuntes=await api("/tesoreria/conciliacion",{method:"POST",body:JSON.stringify({contenido:rd.result})}); concPintar(); }
+        catch(e){ document.getElementById("conc_res").innerHTML=`<div class="muted">${e.message}</div>`; } };
+      rd.readAsText(f,"latin1"); }
+    function concPintar(){ const d=_concApuntes; if(!d)return;
+      const casables=d.apuntes.filter(a=>a.sugerencia).length;
+      const cab=`<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:12px"><span class="muted">Cuenta <strong class="mono">${d.cuenta||"—"}</strong></span>${d.saldoInicial!=null?`<span class="muted">Saldo inicial <strong>${eur(d.saldoInicial)}</strong></span>`:""}${d.saldoFinal!=null?`<span class="muted">Saldo final <strong>${eur(d.saldoFinal)}</strong></span>`:""}<span class="muted">${d.apuntes.length} apuntes · ${casables} casables</span></div>`;
+      const filas=d.apuntes.map((a,i)=>{
+        const imp=`<span class="${a.importe<0?'neg':''}">${eur(a.importe)}</span>`;
+        let acc;
+        if(a.hecho){ acc='<span class="pill ok">Registrado ✓</span>'; }
+        else if(a.sugerencia){ acc=`<button class="btn small" onclick="concRegistrar(${i})">${a.sugerencia.tipo==='Cobro'?'Registrar cobro':'Registrar pago'}</button><br><small class="muted">${a.sugerencia.documento}</small>`; }
+        else { acc='<span class="muted">Sin casar</span>'; }
+        return `<tr><td class="muted">${a.fecha}</td><td>${a.concepto}</td><td class="num"><strong>${imp}</strong></td><td class="right">${acc}</td></tr>`;
+      }).join("");
+      document.getElementById("conc_res").innerHTML=cab+`<table><thead><tr><th>Fecha</th><th>Concepto</th><th class="num">Importe</th><th class="right">Casación</th></tr></thead><tbody>${filas}</tbody></table>
+        <p class="muted" style="font-size:12px;margin:12px 0 0">Solo se sugiere casar apuntes cuyo importe coincide exactamente con el pendiente de una factura (abonos) o un gasto (cargos).</p>`;
+    }
+    async function concRegistrar(i){ const a=_concApuntes.apuntes[i]; if(!a||!a.sugerencia)return;
+      try{
+        if(a.sugerencia.tipo==='Cobro') await api("/cobros",{method:"POST",body:JSON.stringify({facturaId:a.sugerencia.documentoId,importe:a.importe,fecha:a.fecha,metodo:"Transferencia"})});
+        else await api("/pagos",{method:"POST",body:JSON.stringify({gastoId:a.sugerencia.documentoId,importe:-a.importe,fecha:a.fecha,metodo:"Transferencia"})});
+        a.hecho=true; concPintar(); toast("Movimiento registrado","ok");
+      }catch(e){ toast(e.message,"err"); } }
     /* ---------- TPV / Tickets ---------- */
     let tpvProductos=[], tpvCart=[], tpvStream=null, tpvTimer=null, tpvDetector=null, tpvUltimo=0, tpvMetodo="Efectivo", tpvUltimoTicket=null;
     async function vTpv() {

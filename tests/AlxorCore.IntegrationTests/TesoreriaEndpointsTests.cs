@@ -24,6 +24,60 @@ public sealed class TesoreriaEndpointsTests : IClassFixture<FabricaApiPruebas>
         return (await (await cliente.PostAsJsonAsync("/facturas", comando)).Content.ReadFromJsonAsync<FacturaResp>())!;
     }
 
+    private sealed record SugerenciaResp(string Tipo, Guid DocumentoId, string Documento, decimal Pendiente);
+    private sealed record ApunteResp(DateOnly Fecha, decimal Importe, string Concepto, SugerenciaResp? Sugerencia);
+    private sealed record ConciliacionResp(string Cuenta, decimal? SaldoInicial, decimal? SaldoFinal, List<ApunteResp> Apuntes);
+
+    private static string RegistroN43(string codigo, params (int Inicio, string Valor)[] campos)
+    {
+        var buf = new char[80];
+        Array.Fill(buf, ' ');
+        for (var i = 0; i < codigo.Length; i++) buf[i] = codigo[i];
+        foreach (var (inicio, valor) in campos)
+            for (var i = 0; i < valor.Length && inicio + i < 80; i++) buf[inicio + i] = valor[i];
+        return new string(buf);
+    }
+
+    private static string ImporteN43(decimal valor) => ((long)(valor * 100)).ToString("D14", System.Globalization.CultureInfo.InvariantCulture);
+
+    [Fact]
+    public async Task Conciliar_extracto_n43_sugiere_cobro_de_la_factura_pendiente()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var factura = await EmitirFacturaAsync(cliente, 242m); // total 242, pendiente 242
+
+        var cabecera = RegistroN43("11", (10, "1234567890"), (20, "260101"), (26, "260131"), (32, "2"), (33, ImporteN43(0m)));
+        var abono = RegistroN43("22", (10, "260115"), (16, "260115"), (27, "2"), (28, ImporteN43(242m)));
+        var concepto = RegistroN43("23", (2, "01"), (4, "PAGO FACTURA CLIENTE"));
+        var fin = RegistroN43("88");
+        var contenido = string.Join("\r\n", cabecera, abono, concepto, fin);
+
+        var resp = await cliente.PostAsJsonAsync("/tesoreria/conciliacion", new { Contenido = contenido });
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        var conc = await resp.Content.ReadFromJsonAsync<ConciliacionResp>();
+
+        conc!.Apuntes.Should().ContainSingle();
+        var apunte = conc.Apuntes[0];
+        apunte.Importe.Should().Be(242m);
+        apunte.Sugerencia.Should().NotBeNull();
+        apunte.Sugerencia!.Tipo.Should().Be("Cobro");
+        apunte.Sugerencia.DocumentoId.Should().Be(factura.Id);
+        apunte.Sugerencia.Pendiente.Should().Be(242m);
+
+        // Confirmar la casación registrando el cobro sugerido deja la factura pagada.
+        await cliente.PostAsJsonAsync("/cobros", new { FacturaId = apunte.Sugerencia.DocumentoId, Importe = apunte.Importe, Metodo = "Transferencia" });
+        var saldo = await cliente.GetFromJsonAsync<SaldoResp>($"/facturas/{factura.Id}/saldo");
+        saldo!.Pendiente.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task Conciliar_extracto_invalido_devuelve_400()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var resp = await cliente.PostAsJsonAsync("/tesoreria/conciliacion", new { Contenido = "esto no es un fichero norma 43" });
+        resp.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
     [Fact]
     public async Task Cobro_parcial_y_total_actualizan_el_saldo()
     {
