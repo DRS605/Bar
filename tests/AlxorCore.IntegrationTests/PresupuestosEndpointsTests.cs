@@ -124,6 +124,35 @@ public sealed class PresupuestosEndpointsTests : IClassFixture<FabricaApiPruebas
     }
 
     [Fact]
+    public async Task Descargar_pdf_de_presupuesto()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var clienteId = await CrearClienteAsync(cliente);
+        var comando = new { ClienteId = clienteId, Lineas = new[] { new { Cantidad = 1m, Descripcion = "Oferta", PrecioUnitario = 100m, CodigoIva = "IVA21" } } };
+        var presupuesto = await (await cliente.PostAsJsonAsync("/presupuestos", comando)).Content.ReadFromJsonAsync<PresupuestoResp>();
+
+        var pdf = await cliente.GetAsync($"/presupuestos/{presupuesto!.Id}/pdf");
+        pdf.StatusCode.Should().Be(HttpStatusCode.OK);
+        pdf.Content.Headers.ContentType!.MediaType.Should().Be("application/pdf");
+        var bytes = await pdf.Content.ReadAsByteArrayAsync();
+        bytes.Should().NotBeEmpty();
+        // Un PDF válido empieza por "%PDF".
+        System.Text.Encoding.ASCII.GetString(bytes, 0, 4).Should().Be("%PDF");
+    }
+
+    [Fact]
+    public async Task Enviar_presupuesto_por_email()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var clienteId = await CrearClienteAsync(cliente);
+        var comando = new { ClienteId = clienteId, Lineas = new[] { new { Cantidad = 1m, Descripcion = "Oferta", PrecioUnitario = 100m, CodigoIva = "IVA21" } } };
+        var presupuesto = await (await cliente.PostAsJsonAsync("/presupuestos", comando)).Content.ReadFromJsonAsync<PresupuestoResp>();
+
+        var envio = await cliente.PostAsJsonAsync($"/presupuestos/{presupuesto!.Id}/enviar", new { Email = "cliente@ejemplo.es" });
+        envio.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
     public async Task Los_presupuestos_estan_aislados_por_empresa()
     {
         var (empresaA, _) = await Ayudas.ConEmpresaAsync(_fabrica);

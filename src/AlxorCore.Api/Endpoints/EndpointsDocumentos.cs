@@ -9,6 +9,9 @@ namespace AlxorCore.Api.Endpoints;
 /// <summary>Petición para enviar una factura por correo.</summary>
 public sealed record EnviarFacturaPeticion(string Email);
 
+/// <summary>Petición para enviar un presupuesto por correo.</summary>
+public sealed record EnviarPresupuestoPeticion(string Email);
+
 /// <summary>Endpoints REST del módulo Documentos (PDF y correo de facturas).</summary>
 public static class EndpointsDocumentos
 {
@@ -22,6 +25,14 @@ public static class EndpointsDocumentos
 
         rutas.MapPost("/facturas/{id:guid}/enviar", EnviarAsync)
             .WithTags("Documentos").WithSummary("Envía la factura por correo con el PDF adjunto.")
+            .RequierePermiso(Permisos.FacturaLeer);
+
+        rutas.MapGet("/presupuestos/{id:guid}/pdf", PdfPresupuestoAsync)
+            .WithTags("Documentos").WithSummary("Descarga el PDF de un presupuesto.")
+            .RequierePermiso(Permisos.FacturaLeer);
+
+        rutas.MapPost("/presupuestos/{id:guid}/enviar", EnviarPresupuestoAsync)
+            .WithTags("Documentos").WithSummary("Envía el presupuesto por correo con el PDF adjunto.")
             .RequierePermiso(Permisos.FacturaLeer);
 
         return rutas;
@@ -48,6 +59,30 @@ public static class EndpointsDocumentos
         }
 
         var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, new EnviarFacturaComando(id, peticion.Email), ct).ConfigureAwait(false);
+        return resultado.ASinContenido();
+    }
+
+    private static async Task<IResult> PdfPresupuestoAsync(Guid id, IContextoEmpresa contexto, GenerarPdfPresupuesto caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, id, ct).ConfigureAwait(false);
+        return resultado.EsCorrecto
+            ? Results.File(resultado.Valor.Contenido, "application/pdf", resultado.Valor.NombreArchivo)
+            : ResultadosHttp.AProblema(resultado.Error);
+    }
+
+    private static async Task<IResult> EnviarPresupuestoAsync(Guid id, EnviarPresupuestoPeticion peticion, IContextoEmpresa contexto, EnviarPresupuestoPorEmail caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, new EnviarPresupuestoComando(id, peticion.Email), ct).ConfigureAwait(false);
         return resultado.ASinContenido();
     }
 }

@@ -15,9 +15,12 @@ public static class RegistroServicios
         QuestPDF.Settings.License = LicenseType.Community;
 
         servicios.AddScoped<IGeneradorPdfFactura, GeneradorPdfFacturaQuestPdf>();
+        servicios.AddScoped<IGeneradorPdfPresupuesto, GeneradorPdfPresupuestoQuestPdf>();
         servicios.AddScoped<IServicioCorreo, ServicioCorreoStub>();
         servicios.AddScoped<GenerarPdfFactura>();
         servicios.AddScoped<EnviarFacturaPorEmail>();
+        servicios.AddScoped<GenerarPdfPresupuesto>();
+        servicios.AddScoped<EnviarPresupuestoPorEmail>();
 
         return servicios;
     }

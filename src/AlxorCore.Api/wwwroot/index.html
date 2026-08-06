@@ -446,9 +446,10 @@
       view('<div class="muted">Cargando…</div>');
       const ps=await api("/presupuestos");
       const badge=e=>e==="Aceptado"?'<span class="pill ok">Facturado</span>':(e==="Rechazado"?'<span class="pill wait">Rechazado</span>':'<span class="pill part">Borrador</span>');
-      const acciones=p=>p.estado==="Borrador"
-        ? `<button class="btn small" onclick="aceptarPresupuesto('${p.id}')">Convertir en factura</button> <button class="btn small ghost" onclick="editarPresupuesto('${p.id}')">Editar</button> <button class="btn small secondary" onclick="rechazarPresupuesto('${p.id}')">Rechazar</button>`
+      const gestion=p=>p.estado==="Borrador"
+        ? `<button class="btn small" onclick="aceptarPresupuesto('${p.id}')">Convertir en factura</button> <button class="btn small ghost" onclick="editarPresupuesto('${p.id}')">Editar</button> <button class="btn small secondary" onclick="rechazarPresupuesto('${p.id}')">Rechazar</button> `
         : "";
+      const acciones=p=>`${gestion(p)}<button class="btn small ghost" onclick="pdfPresupuesto('${p.id}')">PDF</button> <button class="btn small ghost" onclick="enviarPresupuesto('${p.id}')" title="Enviar por email">✉</button>`;
       const filas=ps.map(p=>`<tr><td><strong>${p.numeroCompleto}</strong></td><td>${p.clienteNombre}</td><td class="muted">${p.fecha}</td><td class="muted">${p.validez}</td><td class="num"><strong>${eur(p.total)}</strong></td><td class="right">${badge(p.estado)}</td><td class="right" style="white-space:nowrap">${acciones(p)}</td></tr>`).join("");
       const cuerpo=ps.length?`<table><thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th>Válido hasta</th><th class="num">Total</th><th class="right">Estado</th><th></th></tr></thead><tbody>${filas}</tbody></table>`
         :vacio("facturas","Todavía no hay presupuestos","Prepara una oferta para tu cliente; cuando la acepte, se convierte en factura con un clic.",`<button class="btn small" onclick="modalPresupuesto()">+ Nuevo presupuesto</button>`);
@@ -478,6 +479,14 @@
       try{ const f=await api("/presupuestos/"+id+"/aceptar",{method:"POST",body:JSON.stringify({})}); toast("Factura "+f.numeroCompleto+" emitida","ok"); vPresupuestos(); }catch(e){ toast(e.message,"err"); } }
     async function rechazarPresupuesto(id){ if(!confirm("¿Marcar este presupuesto como rechazado?"))return;
       try{ await api("/presupuestos/"+id+"/rechazar",{method:"POST"}); vPresupuestos(); }catch(e){ toast(e.message,"err"); } }
+    async function pdfPresupuesto(id){ try{
+        const r=await fetch(`/presupuestos/${id}/pdf`,{headers:{Authorization:"Bearer "+token}});
+        if(!r.ok) throw new Error("No se pudo generar el PDF");
+        const u=URL.createObjectURL(await r.blob()); window.open(u,"_blank");
+        setTimeout(()=>URL.revokeObjectURL(u),60000);
+      }catch(e){ toast(e.message,"err"); } }
+    async function enviarPresupuesto(id){ const email=prompt("Email del cliente para enviarle el presupuesto:"); if(!email)return;
+      try{ await api("/presupuestos/"+id+"/enviar",{method:"POST",body:JSON.stringify({email})}); toast("Presupuesto enviado a "+email,"ok"); }catch(e){ toast(e.message,"err"); } }
     /* ---------- TPV / Tickets ---------- */
     let tpvProductos=[], tpvCart=[], tpvStream=null, tpvTimer=null, tpvDetector=null, tpvUltimo=0, tpvMetodo="Efectivo", tpvUltimoTicket=null;
     async function vTpv() {

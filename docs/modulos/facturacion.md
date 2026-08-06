@@ -161,6 +161,12 @@ aceptar o rechazar.
 | `PUT` | `/presupuestos/{id}` | permiso `factura.emitir` | Edita un presupuesto en borrador. |
 | `POST` | `/presupuestos/{id}/aceptar` | permiso `factura.emitir` | Lo convierte en factura. **201** |
 | `POST` | `/presupuestos/{id}/rechazar` | permiso `factura.emitir` | Lo marca como rechazado. |
+| `GET` | `/presupuestos/{id}/pdf` | permiso `factura.leer` | Descarga el PDF del presupuesto. |
+| `POST` | `/presupuestos/{id}/enviar` | permiso `factura.leer` | Envía el presupuesto por email con el PDF. |
+
+El **PDF** del presupuesto (módulo Documentos, QuestPDF) deja claro que **no es una factura**: sin
+numeración fiscal ni VeriFactu, muestra la **fecha de validez** de la oferta. El envío por email
+reutiliza el mismo puerto de correo que las facturas.
 
 ## Persistencia
 

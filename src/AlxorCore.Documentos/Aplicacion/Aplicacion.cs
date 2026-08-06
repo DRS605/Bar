@@ -12,6 +12,13 @@ public interface IGeneradorPdfFactura
     byte[] Generar(FacturaDto factura, EmpresaDto emisor);
 }
 
+/// <summary>Puerto de generación del PDF de un presupuesto.</summary>
+public interface IGeneradorPdfPresupuesto
+{
+    /// <summary>Genera el PDF del presupuesto con los datos del emisor (la empresa).</summary>
+    byte[] Generar(PresupuestoDto presupuesto, EmpresaDto emisor);
+}
+
 /// <summary>Mensaje de correo con un adjunto.</summary>
 public sealed record MensajeCorreo(string Para, string Asunto, string Cuerpo, byte[] Adjunto, string NombreAdjunto);
 
@@ -56,6 +63,81 @@ public sealed class GenerarPdfFactura
 
 /// <summary>PDF generado (nombre de archivo y contenido).</summary>
 public sealed record DocumentoPdf(string NombreArchivo, byte[] Contenido);
+
+/// <summary>Caso de uso: generar el PDF de un presupuesto.</summary>
+public sealed class GenerarPdfPresupuesto
+{
+    private readonly IConsultaPresupuestos _presupuestos;
+    private readonly IConsultaEmpresas _empresas;
+    private readonly IGeneradorPdfPresupuesto _generador;
+
+    public GenerarPdfPresupuesto(IConsultaPresupuestos presupuestos, IConsultaEmpresas empresas, IGeneradorPdfPresupuesto generador)
+    {
+        _presupuestos = presupuestos;
+        _empresas = empresas;
+        _generador = generador;
+    }
+
+    public async Task<Resultado<DocumentoPdf>> EjecutarAsync(Guid empresaId, Guid presupuestoId, CancellationToken ct = default)
+    {
+        var presupuesto = await _presupuestos.ObtenerAsync(presupuestoId, ct).ConfigureAwait(false);
+        if (presupuesto is null)
+        {
+            return Resultado.Fallo<DocumentoPdf>(Error.NoEncontrado("presupuesto.no_encontrado", "El presupuesto no existe."));
+        }
+
+        var empresa = await _empresas.ObtenerAsync(empresaId, ct).ConfigureAwait(false);
+        if (empresa is null)
+        {
+            return Resultado.Fallo<DocumentoPdf>(Error.NoEncontrado("empresa.no_encontrada", "La empresa no existe."));
+        }
+
+        var bytes = _generador.Generar(presupuesto, empresa);
+        return Resultado.Ok(new DocumentoPdf($"{presupuesto.NumeroCompleto.Replace('/', '-')}.pdf", bytes));
+    }
+}
+
+/// <summary>Datos para enviar un presupuesto por correo.</summary>
+public sealed record EnviarPresupuestoComando(Guid PresupuestoId, string Email);
+
+/// <summary>Caso de uso: enviar un presupuesto por correo con su PDF adjunto.</summary>
+public sealed class EnviarPresupuestoPorEmail
+{
+    private readonly GenerarPdfPresupuesto _generarPdf;
+    private readonly IServicioCorreo _correo;
+
+    public EnviarPresupuestoPorEmail(GenerarPdfPresupuesto generarPdf, IServicioCorreo correo)
+    {
+        _generarPdf = generarPdf;
+        _correo = correo;
+    }
+
+    public async Task<Resultado> EjecutarAsync(Guid empresaId, EnviarPresupuestoComando comando, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(comando);
+
+        if (string.IsNullOrWhiteSpace(comando.Email))
+        {
+            return Resultado.Fallo(Error.Validacion("correo.destinatario", "El correo del destinatario es obligatorio."));
+        }
+
+        var pdf = await _generarPdf.EjecutarAsync(empresaId, comando.PresupuestoId, ct).ConfigureAwait(false);
+        if (pdf.EsFallo)
+        {
+            return Resultado.Fallo(pdf.Error);
+        }
+
+        var mensaje = new MensajeCorreo(
+            comando.Email.Trim(),
+            $"Presupuesto {pdf.Valor.NombreArchivo}",
+            "Adjuntamos nuestro presupuesto. Quedamos a su disposición para cualquier duda.",
+            pdf.Valor.Contenido,
+            pdf.Valor.NombreArchivo);
+
+        await _correo.EnviarAsync(mensaje, ct).ConfigureAwait(false);
+        return Resultado.Ok();
+    }
+}
 
 /// <summary>Datos para enviar una factura por correo.</summary>
 public sealed record EnviarFacturaComando(Guid FacturaId, string Email);
