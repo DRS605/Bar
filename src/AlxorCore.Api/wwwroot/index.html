@@ -185,6 +185,33 @@
     .modal-foot { padding: 16px 22px; border-top:1px solid var(--line); display:flex; justify-content:flex-end; gap:10px; }
     .row { display:grid; grid-template-columns: 1fr 88px 108px 104px; gap: 10px; align-items:end; }
     .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    /* ---------- Responsive (móvil / tablet) ---------- */
+    .hamb { display:none; background:none; border:none; font-size:22px; line-height:1; color:var(--ink); padding:4px 9px; border-radius:9px; }
+    .hamb:hover { background:#f0f5f8; }
+    .company .chip .cname { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px; }
+    .backdrop { display:none; position:fixed; inset:0; background:rgba(11,42,74,.35); z-index:40; }
+    .backdrop.show { display:block; }
+    @media (max-width: 980px) { .kpis { grid-template-columns: repeat(2,1fr); } }
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { position:fixed; left:0; top:0; bottom:0; width:266px; z-index:50; transform:translateX(-100%);
+        transition: transform .22s ease; box-shadow: 0 10px 40px rgba(11,42,74,.20); }
+      .sidebar.open { transform:translateX(0); }
+      .hamb { display:inline-flex; align-items:center; }
+      .topbar { padding: 0 14px; height: 60px; }
+      .topbar .title { font-size: 15px; }
+      .content { padding: 16px 14px; }
+      .hero { padding: 20px 18px; border-radius:18px; }
+      .hero h1 { font-size: 21px; }
+      .grid2 { grid-template-columns: 1fr; }
+      .login { grid-template-columns: 1fr; }
+      .login .promo { display:none; }
+      .panel-head { flex-wrap: wrap; gap: 10px; }
+      .panel table { display:block; overflow-x:auto; white-space:nowrap; }
+      .company .chip { white-space:nowrap; }
+      .company .chip .cname { max-width: 34vw; }
+    }
+    @media (max-width: 520px) { .kpis { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -229,11 +256,15 @@
     </aside>
     <div class="main">
       <header class="topbar">
-        <div class="title" id="viewTitle">Inicio</div>
+        <div style="display:flex;align-items:center;gap:10px;min-width:0">
+          <button class="hamb" id="hambBtn" onclick="toggleMenu()" aria-label="Abrir menú">☰</button>
+          <div class="title" id="viewTitle">Inicio</div>
+        </div>
         <div class="company"><span class="chip" id="empresaChip"></span><div class="avatar" id="avatar">U</div></div>
       </header>
       <div class="content" id="view"></div>
     </div>
+    <div class="backdrop" id="backdrop" onclick="closeMenu()"></div>
   </div>
 
   <!-- MODAL -->
@@ -370,13 +401,15 @@
       document.getElementById("sideNombre").textContent=usuario?.nombre||"Usuario";
       document.getElementById("sideEmpresa").textContent=empresa.razonSocial;
       const chip=document.getElementById("empresaChip");
-      chip.innerHTML=`<span class="avatar mini">${empresa.razonSocial.slice(0,1)}</span>${empresa.razonSocial} <span style="opacity:.6;margin-left:4px">▾</span>`;
+      chip.innerHTML=`<span class="avatar mini">${empresa.razonSocial.slice(0,1)}</span><span class="cname">${empresa.razonSocial}</span> <span style="opacity:.6;margin-left:4px">▾</span>`;
       chip.style.cursor="pointer"; chip.title="Cambiar de empresa"; chip.onclick=modalEmpresas;
       document.getElementById("nav").innerHTML=renderNav();
       ir("inicio");
     }
 
-    function ir(k){ if(vista==="tpv" && k!=="tpv" && typeof tpvParar==="function") tpvParar(); vista=k;
+    function toggleMenu(){ const s=document.querySelector(".sidebar"), b=document.getElementById("backdrop"); const abierto=s.classList.toggle("open"); b.classList.toggle("show",abierto); }
+    function closeMenu(){ const s=document.querySelector(".sidebar"), b=document.getElementById("backdrop"); if(s)s.classList.remove("open"); if(b)b.classList.remove("show"); }
+    function ir(k){ closeMenu(); if(vista==="tpv" && k!=="tpv" && typeof tpvParar==="function") tpvParar(); vista=k;
       document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("active",a.dataset.k===k));
       document.getElementById("viewTitle").textContent=TITULOS[k]||k;
       ({inicio:vInicio,presupuestos:vPresupuestos,facturas:vFacturas,tpv:vTpv,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,remesas:vRemesa,pagos:vPagos,conciliacion:vConciliacion,informes:vInformes,ajustes:vAjustes}[k])();
@@ -729,17 +762,56 @@
     async function vInformes() {
       view('<div class="muted">Cargando…</div>');
       const anio=new Date().getFullYear();
-      const [libro,resumen,benef,anual]=await Promise.all([
+      const [libro,resumen,benef,anual,facturas,gastos]=await Promise.all([
         api(`/informes/libro-iva?tipo=Repercutido&desde=${anio}-01-01&hasta=${anio}-12-31`),
         api(`/informes/resumen-trimestral?anio=${anio}&trimestre=${trimSel}`).catch(()=>null),
         api(`/informes/beneficio?desde=${anio}-01-01&hasta=${anio}-12-31`).catch(()=>null),
         api(`/informes/declaracion-anual?anio=${anio}`).catch(()=>null),
+        api("/facturas").catch(()=>[]),
+        api("/gastos").catch(()=>[]),
       ]);
+      const panelGraficos=graficosHtml(facturas,gastos,anio);
       const filas=libro.asientos.map(a=>`<tr><td class="muted">${fdate(a.fecha)}</td><td><strong>${a.documento}</strong></td><td>${a.tercero}</td><td class="num">${eur(a.base)}</td><td class="num">${eur(a.cuota)}</td></tr>`).join("");
       const total=`<tr><td colspan="3" class="right"><strong>Totales</strong></td><td class="num"><strong>${eur(libro.totalBase)}</strong></td><td class="num"><strong>${eur(libro.totalCuota)}</strong></td></tr>`;
       const cuerpo=libro.asientos.length?`<table><thead><tr><th>Fecha</th><th>Documento</th><th>Cliente</th><th class="num">Base</th><th class="num">Cuota IVA</th></tr></thead><tbody>${filas}${total}</tbody></table>`:vacio("informes","Sin movimientos en el periodo","Emite facturas para ver aquí tu libro de IVA repercutido.");
       const panelLibro=panel(`Libro de IVA repercutido · ${anio}`,cuerpo,`<button class="btn small ghost" onclick="descargarCsv()">↓ Exportar CSV (gestoría)</button>`);
-      view((benef?panelBeneficio(benef,anio):"")+(benef&&benef.porProducto.length?panelRanking(benef,anio):"")+(resumen?panelResumen(resumen,anio):"")+(anual?panelAnual(anual,anio):"")+panelLibro);
+      view(panelGraficos+(benef?panelBeneficio(benef,anio):"")+(benef&&benef.porProducto.length?panelRanking(benef,anio):"")+(resumen?panelResumen(resumen,anio):"")+(anual?panelAnual(anual,anio):"")+panelLibro);
+    }
+    // Gráficos de Informes (SVG puro, sin dependencias): barras de facturación vs gasto por mes + donut de gastos.
+    function graficosHtml(facturas,gastos,anio){
+      const mesFact=Array(12).fill(0), mesGasto=Array(12).fill(0);
+      (facturas||[]).forEach(f=>{ if(f.estado==="Emitida" && (f.fechaEmision||"").slice(0,4)==String(anio)){ const m=Number((f.fechaEmision||"").slice(5,7))-1; if(m>=0&&m<12) mesFact[m]+=Number(f.total)||0; } });
+      (gastos||[]).forEach(g=>{ if((g.fecha||"").slice(0,4)==String(anio)){ const m=Number((g.fecha||"").slice(5,7))-1; if(m>=0&&m<12) mesGasto[m]+=Number(g.total)||0; } });
+      const hayFact=mesFact.some(v=>v>0)||mesGasto.some(v=>v>0);
+      // Donut: reparto de gastos por proveedor (o concepto), top 6 + resto.
+      const acum={}; (gastos||[]).forEach(g=>{ const k=(g.proveedorTexto||g.concepto||"Otros"); acum[k]=(acum[k]||0)+(Number(g.total)||0); });
+      let segs=Object.entries(acum).map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value);
+      const paleta=["#17b6d6","#0b6ea4","#0b2a4a","#5ac8e0","#3f8fb8","#8ad4e6","#9aa7b4"];
+      if(segs.length>6){ const resto=segs.slice(6).reduce((a,s)=>a+s.value,0); segs=segs.slice(0,6); segs.push({label:"Otros",value:resto}); }
+      segs=segs.map((s,i)=>({...s,color:paleta[i%paleta.length]}));
+      const barras=hayFact?barrasMensuales(mesFact,mesGasto):'<p class="muted">Sin datos de facturación en '+anio+'.</p>';
+      const donutHtml=segs.length?donutSvg(segs):'<p class="muted">Sin gastos registrados en '+anio+'.</p>';
+      const leyenda=`<div style="display:flex;gap:16px;margin-top:8px;font-size:12.5px"><span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#17b6d6;vertical-align:-1px"></span> Facturación</span><span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#0b2a4a;vertical-align:-1px"></span> Gastos</span></div>`;
+      return `<div class="grid2" style="align-items:start">
+        ${panel(`Evolución mensual · ${anio}`,`<div style="overflow-x:auto">${barras}</div>${leyenda}`)}
+        ${panel(`Reparto de gastos · ${anio}`,donutHtml)}
+      </div>`;
+    }
+    function barrasMensuales(fact,gasto){
+      const meses=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+      const max=Math.max(1,...fact,...gasto), W=560,H=220,pl=8,pr=8,pb=26,pt=8, iw=(W-pl-pr)/12;
+      const y=v=>H-pb-(v/max)*(H-pb-pt);
+      const rect=(i,v,color,off,w)=>v>0?`<rect x="${(pl+i*iw+off).toFixed(1)}" y="${y(v).toFixed(1)}" width="${w.toFixed(1)}" height="${(H-pb-y(v)).toFixed(1)}" rx="2.5" fill="${color}"><title>${meses[i]}: ${eur(v)}</title></rect>`:"";
+      const bw=iw*0.30;
+      const barras=meses.map((m,i)=>rect(i,fact[i],"#17b6d6",iw*0.16,bw)+rect(i,gasto[i],"#0b2a4a",iw*0.52,bw)).join("");
+      const ejes=meses.map((m,i)=>`<text x="${(pl+i*iw+iw/2).toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="10" fill="#5c7186">${m}</text>`).join("");
+      return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:100%;min-width:420px;height:auto"><line x1="${pl}" y1="${H-pb}" x2="${W-pr}" y2="${H-pb}" stroke="#e5ebf1"/>${barras}${ejes}</svg>`;
+    }
+    function donutSvg(segs){
+      const total=segs.reduce((a,s)=>a+s.value,0)||1, r=64, C=2*Math.PI*r; let acc=0;
+      const arcs=segs.map(s=>{ const len=s.value/total*C; const c=`<circle r="${r}" cx="90" cy="90" fill="none" stroke="${s.color}" stroke-width="24" stroke-dasharray="${len.toFixed(2)} ${(C-len).toFixed(2)}" stroke-dashoffset="${(-acc).toFixed(2)}" transform="rotate(-90 90 90)"><title>${s.label}: ${eur(s.value)}</title></circle>`; acc+=len; return c; }).join("");
+      const leg=segs.map(s=>`<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin:5px 0"><span style="width:11px;height:11px;border-radius:3px;background:${s.color};display:inline-block;flex:none"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.label}</span><span class="muted" style="margin-left:auto;white-space:nowrap">${eur(s.value)}</span></div>`).join("");
+      return `<div style="display:flex;gap:22px;align-items:center;flex-wrap:wrap"><svg viewBox="0 0 180 180" width="170" height="170" style="flex:none">${arcs}<text x="90" y="86" text-anchor="middle" font-size="12" fill="#5c7186">Total</text><text x="90" y="104" text-anchor="middle" font-size="15" font-weight="700" fill="#0b2a4a">${eur(total)}</text></svg><div style="flex:1;min-width:180px">${leg}</div></div>`;
     }
     function panelAnual(d,anio){
       const m9=d.modelo390, m7=d.modelo347;
