@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>AlxorCore.Hosteleria</RootNamespace>
+    <AssemblyName>AlxorCore.Hosteleria</AssemblyName>
+  </PropertyGroup>
+
+  <!--
+    Hostelería compone otros módulos: los productos del catálogo (Catálogo) para las líneas de la
+    comanda y la emisión del ticket (Facturación) al cobrar. Referencia sus capas de Aplicación
+    (contratos), nunca su infraestructura.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\AlxorCore.Nucleo\AlxorCore.Nucleo.csproj" />
+    <ProjectReference Include="..\AlxorCore.Catalogo\AlxorCore.Catalogo.csproj" />
+    <ProjectReference Include="..\AlxorCore.Facturacion\AlxorCore.Facturacion.csproj" />
+  </ItemGroup>
+
+</Project>

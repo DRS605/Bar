@@ -46,7 +46,7 @@ docs/
 ## Interfaz web
 
 La API sirve también una **interfaz web** (SPA) en la raíz (`/`), en el mismo origen que la API. Con
-`docker compose up` la tienes en `http://localhost:8080`: login, panel con KPIs, facturas, clientes,
+`docker compose up` la tienes en `http://localhost:8080`: login, panel con KPIs, facturas, clientes, barra/salón (mesas y comandas),
 productos, gastos, cobros e informes. Diseño limpio, pocos colores y pocos clics.
 
 ## Arranque rápido (Docker)
@@ -142,6 +142,7 @@ dotnet ef migrations add <Nombre> \
 | **Facturación** (facturas emitidas) | ✅ Terminado |
 | **Gastos** | ✅ Terminado |
 | **Tesorería** (cobros y pagos) | ✅ Terminado |
+| **Hostelería** (mesas y comandas de bar/restaurante → ticket) | ✅ Terminado |
 | **Documentos** (PDF y email) | ✅ Terminado |
 | **Informes** (dashboard, libros de IVA, gestoría, beneficio) | ✅ Terminado |
 | **Auditoría** (registro de quién hizo qué y cuándo) | ✅ Terminado |

@@ -1,0 +1,374 @@
+using AlxorCore.Catalogo.Aplicacion;
+using AlxorCore.Facturacion.Aplicacion;
+using AlxorCore.Hosteleria.Dominio;
+using AlxorCore.Nucleo.Resultados;
+using AlxorCore.Nucleo.Tiempo;
+
+namespace AlxorCore.Hosteleria.Aplicacion;
+
+/// <summary>Datos de una mesa para crear o actualizar.</summary>
+public sealed record DatosMesa(string Nombre, string? Zona = null, int Capacidad = 0);
+
+/// <summary>Datos para añadir una línea a una comanda (un producto del catálogo y su cantidad).</summary>
+public sealed record DatosLineaComanda(Guid ProductoId, decimal Cantidad = 1m);
+
+/// <summary>Datos para abrir una comanda en una mesa.</summary>
+public sealed record DatosAbrirComanda(Guid MesaId, string? Notas = null);
+
+/// <summary>Datos para cobrar una comanda.</summary>
+public sealed record DatosCobro(MetodoCobro Metodo = MetodoCobro.Efectivo, Guid? ClienteId = null, string? Serie = null);
+
+/// <summary>Caso de uso: crear una mesa.</summary>
+public sealed class CrearMesa
+{
+    private readonly IRepositorioMesas _mesas;
+    private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
+    private readonly IReloj _reloj;
+
+    public CrearMesa(IRepositorioMesas mesas, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    {
+        _mesas = mesas;
+        _unidadDeTrabajo = unidadDeTrabajo;
+        _reloj = reloj;
+    }
+
+    public async Task<Resultado<MesaDto>> EjecutarAsync(Guid empresaId, DatosMesa datos, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(datos);
+
+        var mesa = Mesa.Crear(empresaId, datos.Nombre, datos.Zona, datos.Capacidad, _reloj);
+        if (mesa.EsFallo)
+        {
+            return Resultado.Fallo<MesaDto>(mesa.Error);
+        }
+
+        _mesas.Agregar(mesa.Valor);
+        await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+        return Resultado.Ok(new MesaDto(mesa.Valor.Id, mesa.Valor.Nombre, mesa.Valor.Zona, mesa.Valor.Capacidad, mesa.Valor.Activa, false, null, 0m));
+    }
+}
+
+/// <summary>Caso de uso: actualizar una mesa.</summary>
+public sealed class ActualizarMesa
+{
+    private readonly IRepositorioMesas _mesas;
+    private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
+    private readonly IReloj _reloj;
+
+    public ActualizarMesa(IRepositorioMesas mesas, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    {
+        _mesas = mesas;
+        _unidadDeTrabajo = unidadDeTrabajo;
+        _reloj = reloj;
+    }
+
+    public async Task<Resultado<MesaDto>> EjecutarAsync(Guid mesaId, DatosMesa datos, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(datos);
+
+        var mesa = await _mesas.ObtenerPorIdAsync(mesaId, ct).ConfigureAwait(false);
+        if (mesa is null)
+        {
+            return Resultado.Fallo<MesaDto>(Error.NoEncontrado("mesa.no_encontrada", "La mesa no existe."));
+        }
+
+        var r = mesa.Actualizar(datos.Nombre, datos.Zona, datos.Capacidad, _reloj);
+        if (r.EsFallo)
+        {
+            return Resultado.Fallo<MesaDto>(r.Error);
+        }
+
+        await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+        return Resultado.Ok(new MesaDto(mesa.Id, mesa.Nombre, mesa.Zona, mesa.Capacidad, mesa.Activa, false, null, 0m));
+    }
+}
+
+/// <summary>Caso de uso: desactivar (retirar) una mesa. No se puede si tiene una comanda abierta.</summary>
+public sealed class DesactivarMesa
+{
+    private readonly IRepositorioMesas _mesas;
+    private readonly IRepositorioComandas _comandas;
+    private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
+    private readonly IReloj _reloj;
+
+    public DesactivarMesa(IRepositorioMesas mesas, IRepositorioComandas comandas, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    {
+        _mesas = mesas;
+        _comandas = comandas;
+        _unidadDeTrabajo = unidadDeTrabajo;
+        _reloj = reloj;
+    }
+
+    public async Task<Resultado> EjecutarAsync(Guid mesaId, CancellationToken ct = default)
+    {
+        var mesa = await _mesas.ObtenerPorIdAsync(mesaId, ct).ConfigureAwait(false);
+        if (mesa is null)
+        {
+            return Resultado.Fallo(Error.NoEncontrado("mesa.no_encontrada", "La mesa no existe."));
+        }
+
+        var abierta = await _comandas.ObtenerAbiertaPorMesaAsync(mesaId, ct).ConfigureAwait(false);
+        if (abierta is not null)
+        {
+            return Resultado.Fallo(Error.Conflicto("mesa.ocupada", "No se puede retirar una mesa con una comanda abierta."));
+        }
+
+        mesa.Desactivar(_reloj);
+        await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+        return Resultado.Ok();
+    }
+}
+
+/// <summary>Caso de uso: listar las mesas de la empresa activa con su ocupación.</summary>
+public sealed class ListarMesas
+{
+    private readonly IConsultaMesas _consulta;
+
+    public ListarMesas(IConsultaMesas consulta) => _consulta = consulta;
+
+    public Task<IReadOnlyList<MesaDto>> EjecutarAsync(Guid empresaId, CancellationToken ct = default) =>
+        _consulta.ListarAsync(empresaId, incluirInactivas: false, ct);
+}
+
+/// <summary>Caso de uso: abrir una comanda en una mesa libre.</summary>
+public sealed class AbrirComanda
+{
+    private readonly IRepositorioMesas _mesas;
+    private readonly IRepositorioComandas _comandas;
+    private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
+    private readonly IReloj _reloj;
+
+    public AbrirComanda(IRepositorioMesas mesas, IRepositorioComandas comandas, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    {
+        _mesas = mesas;
+        _comandas = comandas;
+        _unidadDeTrabajo = unidadDeTrabajo;
+        _reloj = reloj;
+    }
+
+    public async Task<Resultado<ComandaDto>> EjecutarAsync(Guid empresaId, DatosAbrirComanda datos, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(datos);
+
+        var mesa = await _mesas.ObtenerPorIdAsync(datos.MesaId, ct).ConfigureAwait(false);
+        if (mesa is null)
+        {
+            return Resultado.Fallo<ComandaDto>(Error.NoEncontrado("mesa.no_encontrada", "La mesa no existe."));
+        }
+
+        if (!mesa.Activa)
+        {
+            return Resultado.Fallo<ComandaDto>(Error.Conflicto("mesa.inactiva", "La mesa está retirada."));
+        }
+
+        var abierta = await _comandas.ObtenerAbiertaPorMesaAsync(datos.MesaId, ct).ConfigureAwait(false);
+        if (abierta is not null)
+        {
+            return Resultado.Fallo<ComandaDto>(Error.Conflicto("mesa.ocupada", "La mesa ya tiene una comanda abierta."));
+        }
+
+        var comanda = Comanda.Abrir(empresaId, datos.MesaId, datos.Notas, _reloj);
+        _comandas.Agregar(comanda);
+        await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+        return Resultado.Ok(ComandaDto.Desde(comanda));
+    }
+}
+
+/// <summary>Caso de uso: añadir una línea (un producto pedido) a una comanda abierta.</summary>
+public sealed class AgregarLineaComanda
+{
+    private readonly IRepositorioComandas _comandas;
+    private readonly IConsultaProductos _productos;
+    private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
+    private readonly IReloj _reloj;
+
+    public AgregarLineaComanda(IRepositorioComandas comandas, IConsultaProductos productos, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    {
+        _comandas = comandas;
+        _productos = productos;
+        _unidadDeTrabajo = unidadDeTrabajo;
+        _reloj = reloj;
+    }
+
+    public async Task<Resultado<ComandaDto>> EjecutarAsync(Guid comandaId, DatosLineaComanda datos, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(datos);
+
+        var comanda = await _comandas.ObtenerPorIdAsync(comandaId, ct).ConfigureAwait(false);
+        if (comanda is null)
+        {
+            return Resultado.Fallo<ComandaDto>(Error.NoEncontrado("comanda.no_encontrada", "La comanda no existe."));
+        }
+
+        var producto = await _productos.ObtenerAsync(datos.ProductoId, ct).ConfigureAwait(false);
+        if (producto is null)
+        {
+            return Resultado.Fallo<ComandaDto>(Error.NoEncontrado("producto.no_encontrado", "El producto no existe."));
+        }
+
+        var linea = comanda.AgregarLinea(producto.Id, producto.Nombre, datos.Cantidad, producto.PrecioUnitario, producto.CodigoIva, producto.PorcentajeIva, _reloj);
+        if (linea.EsFallo)
+        {
+            return Resultado.Fallo<ComandaDto>(linea.Error);
+        }
+
+        await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+        return Resultado.Ok(ComandaDto.Desde(comanda));
+    }
+}
+
+/// <summary>Caso de uso: quitar una línea de una comanda abierta.</summary>
+public sealed class QuitarLineaComanda
+{
+    private readonly IRepositorioComandas _comandas;
+    private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
+    private readonly IReloj _reloj;
+
+    public QuitarLineaComanda(IRepositorioComandas comandas, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    {
+        _comandas = comandas;
+        _unidadDeTrabajo = unidadDeTrabajo;
+        _reloj = reloj;
+    }
+
+    public async Task<Resultado<ComandaDto>> EjecutarAsync(Guid comandaId, Guid lineaId, CancellationToken ct = default)
+    {
+        var comanda = await _comandas.ObtenerPorIdAsync(comandaId, ct).ConfigureAwait(false);
+        if (comanda is null)
+        {
+            return Resultado.Fallo<ComandaDto>(Error.NoEncontrado("comanda.no_encontrada", "La comanda no existe."));
+        }
+
+        var r = comanda.QuitarLinea(lineaId, _reloj);
+        if (r.EsFallo)
+        {
+            return Resultado.Fallo<ComandaDto>(r.Error);
+        }
+
+        await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+        return Resultado.Ok(ComandaDto.Desde(comanda));
+    }
+}
+
+/// <summary>Caso de uso: listar las comandas abiertas de la empresa activa.</summary>
+public sealed class ListarComandasAbiertas
+{
+    private readonly IConsultaComandas _consulta;
+
+    public ListarComandasAbiertas(IConsultaComandas consulta) => _consulta = consulta;
+
+    public Task<IReadOnlyList<ComandaResumen>> EjecutarAsync(Guid empresaId, CancellationToken ct = default) =>
+        _consulta.ListarAbiertasAsync(empresaId, ct);
+}
+
+/// <summary>Caso de uso: obtener una comanda por su identificador.</summary>
+public sealed class ObtenerComanda
+{
+    private readonly IConsultaComandas _consulta;
+
+    public ObtenerComanda(IConsultaComandas consulta) => _consulta = consulta;
+
+    public async Task<Resultado<ComandaDto>> EjecutarAsync(Guid comandaId, CancellationToken ct = default)
+    {
+        var comanda = await _consulta.ObtenerAsync(comandaId, ct).ConfigureAwait(false);
+        return comanda is null
+            ? Resultado.Fallo<ComandaDto>(Error.NoEncontrado("comanda.no_encontrada", "La comanda no existe."))
+            : Resultado.Ok(comanda);
+    }
+}
+
+/// <summary>Caso de uso: anular una comanda abierta sin cobrarla.</summary>
+public sealed class AnularComanda
+{
+    private readonly IRepositorioComandas _comandas;
+    private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
+    private readonly IReloj _reloj;
+
+    public AnularComanda(IRepositorioComandas comandas, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    {
+        _comandas = comandas;
+        _unidadDeTrabajo = unidadDeTrabajo;
+        _reloj = reloj;
+    }
+
+    public async Task<Resultado> EjecutarAsync(Guid comandaId, CancellationToken ct = default)
+    {
+        var comanda = await _comandas.ObtenerPorIdAsync(comandaId, ct).ConfigureAwait(false);
+        if (comanda is null)
+        {
+            return Resultado.Fallo(Error.NoEncontrado("comanda.no_encontrada", "La comanda no existe."));
+        }
+
+        var r = comanda.Anular(_reloj);
+        if (r.EsFallo)
+        {
+            return r;
+        }
+
+        await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+        return Resultado.Ok();
+    }
+}
+
+/// <summary>
+/// Caso de uso: cobrar una comanda. Emite un ticket (factura simplificada) con las líneas
+/// «congeladas» de la comanda —lo que asigna número correlativo, deja el registro VeriFactu y
+/// descuenta existencias— y luego marca la comanda como cobrada, liberando la mesa.
+/// </summary>
+public sealed class CobrarComanda
+{
+    private readonly IRepositorioComandas _comandas;
+    private readonly EmitirTicket _emitirTicket;
+    private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
+    private readonly IReloj _reloj;
+
+    public CobrarComanda(IRepositorioComandas comandas, EmitirTicket emitirTicket, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    {
+        _comandas = comandas;
+        _emitirTicket = emitirTicket;
+        _unidadDeTrabajo = unidadDeTrabajo;
+        _reloj = reloj;
+    }
+
+    public async Task<Resultado<ComandaDto>> EjecutarAsync(Guid empresaId, Guid comandaId, DatosCobro datos, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(datos);
+
+        var comanda = await _comandas.ObtenerPorIdAsync(comandaId, ct).ConfigureAwait(false);
+        if (comanda is null)
+        {
+            return Resultado.Fallo<ComandaDto>(Error.NoEncontrado("comanda.no_encontrada", "La comanda no existe."));
+        }
+
+        if (comanda.Estado != EstadoComanda.Abierta)
+        {
+            return Resultado.Fallo<ComandaDto>(Error.Conflicto("comanda.no_abierta", "Solo se puede cobrar una comanda abierta."));
+        }
+
+        if (comanda.Lineas.Count == 0)
+        {
+            return Resultado.Fallo<ComandaDto>(Error.Validacion("comanda.sin_lineas", "No se puede cobrar una comanda vacía."));
+        }
+
+        // El precio y el IVA se congelaron al pedir cada línea: se pasan explícitos al ticket para
+        // que no dependa de la tarifa actual del catálogo. El ProductoId permite descontar stock.
+        var lineas = comanda.Lineas
+            .Select(l => new LineaComando(l.Cantidad, l.Descripcion, l.PrecioUnitario, l.CodigoIva, 0m, l.ProductoId))
+            .ToList();
+
+        var ticket = await _emitirTicket.EjecutarAsync(empresaId, new EmitirTicketComando(lineas, datos.ClienteId, datos.Serie), ct).ConfigureAwait(false);
+        if (ticket.EsFallo)
+        {
+            return Resultado.Fallo<ComandaDto>(ticket.Error);
+        }
+
+        var r = comanda.MarcarCobrada(ticket.Valor.Id, ticket.Valor.NumeroCompleto, datos.Metodo, _reloj);
+        if (r.EsFallo)
+        {
+            return Resultado.Fallo<ComandaDto>(r.Error);
+        }
+
+        await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+        return Resultado.Ok(ComandaDto.Desde(comanda));
+    }
+}

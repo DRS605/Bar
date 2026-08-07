@@ -306,6 +306,7 @@
     ICON.compras = '<svg viewBox="0 0 24 24"><path d="M6 7V6a3 3 0 0 1 6 0v1"/><path d="M4 7h16l-1 13H5z"/></svg>';
     ICON.articulos = '<svg viewBox="0 0 24 24"><path d="M4 5v14M8 5v14M12 5v14M16 5v14M20 5v14"/></svg>';
     ICON.pagos = '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>';
+    ICON.hosteleria = '<svg viewBox="0 0 24 24"><path d="M8 3h8l-1 6a3 3 0 0 1-6 0z"/><path d="M12 15v5M8 21h8"/></svg>';
 
     // Menú agrupado en carpetas: Ventas, Compras y Artículos.
     const NAV = [
@@ -313,10 +314,11 @@
       { t:"grupo", k:"ventas", l:"Ventas", items:[["presupuestos","Presupuestos"],["facturas","Facturas"],["tpv","TPV · Tickets"],["recurrentes","Periódicas"],["clientes","Clientes"],["cobros","Cobros"],["remesas","Remesas SEPA"]] },
       { t:"grupo", k:"compras", l:"Compras", items:[["gastos","Gastos"],["proveedores","Proveedores"],["pagos","Pagos"],["conciliacion","Conciliación banco"]] },
       { t:"grupo", k:"articulos", l:"Artículos", items:[["productos","Productos"]] },
+      { t:"item", k:"hosteleria", l:"Barra / Salón" },
       { t:"item", k:"informes", l:"Informes" },
       { t:"item", k:"ajustes", l:"Ajustes" },
     ];
-    const TITULOS = { inicio:"Inicio", presupuestos:"Presupuestos", facturas:"Facturas", tpv:"TPV · Tickets", recurrentes:"Facturación periódica", clientes:"Clientes", cobros:"Cobros", remesas:"Remesas SEPA", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", conciliacion:"Conciliación bancaria", productos:"Artículos", informes:"Informes", ajustes:"Ajustes" };
+    const TITULOS = { inicio:"Inicio", presupuestos:"Presupuestos", facturas:"Facturas", tpv:"TPV · Tickets", recurrentes:"Facturación periódica", clientes:"Clientes", cobros:"Cobros", remesas:"Remesas SEPA", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", conciliacion:"Conciliación bancaria", productos:"Artículos", hosteleria:"Barra / Salón", informes:"Informes", ajustes:"Ajustes" };
     function renderNav() {
       return NAV.map(n => {
         if (n.t === "item") return `<a class="navitem" data-k="${n.k}" onclick="ir('${n.k}')">${ICON[n.k]}<span>${n.l}</span></a>`;
@@ -412,7 +414,7 @@
     function ir(k){ closeMenu(); if(vista==="tpv" && k!=="tpv" && typeof tpvParar==="function") tpvParar(); vista=k;
       document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("active",a.dataset.k===k));
       document.getElementById("viewTitle").textContent=TITULOS[k]||k;
-      ({inicio:vInicio,presupuestos:vPresupuestos,facturas:vFacturas,tpv:vTpv,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,remesas:vRemesa,pagos:vPagos,conciliacion:vConciliacion,informes:vInformes,ajustes:vAjustes}[k])();
+      ({inicio:vInicio,presupuestos:vPresupuestos,facturas:vFacturas,tpv:vTpv,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,hosteleria:vHosteleria,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,remesas:vRemesa,pagos:vPagos,conciliacion:vConciliacion,informes:vInformes,ajustes:vAjustes}[k])();
     }
     const view = h => document.getElementById("view").innerHTML=h;
     const panel = (t,c,a="") => `<div class="panel">${(t||a)?`<div class="panel-head">${t?`<h2>${t}</h2>`:'<span></span>'}${a}</div>`:''}${c}</div>`;
@@ -716,6 +718,53 @@
       abrir(`Histórico de precios · ${nombre}`,cuerpo,()=>{}); }
     function filtrarProductos(){ const q=document.getElementById("prodBuscar").value.toLowerCase().trim();
       document.querySelectorAll("#prodBody tr").forEach(tr=>{ tr.style.display=tr.dataset.b.includes(q)?"":"none"; }); }
+
+    /* ===== Hostelería: mesas y comandas (barra / salón) ===== */
+    let hosProductos=[];
+    async function vHosteleria(){
+      view('<div class="muted">Cargando…</div>');
+      const [mesas,prods]=await Promise.all([api("/mesas"),api("/productos").catch(()=>[])]);
+      hosProductos=prods;
+      const nueva=`<button class="btn small" onclick="hosNuevaMesa()">+ Nueva mesa</button>`;
+      if(!mesas.length){ view(panel("",vacio("hosteleria","Sin mesas todavía","Crea las mesas y la barra de tu local para empezar a tomar comandas.",nueva))); return; }
+      const card=m=>{
+        const libre=!m.ocupada;
+        const estado=libre?'<span class="pill ok">Libre</span>':`<span class="pill wait">Ocupada · ${eur(m.totalComandaAbierta)}</span>`;
+        const accion=libre?`<button class="btn small" onclick="hosAbrir('${m.id}')">Abrir comanda</button>`:`<button class="btn small" onclick="hosVerComanda('${m.comandaAbiertaId}')">Ver cuenta →</button>`;
+        return `<div class="panel" style="margin:0"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div><strong style="font-size:15px">${m.nombre}</strong><br><small class="muted">${m.zona||"—"} · ${m.capacidad||0} pax</small></div>${estado}</div>
+          <div style="margin-top:14px;display:flex;gap:8px"><button class="btn small ghost" onclick="hosEditarMesa('${m.id}')">Editar</button>${accion}</div></div>`;
+      };
+      const grid=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px">${mesas.map(card).join("")}</div>`;
+      view(panel("Mesas y barra",grid,nueva));
+    }
+    function hosNuevaMesa(m){ const e=!!m;
+      abrir(e?"Editar mesa":"Nueva mesa",
+        `<label>Nombre</label><input id="m_nombre" value="${e?m.nombre:""}" placeholder="Mesa 1"/>
+         <div class="grid2"><div><label>Zona (opcional)</label><input id="m_zona" value="${e?(m.zona||""):""}" placeholder="Salón"/></div><div><label>Capacidad</label><input id="m_cap" type="number" min="0" value="${e?(m.capacidad||0):0}"/></div></div>`,
+        async()=>{ const b=JSON.stringify({nombre:val("m_nombre"),zona:val("m_zona")||null,capacidad:Number(val("m_cap")||0)});
+          await api("/mesas"+(e?"/"+m.id:""),{method:e?"PUT":"POST",body:b}); toast(e?"Mesa actualizada":"Mesa creada","ok"); vHosteleria(); }); }
+    async function hosEditarMesa(id){ try{ const mesas=await api("/mesas"); const m=mesas.find(x=>x.id===id); if(m) hosNuevaMesa(m);}catch(e){toast(e.message,"err");} }
+    async function hosAbrir(mesaId){ try{ const c=await api("/comandas",{method:"POST",body:JSON.stringify({mesaId})}); hosRenderComanda(c);}catch(e){toast(e.message,"err");} }
+    async function hosVerComanda(id){ try{ const c=await api("/comandas/"+id); hosRenderComanda(c);}catch(e){toast(e.message,"err");} }
+    function hosRenderComanda(c){
+      const lineas=c.lineas.length?c.lineas.map(l=>`<tr><td>${l.descripcion}</td><td class="num">${numCant(l.cantidad)}</td><td class="num">${eur(l.precioUnitario)}</td><td class="num">${eur(l.total)}</td><td class="right"><button class="btn small secondary" onclick="hosQuitar('${c.id}','${l.id}')">Quitar</button></td></tr>`).join(""):'<tr><td colspan="5" class="muted">Sin consumiciones todavía.</td></tr>';
+      const totales=`<div style="margin-top:14px;text-align:right"><div class="muted" style="font-size:12px">Base ${eur(c.baseImponible)} · IVA ${eur(c.cuotaIva)}</div><div style="font-size:22px;font-weight:700">${eur(c.total)}</div></div>`;
+      const tabla=`<table><thead><tr><th>Consumición</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Importe</th><th></th></tr></thead><tbody>${lineas}</tbody></table>${totales}`;
+      const opciones=hosProductos.map(p=>`<option value="${p.id}">${p.nombre} · ${eur(p.precioUnitario)}</option>`).join("");
+      const picker=hosProductos.length
+        ? `<label>Producto</label><select id="hos_prod">${opciones}</select><div style="margin-top:10px"><label>Cantidad</label><input id="hos_cant" type="number" min="1" step="1" value="1"/></div><button class="btn small" style="margin-top:12px;width:100%" onclick="hosAddLinea('${c.id}')">+ Añadir a la comanda</button>`
+        : '<p class="muted">No hay artículos en el catálogo. Crea productos en «Artículos» para poder tomar comandas.</p>';
+      const acciones=`<div style="display:flex;gap:8px"><button class="btn small ghost" onclick="vHosteleria()">← Volver</button><button class="btn small secondary" onclick="hosAnular('${c.id}')">Anular</button><button class="btn small" onclick="hosCobrar('${c.id}')" ${c.lineas.length?"":"disabled"}>Cobrar</button></div>`;
+      view(panel("Comanda",`<div class="grid2" style="align-items:flex-start"><div>${tabla}</div><div>${picker}</div></div>`,acciones));
+    }
+    async function hosAddLinea(id){ try{ const c=await api("/comandas/"+id+"/lineas",{method:"POST",body:JSON.stringify({productoId:val("hos_prod"),cantidad:Number(val("hos_cant")||1)})}); hosRenderComanda(c);}catch(e){toast(e.message,"err");} }
+    async function hosQuitar(id,lineaId){ try{ const c=await api("/comandas/"+id+"/lineas/"+lineaId,{method:"DELETE"}); hosRenderComanda(c);}catch(e){toast(e.message,"err");} }
+    async function hosAnular(id){ try{ await api("/comandas/"+id+"/anular",{method:"POST"}); toast("Comanda anulada","ok"); vHosteleria();}catch(e){toast(e.message,"err");} }
+    function hosCobrar(id){
+      abrir("Cobrar comanda",
+        `<label>Forma de cobro</label><select id="hos_metodo"><option value="Efectivo">Efectivo</option><option value="Tarjeta">Tarjeta</option><option value="Otro">Otro</option></select>
+         <p class="muted" style="font-size:12px;margin-top:10px">Se emitirá un ticket (factura simplificada), se descontará el stock y la mesa quedará libre.</p>`,
+        async()=>{ const c=await api("/comandas/"+id+"/cobrar",{method:"POST",body:JSON.stringify({metodo:val("hos_metodo")})}); toast("Cobrado · ticket "+(c.numeroTicket||""),"ok"); vHosteleria(); }); }
 
     async function vPagos() {
       view('<div class="muted">Cargando…</div>');
