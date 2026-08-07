@@ -46,6 +46,28 @@ public class MesaTests
         mesa.Desactivar(Reloj);
         mesa.Activa.Should().BeFalse();
     }
+
+    [Fact]
+    public void Crear_guarda_forma_y_posicion_iniciales()
+    {
+        var barra = Mesa.Crear(Empresa, "Barra", "Barra", 8, Reloj, FormaMesa.Rectangular, 120, 300).Valor;
+        barra.Forma.Should().Be(FormaMesa.Rectangular);
+        barra.PosX.Should().Be(120);
+        barra.PosY.Should().Be(300);
+    }
+
+    [Fact]
+    public void Colocar_actualiza_la_posicion_y_acota_al_lienzo()
+    {
+        var mesa = Mesa.Crear(Empresa, "Mesa 3", null, 2, Reloj).Valor;
+        mesa.Colocar(250, 480, Reloj);
+        mesa.PosX.Should().Be(250);
+        mesa.PosY.Should().Be(480);
+
+        mesa.Colocar(-50, 999999, Reloj);
+        mesa.PosX.Should().Be(0);
+        mesa.PosY.Should().Be(Mesa.Lienzo);
+    }
 }
 
 public class ComandaTests

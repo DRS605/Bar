@@ -27,6 +27,10 @@ public static class EndpointsHosteleria
             .WithSummary("Actualiza una mesa.")
             .RequierePermiso(Permisos.HosteleriaGestionar);
 
+        mesas.MapPut("/{id:guid}/posicion", MoverMesaAsync)
+            .WithSummary("Recoloca una mesa en el plano del local.")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
         mesas.MapDelete("/{id:guid}", DesactivarMesaAsync)
             .WithSummary("Retira (desactiva) una mesa.")
             .RequierePermiso(Permisos.HosteleriaGestionar);
@@ -86,6 +90,9 @@ public static class EndpointsHosteleria
     }
 
     private static async Task<IResult> ActualizarMesaAsync(Guid id, DatosMesa datos, ActualizarMesa caso, CancellationToken ct) =>
+        (await caso.EjecutarAsync(id, datos, ct).ConfigureAwait(false)).AOk();
+
+    private static async Task<IResult> MoverMesaAsync(Guid id, DatosPosicion datos, MoverMesa caso, CancellationToken ct) =>
         (await caso.EjecutarAsync(id, datos, ct).ConfigureAwait(false)).AOk();
 
     private static async Task<IResult> DesactivarMesaAsync(Guid id, DesactivarMesa caso, CancellationToken ct) =>

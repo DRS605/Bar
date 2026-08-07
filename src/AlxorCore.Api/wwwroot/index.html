@@ -307,6 +307,7 @@
     ICON.articulos = '<svg viewBox="0 0 24 24"><path d="M4 5v14M8 5v14M12 5v14M16 5v14M20 5v14"/></svg>';
     ICON.pagos = '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>';
     ICON.hosteleria = '<svg viewBox="0 0 24 24"><path d="M8 3h8l-1 6a3 3 0 0 1-6 0z"/><path d="M12 15v5M8 21h8"/></svg>';
+    ICON.plano = '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 10h7V3M14 21v-7h7"/></svg>';
 
     // Menú agrupado en carpetas: Ventas, Compras y Artículos.
     const NAV = [
@@ -315,10 +316,11 @@
       { t:"grupo", k:"compras", l:"Compras", items:[["gastos","Gastos"],["proveedores","Proveedores"],["pagos","Pagos"],["conciliacion","Conciliación banco"]] },
       { t:"grupo", k:"articulos", l:"Artículos", items:[["productos","Productos"]] },
       { t:"item", k:"hosteleria", l:"Barra / Salón" },
+      { t:"item", k:"plano", l:"Plano del local" },
       { t:"item", k:"informes", l:"Informes" },
       { t:"item", k:"ajustes", l:"Ajustes" },
     ];
-    const TITULOS = { inicio:"Inicio", presupuestos:"Presupuestos", facturas:"Facturas", tpv:"TPV · Tickets", recurrentes:"Facturación periódica", clientes:"Clientes", cobros:"Cobros", remesas:"Remesas SEPA", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", conciliacion:"Conciliación bancaria", productos:"Artículos", hosteleria:"Barra / Salón", informes:"Informes", ajustes:"Ajustes" };
+    const TITULOS = { inicio:"Inicio", presupuestos:"Presupuestos", facturas:"Facturas", tpv:"TPV · Tickets", recurrentes:"Facturación periódica", clientes:"Clientes", cobros:"Cobros", remesas:"Remesas SEPA", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", conciliacion:"Conciliación bancaria", productos:"Artículos", hosteleria:"Barra / Salón", plano:"Plano del local", informes:"Informes", ajustes:"Ajustes" };
     function renderNav() {
       return NAV.map(n => {
         if (n.t === "item") return `<a class="navitem" data-k="${n.k}" onclick="ir('${n.k}')">${ICON[n.k]}<span>${n.l}</span></a>`;
@@ -414,7 +416,7 @@
     function ir(k){ closeMenu(); if(vista==="tpv" && k!=="tpv" && typeof tpvParar==="function") tpvParar(); vista=k;
       document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("active",a.dataset.k===k));
       document.getElementById("viewTitle").textContent=TITULOS[k]||k;
-      ({inicio:vInicio,presupuestos:vPresupuestos,facturas:vFacturas,tpv:vTpv,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,hosteleria:vHosteleria,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,remesas:vRemesa,pagos:vPagos,conciliacion:vConciliacion,informes:vInformes,ajustes:vAjustes}[k])();
+      ({inicio:vInicio,presupuestos:vPresupuestos,facturas:vFacturas,tpv:vTpv,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,hosteleria:vHosteleria,plano:vPlano,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,remesas:vRemesa,pagos:vPagos,conciliacion:vConciliacion,informes:vInformes,ajustes:vAjustes}[k])();
     }
     const view = h => document.getElementById("view").innerHTML=h;
     const panel = (t,c,a="") => `<div class="panel">${(t||a)?`<div class="panel-head">${t?`<h2>${t}</h2>`:'<span></span>'}${a}</div>`:''}${c}</div>`;
@@ -737,15 +739,19 @@
       const grid=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px">${mesas.map(card).join("")}</div>`;
       view(panel("Mesas y barra",grid,nueva));
     }
-    function hosNuevaMesa(m){ const e=!!m;
+    function hosRefrescar(){ (vista==="plano"?vPlano:vHosteleria)(); }
+    function hosNuevaMesa(m){ const e=!!m; const forma=e?(m.forma||"Cuadrada"):"Cuadrada";
+      const opt=(v,t)=>`<option value="${v}" ${forma===v?"selected":""}>${t}</option>`;
       abrir(e?"Editar mesa":"Nueva mesa",
         `<label>Nombre</label><input id="m_nombre" value="${e?m.nombre:""}" placeholder="Mesa 1"/>
-         <div class="grid2"><div><label>Zona (opcional)</label><input id="m_zona" value="${e?(m.zona||""):""}" placeholder="Salón"/></div><div><label>Capacidad</label><input id="m_cap" type="number" min="0" value="${e?(m.capacidad||0):0}"/></div></div>`,
-        async()=>{ const b=JSON.stringify({nombre:val("m_nombre"),zona:val("m_zona")||null,capacidad:Number(val("m_cap")||0)});
-          await api("/mesas"+(e?"/"+m.id:""),{method:e?"PUT":"POST",body:b}); toast(e?"Mesa actualizada":"Mesa creada","ok"); vHosteleria(); }); }
+         <div class="grid2"><div><label>Zona (opcional)</label><input id="m_zona" value="${e?(m.zona||""):""}" placeholder="Salón / Terraza / Barra"/></div><div><label>Capacidad</label><input id="m_cap" type="number" min="0" value="${e?(m.capacidad||0):0}"/></div></div>
+         <label>Forma en el plano</label><select id="m_forma">${opt("Cuadrada","Cuadrada")}${opt("Redonda","Redonda")}${opt("Rectangular","Barra / alargada")}</select>`,
+        async()=>{ const b=JSON.stringify({nombre:val("m_nombre"),zona:val("m_zona")||null,capacidad:Number(val("m_cap")||0),forma:val("m_forma")});
+          await api("/mesas"+(e?"/"+m.id:""),{method:e?"PUT":"POST",body:b}); toast(e?"Mesa actualizada":"Mesa creada","ok"); hosRefrescar(); }); }
     async function hosEditarMesa(id){ try{ const mesas=await api("/mesas"); const m=mesas.find(x=>x.id===id); if(m) hosNuevaMesa(m);}catch(e){toast(e.message,"err");} }
-    async function hosAbrir(mesaId){ try{ const c=await api("/comandas",{method:"POST",body:JSON.stringify({mesaId})}); hosRenderComanda(c);}catch(e){toast(e.message,"err");} }
-    async function hosVerComanda(id){ try{ const c=await api("/comandas/"+id); hosRenderComanda(c);}catch(e){toast(e.message,"err");} }
+    async function hosProds(){ if(!hosProductos.length){ try{ hosProductos=await api("/productos"); }catch{} } }
+    async function hosAbrir(mesaId){ try{ await hosProds(); const c=await api("/comandas",{method:"POST",body:JSON.stringify({mesaId})}); hosRenderComanda(c);}catch(e){toast(e.message,"err");} }
+    async function hosVerComanda(id){ try{ await hosProds(); const c=await api("/comandas/"+id); hosRenderComanda(c);}catch(e){toast(e.message,"err");} }
     function hosRenderComanda(c){
       const lineas=c.lineas.length?c.lineas.map(l=>`<tr><td>${l.descripcion}</td><td class="num">${numCant(l.cantidad)}</td><td class="num">${eur(l.precioUnitario)}</td><td class="num">${eur(l.total)}</td><td class="right"><button class="btn small secondary" onclick="hosQuitar('${c.id}','${l.id}')">Quitar</button></td></tr>`).join(""):'<tr><td colspan="5" class="muted">Sin consumiciones todavía.</td></tr>';
       const totales=`<div style="margin-top:14px;text-align:right"><div class="muted" style="font-size:12px">Base ${eur(c.baseImponible)} · IVA ${eur(c.cuotaIva)}</div><div style="font-size:22px;font-weight:700">${eur(c.total)}</div></div>`;
@@ -765,6 +771,67 @@
         `<label>Forma de cobro</label><select id="hos_metodo"><option value="Efectivo">Efectivo</option><option value="Tarjeta">Tarjeta</option><option value="Otro">Otro</option></select>
          <p class="muted" style="font-size:12px;margin-top:10px">Se emitirá un ticket (factura simplificada), se descontará el stock y la mesa quedará libre.</p>`,
         async()=>{ const c=await api("/comandas/"+id+"/cobrar",{method:"POST",body:JSON.stringify({metodo:val("hos_metodo")})}); toast("Cobrado · ticket "+(c.numeroTicket||""),"ok"); vHosteleria(); }); }
+
+    /* ===== Plano del local: dibuja y coloca mesas, barra y terraza ===== */
+    let planoMesas=[];
+    async function vPlano(){
+      view('<div class="muted">Cargando…</div>');
+      planoMesas=await api("/mesas");
+      const W=1000,H=640;
+      const half=m=> m.forma==="Rectangular"?{w:95,h:27}:m.forma==="Redonda"?{w:38,h:38}:{w:36,h:36};
+      const cols=Math.max(1,Math.floor((W-120)/160)), pos={};
+      planoMesas.forEach((m,i)=>{ pos[m.id]=(m.posX>0||m.posY>0)?{x:m.posX,y:m.posY}:{x:90+(i%cols)*160,y:110+Math.floor(i/cols)*140}; });
+      const zc={ "Barra":"#6366f1","Terraza":"#0ea5e9","Salón":"#f59e0b","Salon":"#f59e0b" }, pal=["#16a34a","#db2777","#7c3aed","#0891b2","#ca8a04"];
+      const zonas={}; planoMesas.forEach(m=>{ const z=(m.zona&&m.zona.trim())||"Sin zona"; (zonas[z]=zonas[z]||[]).push(m); });
+      let zi=0; const zonaSvg=Object.entries(zonas).map(([z,arr])=>{
+        if(z==="Sin zona") return "";
+        let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+        arr.forEach(m=>{ const p=pos[m.id],h=half(m); x0=Math.min(x0,p.x-h.w); y0=Math.min(y0,p.y-h.h); x1=Math.max(x1,p.x+h.w); y1=Math.max(y1,p.y+h.h); });
+        x0-=26;y0-=42;x1+=26;y1+=26; const col=zc[z]||pal[(zi++)%pal.length];
+        return `<g><rect x="${x0.toFixed(0)}" y="${y0.toFixed(0)}" width="${(x1-x0).toFixed(0)}" height="${(y1-y0).toFixed(0)}" rx="16" fill="${col}14" stroke="${col}" stroke-opacity=".5" stroke-dasharray="6 5"/><text x="${(x0+12).toFixed(0)}" y="${(y0+22).toFixed(0)}" font-size="14" font-weight="700" fill="${col}">${z}</text></g>`;
+      }).join("");
+      const mesaSvg=planoMesas.map(m=>{
+        const p=pos[m.id], oc=m.ocupada, fill=oc?"#fef3e2":"#eaf7ee", stroke=oc?"#f59e0b":"#16a34a";
+        let shape;
+        if(m.forma==="Rectangular") shape=`<rect x="-95" y="-27" width="190" height="54" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
+        else if(m.forma==="Redonda") shape=`<circle r="38" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
+        else shape=`<rect x="-36" y="-36" width="72" height="72" rx="10" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`;
+        const nombre=`<text text-anchor="middle" y="${oc?-2:5}" font-size="13" font-weight="700" fill="#0b2a4a">${m.nombre}</text>`;
+        const tot=oc?`<text text-anchor="middle" y="16" font-size="11" fill="#b45309">${eur(m.totalComandaAbierta)}</text>`:"";
+        return `<g class="pmesa" data-id="${m.id}" transform="translate(${p.x.toFixed(1)},${p.y.toFixed(1)})" style="cursor:grab">${shape}${nombre}${tot}</g>`;
+      }).join("");
+      const svg=`<svg id="planoSvg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;background:#f8fafc;border:1px solid var(--line);border-radius:14px;touch-action:none"><rect x="0" y="0" width="${W}" height="${H}" fill="#f8fafc"/>${zonaSvg}${mesaSvg}</svg>`;
+      const nota=`<p class="muted" style="font-size:12px;margin:12px 0 0">Arrastra las mesas para colocarlas; toca una para abrir o ver su comanda. Crea una mesa con forma «Barra / alargada» para dibujar la barra, y usa la <b>zona</b> (Salón, Terraza, Barra…) para agruparlas.</p>`;
+      const acciones=`<div style="display:flex;gap:8px"><button class="btn small ghost" onclick="planoDescargar()">↓ Descargar dibujo</button><button class="btn small" onclick="hosNuevaMesa()">+ Nueva mesa</button></div>`;
+      if(!planoMesas.length){ view(panel("Plano del local",vacio("plano","Aún no hay mesas","Crea mesas, la barra y la terraza para dibujar el plano de tu local.",`<button class="btn small" onclick="hosNuevaMesa()">+ Nueva mesa</button>`),acciones)); return; }
+      view(panel("Plano del local",svg+nota,acciones));
+      planoBind();
+    }
+    function planoBind(){
+      const svg=document.getElementById("planoSvg"); if(!svg)return;
+      let cur=null;
+      const toSvg=ev=>{ const pt=svg.createSVGPoint(); pt.x=ev.clientX; pt.y=ev.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse()); };
+      svg.querySelectorAll(".pmesa").forEach(g=>{
+        g.addEventListener("pointerdown",ev=>{ ev.preventDefault(); const s=toSvg(ev); const t=g.getAttribute("transform").match(/translate\(([-\d.]+),([-\d.]+)\)/);
+          cur={g,id:g.dataset.id,dx:s.x-parseFloat(t[1]),dy:s.y-parseFloat(t[2]),sx:s.x,sy:s.y,moved:false,x:parseFloat(t[1]),y:parseFloat(t[2])};
+          try{g.setPointerCapture(ev.pointerId);}catch{} g.style.cursor="grabbing"; });
+        g.addEventListener("pointermove",ev=>{ if(!cur||cur.g!==g)return; const s=toSvg(ev);
+          const x=Math.max(20,Math.min(980,s.x-cur.dx)), y=Math.max(20,Math.min(620,s.y-cur.dy));
+          cur.x=x;cur.y=y; if(Math.abs(s.x-cur.sx)>4||Math.abs(s.y-cur.sy)>4)cur.moved=true;
+          g.setAttribute("transform",`translate(${x.toFixed(1)},${y.toFixed(1)})`); });
+        const end=async ev=>{ if(!cur||cur.g!==g)return; g.style.cursor="grab"; const c=cur; cur=null; try{g.releasePointerCapture(ev.pointerId);}catch{}
+          if(c.moved){ try{ await api("/mesas/"+c.id+"/posicion",{method:"PUT",body:JSON.stringify({posX:c.x,posY:c.y})}); const m=planoMesas.find(z=>z.id===c.id); if(m){m.posX=c.x;m.posY=c.y;} }catch(e){ toast(e.message,"err"); vPlano(); } }
+          else { const m=planoMesas.find(z=>z.id===c.id); if(m){ m.ocupada?hosVerComanda(m.comandaAbiertaId):hosAbrir(m.id); } } };
+        g.addEventListener("pointerup",end); g.addEventListener("pointercancel",end);
+      });
+    }
+    function planoDescargar(){
+      const svg=document.getElementById("planoSvg"); if(!svg){ toast("No hay plano que descargar","err"); return; }
+      const data='<?xml version="1.0" encoding="UTF-8"?>\n'+svg.outerHTML;
+      const url=URL.createObjectURL(new Blob([data],{type:"image/svg+xml"}));
+      const a=document.createElement("a"); a.href=url; a.download="plano-"+((empresa?.razonSocial||"local").replace(/[^a-z0-9]+/gi,"-").toLowerCase())+".svg";
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); toast("Dibujo descargado","ok");
+    }
 
     async function vPagos() {
       view('<div class="muted">Cargando…</div>');

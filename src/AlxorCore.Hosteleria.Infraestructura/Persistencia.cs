@@ -43,6 +43,9 @@ internal sealed class ConfiguracionMesa : IEntityTypeConfiguration<Mesa>
         builder.Property(m => m.Nombre).HasColumnName("nombre").HasMaxLength(Mesa.LongitudMaximaNombre).IsRequired();
         builder.Property(m => m.Zona).HasColumnName("zona").HasMaxLength(Mesa.LongitudMaximaZona);
         builder.Property(m => m.Capacidad).HasColumnName("capacidad").IsRequired();
+        builder.Property(m => m.Forma).HasColumnName("forma").HasMaxLength(20).HasConversion<string>().IsRequired();
+        builder.Property(m => m.PosX).HasColumnName("pos_x").IsRequired();
+        builder.Property(m => m.PosY).HasColumnName("pos_y").IsRequired();
         builder.Property(m => m.Activa).HasColumnName("activa").IsRequired();
         builder.Property(m => m.CreadaEn).HasColumnName("creada_en").IsRequired();
         builder.Property(m => m.ActualizadaEn).HasColumnName("actualizada_en").IsRequired();
@@ -121,7 +124,7 @@ internal sealed class RepositorioMesas : IRepositorioMesas, IConsultaMesas
             .Select(c => new { c.Id, c.Total })
             .FirstOrDefaultAsync(ct).ConfigureAwait(false);
 
-        return new MesaDto(mesa.Id, mesa.Nombre, mesa.Zona, mesa.Capacidad, mesa.Activa, abierta is not null, abierta?.Id, abierta?.Total ?? 0m);
+        return MesaDto.Desde(mesa, abierta is not null, abierta?.Id, abierta?.Total ?? 0m);
     }
 
     public async Task<IReadOnlyList<MesaDto>> ListarAsync(Guid empresaId, bool incluirInactivas = false, CancellationToken ct = default)
@@ -143,7 +146,7 @@ internal sealed class RepositorioMesas : IRepositorioMesas, IConsultaMesas
         return mesas.Select(m =>
         {
             porMesa.TryGetValue(m.Id, out var abierta);
-            return new MesaDto(m.Id, m.Nombre, m.Zona, m.Capacidad, m.Activa, abierta is not null, abierta?.Id, abierta?.Total ?? 0m);
+            return MesaDto.Desde(m, abierta is not null, abierta?.Id, abierta?.Total ?? 0m);
         }).ToList();
     }
 }

@@ -37,6 +37,7 @@ public static class RegistroServicios
 
         servicios.AddScoped<CrearMesa>();
         servicios.AddScoped<ActualizarMesa>();
+        servicios.AddScoped<MoverMesa>();
         servicios.AddScoped<DesactivarMesa>();
         servicios.AddScoped<ListarMesas>();
         servicios.AddScoped<AbrirComanda>();

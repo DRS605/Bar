@@ -14,7 +14,7 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
 
     private sealed record ProductoResp(Guid Id, string Nombre, decimal PrecioUnitario, decimal Stock, bool ControlarStock);
 
-    private sealed record MesaResp(Guid Id, string Nombre, string? Zona, int Capacidad, bool Activa, bool Ocupada, Guid? ComandaAbiertaId, decimal TotalComandaAbierta);
+    private sealed record MesaResp(Guid Id, string Nombre, string? Zona, int Capacidad, string Forma, double PosX, double PosY, bool Activa, bool Ocupada, Guid? ComandaAbiertaId, decimal TotalComandaAbierta);
 
     private sealed record LineaResp(Guid Id, Guid ProductoId, string Descripcion, decimal Cantidad, decimal PrecioUnitario, decimal Total);
 
@@ -108,6 +108,31 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
         // El stock se descontó (100 - 3)
         var tras = await cliente.GetFromJsonAsync<ProductoResp>($"/productos/{producto.Id}");
         tras!.Stock.Should().Be(97m);
+    }
+
+    [Fact]
+    public async Task Crea_barra_con_forma_y_recoloca_en_el_plano()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+
+        var crear = await cliente.PostAsJsonAsync("/mesas", new { Nombre = "Barra", Zona = "Barra", Capacidad = 8, Forma = "Rectangular", PosX = 120.0, PosY = 300.0 });
+        crear.StatusCode.Should().Be(HttpStatusCode.Created);
+        var barra = (await crear.Content.ReadFromJsonAsync<MesaResp>())!;
+        barra.Forma.Should().Be("Rectangular");
+        barra.PosX.Should().Be(120.0);
+        barra.PosY.Should().Be(300.0);
+
+        var mover = await cliente.PutAsJsonAsync($"/mesas/{barra.Id}/posicion", new { PosX = 640.5, PosY = 210.0 });
+        mover.StatusCode.Should().Be(HttpStatusCode.OK);
+        var movida = (await mover.Content.ReadFromJsonAsync<MesaResp>())!;
+        movida.PosX.Should().Be(640.5);
+        movida.PosY.Should().Be(210.0);
+
+        // La nueva posición persiste en el listado.
+        var mesas = await cliente.GetFromJsonAsync<List<MesaResp>>("/mesas");
+        var guardada = mesas!.Single(m => m.Id == barra.Id);
+        guardada.PosX.Should().Be(640.5);
+        guardada.Forma.Should().Be("Rectangular");
     }
 
     [Fact]

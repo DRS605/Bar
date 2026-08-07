@@ -6,10 +6,15 @@ software de gestión de bar sobre ALXOR Core.
 
 ## Mesas
 
-`Mesa` { Nombre («Mesa 1», «Barra», «Terraza 3»), Zona (opcional), Capacidad, Activa }. Multiempresa
+`Mesa` { Nombre («Mesa 1», «Barra», «Terraza 3»), Zona (opcional), Capacidad, **Forma**
+(Cuadrada/Redonda/Rectangular), **PosX/PosY** (posición en el plano), Activa }. Multiempresa
 (RLS por empresa). Es un elemento de configuración del salón: no guarda su ocupación, que se **deduce**
 de si tiene una comanda abierta, para no duplicar estado entre agregados. Una mesa con una comanda
 abierta no se puede retirar.
+
+La **forma** y la **posición** permiten **dibujar el plano del local**: la barra es simplemente una
+mesa de forma `Rectangular`, y la zona (Salón/Terraza/Barra) agrupa las mesas. Las coordenadas viven
+en un lienzo abstracto acotado a `[0, Mesa.Lienzo]` y se recolocan con `PUT /mesas/{id}/posicion`.
 
 ## Comandas
 
@@ -51,7 +56,8 @@ duplicar la lógica fiscal. La comanda solo guarda la referencia al ticket gener
 |---|---|---|---|
 | `GET` | `/mesas` | JWT + empresa | Lista de mesas con su ocupación (comanda y total). |
 | `POST` | `/mesas` | permiso `hosteleria.gestionar` | Crea una mesa. **201** |
-| `PUT` | `/mesas/{id}` | permiso `hosteleria.gestionar` | Actualiza una mesa. |
+| `PUT` | `/mesas/{id}` | permiso `hosteleria.gestionar` | Actualiza una mesa (incluida su forma). |
+| `PUT` | `/mesas/{id}/posicion` | permiso `hosteleria.gestionar` | Recoloca una mesa en el plano. |
 | `DELETE` | `/mesas/{id}` | permiso `hosteleria.gestionar` | Retira (desactiva) una mesa. **204** |
 | `GET` | `/comandas` | JWT + empresa | Comandas abiertas de la empresa. |
 | `GET` | `/comandas/{id}` | JWT + empresa | Comanda con sus líneas. |
@@ -74,11 +80,15 @@ ofrece escritura (`IRepositorioMesas`, `IRepositorioComandas`) y consultas (`ICo
 Sección **«Barra / Salón»**: rejilla de mesas (libres/ocupadas con su total) y editor de comanda para
 añadir consumiciones, anular o cobrar eligiendo la forma de pago.
 
+Sección **«Plano del local»**: lienzo donde se **dibujan y arrastran** las mesas (por forma y estado)
+sobre las zonas (Salón, Terraza, Barra), se toca una mesa para abrir/ver su comanda y se **descarga el
+dibujo** del plano en SVG para imprimirlo.
+
 ## Tests
 
-- **Unitarios**: validaciones de `Mesa` y ciclo de vida de `Comanda` (abrir, recalcular totales con
-  IVA al añadir/quitar líneas, no cobrar vacía, congelar el ticket al cobrar, no modificar tras
-  cobrar, anular).
+- **Unitarios**: validaciones de `Mesa` (incluidas forma y posición/`Colocar` con acotado al lienzo) y
+  ciclo de vida de `Comanda` (abrir, recalcular totales con IVA al añadir/quitar líneas, no cobrar
+  vacía, congelar el ticket al cobrar, no modificar tras cobrar, anular).
 - **Integración**: flujo completo abrir → pedir → cobrar (genera ticket, libera la mesa y descuenta
-  stock), una sola comanda por mesa, listado de abiertas, quitar línea, no cobrar vacía, anular y
-  exigencia de empresa activa.
+  stock), crear barra con forma y recolocarla en el plano, una sola comanda por mesa, listado de
+  abiertas, quitar línea, no cobrar vacía, anular y exigencia de empresa activa.

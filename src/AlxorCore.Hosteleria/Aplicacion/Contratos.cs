@@ -9,10 +9,17 @@ public sealed record MesaDto(
     string Nombre,
     string? Zona,
     int Capacidad,
+    string Forma,
+    double PosX,
+    double PosY,
     bool Activa,
     bool Ocupada,
     Guid? ComandaAbiertaId,
-    decimal TotalComandaAbierta);
+    decimal TotalComandaAbierta)
+{
+    public static MesaDto Desde(Mesa m, bool ocupada = false, Guid? comandaAbiertaId = null, decimal totalComandaAbierta = 0m) =>
+        new(m.Id, m.Nombre, m.Zona, m.Capacidad, m.Forma.ToString(), m.PosX, m.PosY, m.Activa, ocupada, comandaAbiertaId, totalComandaAbierta);
+}
 
 /// <summary>Vista de una línea de comanda.</summary>
 public sealed record LineaComandaDto(

@@ -7,7 +7,14 @@ using AlxorCore.Nucleo.Tiempo;
 namespace AlxorCore.Hosteleria.Aplicacion;
 
 /// <summary>Datos de una mesa para crear o actualizar.</summary>
-public sealed record DatosMesa(string Nombre, string? Zona = null, int Capacidad = 0);
+public sealed record DatosMesa(string Nombre, string? Zona = null, int Capacidad = 0, string? Forma = null, double PosX = 0, double PosY = 0)
+{
+    /// <summary>Traduce la forma recibida (texto) a su enumerado; por defecto, cuadrada.</summary>
+    public FormaMesa FormaMesa() => Enum.TryParse<FormaMesa>(Forma, ignoreCase: true, out var f) ? f : Dominio.FormaMesa.Cuadrada;
+}
+
+/// <summary>Nueva posición de una mesa en el plano.</summary>
+public sealed record DatosPosicion(double PosX, double PosY);
 
 /// <summary>Datos para añadir una línea a una comanda (un producto del catálogo y su cantidad).</summary>
 public sealed record DatosLineaComanda(Guid ProductoId, decimal Cantidad = 1m);
@@ -36,7 +43,7 @@ public sealed class CrearMesa
     {
         ArgumentNullException.ThrowIfNull(datos);
 
-        var mesa = Mesa.Crear(empresaId, datos.Nombre, datos.Zona, datos.Capacidad, _reloj);
+        var mesa = Mesa.Crear(empresaId, datos.Nombre, datos.Zona, datos.Capacidad, _reloj, datos.FormaMesa(), datos.PosX, datos.PosY);
         if (mesa.EsFallo)
         {
             return Resultado.Fallo<MesaDto>(mesa.Error);
@@ -44,7 +51,7 @@ public sealed class CrearMesa
 
         _mesas.Agregar(mesa.Valor);
         await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
-        return Resultado.Ok(new MesaDto(mesa.Valor.Id, mesa.Valor.Nombre, mesa.Valor.Zona, mesa.Valor.Capacidad, mesa.Valor.Activa, false, null, 0m));
+        return Resultado.Ok(MesaDto.Desde(mesa.Valor));
     }
 }
 
@@ -72,14 +79,44 @@ public sealed class ActualizarMesa
             return Resultado.Fallo<MesaDto>(Error.NoEncontrado("mesa.no_encontrada", "La mesa no existe."));
         }
 
-        var r = mesa.Actualizar(datos.Nombre, datos.Zona, datos.Capacidad, _reloj);
+        var r = mesa.Actualizar(datos.Nombre, datos.Zona, datos.Capacidad, _reloj, datos.FormaMesa());
         if (r.EsFallo)
         {
             return Resultado.Fallo<MesaDto>(r.Error);
         }
 
         await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
-        return Resultado.Ok(new MesaDto(mesa.Id, mesa.Nombre, mesa.Zona, mesa.Capacidad, mesa.Activa, false, null, 0m));
+        return Resultado.Ok(MesaDto.Desde(mesa));
+    }
+}
+
+/// <summary>Caso de uso: recolocar una mesa en el plano del local.</summary>
+public sealed class MoverMesa
+{
+    private readonly IRepositorioMesas _mesas;
+    private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
+    private readonly IReloj _reloj;
+
+    public MoverMesa(IRepositorioMesas mesas, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    {
+        _mesas = mesas;
+        _unidadDeTrabajo = unidadDeTrabajo;
+        _reloj = reloj;
+    }
+
+    public async Task<Resultado<MesaDto>> EjecutarAsync(Guid mesaId, DatosPosicion datos, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(datos);
+
+        var mesa = await _mesas.ObtenerPorIdAsync(mesaId, ct).ConfigureAwait(false);
+        if (mesa is null)
+        {
+            return Resultado.Fallo<MesaDto>(Error.NoEncontrado("mesa.no_encontrada", "La mesa no existe."));
+        }
+
+        mesa.Colocar(datos.PosX, datos.PosY, _reloj);
+        await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+        return Resultado.Ok(MesaDto.Desde(mesa));
     }
 }
 
