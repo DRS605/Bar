@@ -308,6 +308,7 @@
     ICON.pagos = '<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>';
     ICON.hosteleria = '<svg viewBox="0 0 24 24"><path d="M8 3h8l-1 6a3 3 0 0 1-6 0z"/><path d="M12 15v5M8 21h8"/></svg>';
     ICON.plano = '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 10h7V3M14 21v-7h7"/></svg>';
+    ICON.reservas = '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M8 14h4"/></svg>';
 
     // Menú agrupado en carpetas: Ventas, Compras y Artículos.
     const NAV = [
@@ -317,10 +318,11 @@
       { t:"grupo", k:"articulos", l:"Artículos", items:[["productos","Productos"]] },
       { t:"item", k:"hosteleria", l:"Barra / Salón" },
       { t:"item", k:"plano", l:"Plano del local" },
+      { t:"item", k:"reservas", l:"Reservas" },
       { t:"item", k:"informes", l:"Informes" },
       { t:"item", k:"ajustes", l:"Ajustes" },
     ];
-    const TITULOS = { inicio:"Inicio", presupuestos:"Presupuestos", facturas:"Facturas", tpv:"TPV · Tickets", recurrentes:"Facturación periódica", clientes:"Clientes", cobros:"Cobros", remesas:"Remesas SEPA", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", conciliacion:"Conciliación bancaria", productos:"Artículos", hosteleria:"Barra / Salón", plano:"Plano del local", informes:"Informes", ajustes:"Ajustes" };
+    const TITULOS = { inicio:"Inicio", presupuestos:"Presupuestos", facturas:"Facturas", tpv:"TPV · Tickets", recurrentes:"Facturación periódica", clientes:"Clientes", cobros:"Cobros", remesas:"Remesas SEPA", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", conciliacion:"Conciliación bancaria", productos:"Artículos", hosteleria:"Barra / Salón", plano:"Plano del local", reservas:"Reservas", informes:"Informes", ajustes:"Ajustes" };
     function renderNav() {
       return NAV.map(n => {
         if (n.t === "item") return `<a class="navitem" data-k="${n.k}" onclick="ir('${n.k}')">${ICON[n.k]}<span>${n.l}</span></a>`;
@@ -416,7 +418,7 @@
     function ir(k){ closeMenu(); if(vista==="tpv" && k!=="tpv" && typeof tpvParar==="function") tpvParar(); vista=k;
       document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("active",a.dataset.k===k));
       document.getElementById("viewTitle").textContent=TITULOS[k]||k;
-      ({inicio:vInicio,presupuestos:vPresupuestos,facturas:vFacturas,tpv:vTpv,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,hosteleria:vHosteleria,plano:vPlano,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,remesas:vRemesa,pagos:vPagos,conciliacion:vConciliacion,informes:vInformes,ajustes:vAjustes}[k])();
+      ({inicio:vInicio,presupuestos:vPresupuestos,facturas:vFacturas,tpv:vTpv,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,hosteleria:vHosteleria,plano:vPlano,reservas:vReservas,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,remesas:vRemesa,pagos:vPagos,conciliacion:vConciliacion,informes:vInformes,ajustes:vAjustes}[k])();
     }
     const view = h => document.getElementById("view").innerHTML=h;
     const panel = (t,c,a="") => `<div class="panel">${(t||a)?`<div class="panel-head">${t?`<h2>${t}</h2>`:'<span></span>'}${a}</div>`:''}${c}</div>`;
@@ -832,6 +834,49 @@
       const a=document.createElement("a"); a.href=url; a.download="plano-"+((empresa?.razonSocial||"local").replace(/[^a-z0-9]+/gi,"-").toLowerCase())+".svg";
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); toast("Dibujo descargado","ok");
     }
+
+    /* ===== Reservas: agenda + calendario iCal ===== */
+    let resReservas=[], resMesas=[];
+    function resFechaLocal(iso){ const d=new Date(iso); const p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; }
+    async function vReservas(){
+      view('<div class="muted">Cargando…</div>');
+      const [reservas,mesas]=await Promise.all([api("/reservas"),api("/mesas").catch(()=>[])]);
+      resReservas=reservas; resMesas=mesas;
+      const mesaNombre=id=>{ const m=mesas.find(x=>x.id===id); return m?m.nombre:"—"; };
+      const pill=e=>{ const c={Pendiente:"wait",Confirmada:"ok",Sentada:"ok",Cancelada:"neg",NoShow:"neg"}[e]||""; return `<span class="pill ${c}">${e}</span>`; };
+      const acc=r=>{ const b=[];
+        if(r.estado==="Pendiente") b.push(`<button class="btn small secondary" onclick="resEstado('${r.id}','confirmar')">Confirmar</button>`);
+        if(r.estado==="Pendiente"||r.estado==="Confirmada"){ b.push(`<button class="btn small" onclick="resSentar('${r.id}')">Sentar</button>`); b.push(`<button class="btn small secondary" onclick="resEstado('${r.id}','cancelar')">Cancelar</button>`); b.push(`<button class="btn small secondary" onclick="resEstado('${r.id}','no-show')">No-show</button>`); b.push(`<button class="btn small ghost" onclick="resEditar('${r.id}')">Editar</button>`); }
+        b.push(`<button class="btn small ghost" onclick="resIcal('${r.id}')" title="Añadir a mi calendario">📅</button>`);
+        return b.join(" "); };
+      const filas=reservas.map(r=>`<tr><td>${new Date(r.fechaHora).toLocaleString("es-ES",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</td><td><strong>${r.nombreCliente}</strong>${r.telefono?`<br><small class="muted">${r.telefono}</small>`:""}</td><td class="num">${r.comensales}</td><td>${r.mesaId?mesaNombre(r.mesaId):"—"}</td><td>${pill(r.estado)}</td><td class="right" style="white-space:nowrap">${acc(r)}</td></tr>`).join("");
+      const cuerpo=reservas.length?`<table><thead><tr><th>Cuándo</th><th>Cliente</th><th class="num">Pax</th><th>Mesa</th><th>Estado</th><th></th></tr></thead><tbody>${filas}</tbody></table><p class="muted" style="font-size:12px;margin:12px 0 0">«Sentar» abre la comanda de la mesa asignada. Con 📅 descargas la reserva para tu calendario; con «Suscribir calendario» conectas Google, Apple u Outlook.</p>`:vacio("reservas","Sin reservas todavía","Anota la primera reserva y compártela con tu calendario.",`<button class="btn small" onclick="resNueva()">+ Nueva reserva</button>`);
+      const acciones=`<div style="display:flex;gap:8px"><button class="btn small ghost" onclick="resSuscribir()">📆 Suscribir calendario</button><button class="btn small" onclick="resNueva()">+ Nueva reserva</button></div>`;
+      view(panel("Reservas",cuerpo,acciones));
+    }
+    function resNueva(){ resModal(null); }
+    function resEditar(id){ const r=resReservas.find(x=>x.id===id); if(r) resModal(r); }
+    function resModal(r){ const e=!!r;
+      const mopts=`<option value="">— Sin mesa —</option>`+resMesas.map(m=>`<option value="${m.id}" ${e&&r.mesaId===m.id?"selected":""}>${m.nombre}</option>`).join("");
+      abrir(e?"Editar reserva":"Nueva reserva",
+        `<label>Cliente</label><input id="r_nombre" value="${e?r.nombreCliente:""}" placeholder="Nombre y apellidos"/>
+         <div class="grid2"><div><label>Fecha y hora</label><input id="r_fecha" type="datetime-local" value="${e?resFechaLocal(r.fechaHora):""}"/></div><div><label>Comensales</label><input id="r_pax" type="number" min="1" value="${e?r.comensales:2}"/></div></div>
+         <div class="grid2"><div><label>Teléfono</label><input id="r_tel" value="${e?(r.telefono||""):""}"/></div><div><label>Email</label><input id="r_email" value="${e?(r.email||""):""}"/></div></div>
+         <div class="grid2"><div><label>Duración (min)</label><input id="r_dur" type="number" min="15" step="15" value="${e?r.duracionMinutos:120}"/></div><div><label>Mesa (opcional)</label><select id="r_mesa">${mopts}</select></div></div>
+         <label>Notas</label><input id="r_notas" value="${e?(r.notas||""):""}" placeholder="Alergias, trona, terraza…"/>`,
+        async()=>{ const fecha=val("r_fecha"); if(!fecha) throw new Error("Indica la fecha y la hora.");
+          const b=JSON.stringify({nombreCliente:val("r_nombre"),fechaHora:new Date(fecha).toISOString(),comensales:Number(val("r_pax")||0),telefono:val("r_tel")||null,email:val("r_email")||null,duracionMinutos:Number(val("r_dur")||120),mesaId:val("r_mesa")||null,notas:val("r_notas")||null});
+          await api("/reservas"+(e?"/"+r.id:""),{method:e?"PUT":"POST",body:b}); toast(e?"Reserva actualizada":"Reserva creada","ok"); vReservas(); }); }
+    async function resEstado(id,accion){ try{ await api("/reservas/"+id+"/"+accion,{method:"POST"}); toast("Reserva actualizada","ok"); vReservas(); }catch(e){ toast(e.message,"err"); } }
+    async function resSentar(id){ try{ const r=await api("/reservas/"+id+"/sentar",{method:"POST"}); toast(r.comandaId?"Sentada · comanda abierta":"Sentada","ok"); vReservas(); }catch(e){ toast(e.message,"err"); } }
+    async function resIcal(id){ try{ const r=await fetch(API+"/reservas/"+id+"/ical",{headers:{Authorization:"Bearer "+token}}); if(!r.ok)throw new Error("No se pudo generar el calendario"); const url=URL.createObjectURL(await r.blob()); const a=document.createElement("a"); a.href=url;a.download="reserva.ics"; document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}catch(e){ toast(e.message,"err"); } }
+    async function resSuscribir(){ try{ const a=await api("/reservas/agenda");
+      abrir("Suscribir calendario",
+        `<p class="muted" style="font-size:13px;margin:0 0 12px">Pega este enlace en <b>Google Calendar</b> (Otros calendarios → Desde una URL), <b>Apple Calendar</b> o <b>Outlook</b> para ver tus reservas y que se actualicen solas.</p>
+         <input id="ag_url" readonly value="${a.url}" onclick="this.select()"/>
+         <div style="display:flex;gap:8px;margin-top:12px"><button class="btn small" onclick="navigator.clipboard.writeText(document.getElementById('ag_url').value).then(()=>toast('Enlace copiado','ok'))">Copiar enlace</button><button class="btn small secondary" onclick="resRegenerar()">Regenerar</button></div>
+         <p class="muted" style="font-size:11.5px;margin-top:10px">Cualquiera con el enlace puede ver el calendario; regénéralo para invalidar el anterior.</p>`, ()=>{}); }catch(e){ toast(e.message,"err"); } }
+    async function resRegenerar(){ try{ const a=await api("/reservas/agenda/regenerar",{method:"POST"}); document.getElementById("ag_url").value=a.url; toast("Enlace regenerado","ok"); }catch(e){ toast(e.message,"err"); } }
 
     async function vPagos() {
       view('<div class="muted">Cargando…</div>');

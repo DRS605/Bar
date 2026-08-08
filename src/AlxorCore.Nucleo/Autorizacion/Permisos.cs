@@ -28,6 +28,9 @@ public static class Permisos
     // Hostelería (mesas y comandas)
     public const string HosteleriaGestionar = "hosteleria.gestionar";
 
+    // Reservas
+    public const string ReservaGestionar = "reserva.gestionar";
+
     // Informes y datos
     public const string InformeLeer = "informe.leer";
     public const string DatosExportar = "datos.exportar";
@@ -43,7 +46,7 @@ public static class Permisos
         GastoLeer, GastoGestionar,
         CobroRegistrar, PagoRegistrar,
         ClienteGestionar, ProductoGestionar,
-        HosteleriaGestionar,
+        HosteleriaGestionar, ReservaGestionar,
         InformeLeer, DatosExportar,
         EmpresaAjustes, UsuarioGestionar,
     };

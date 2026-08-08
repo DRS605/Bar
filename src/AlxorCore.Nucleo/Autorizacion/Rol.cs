@@ -25,7 +25,7 @@ public sealed class Rol
             Permisos.GastoLeer, Permisos.GastoGestionar,
             Permisos.CobroRegistrar, Permisos.PagoRegistrar,
             Permisos.ClienteGestionar, Permisos.ProductoGestionar,
-            Permisos.HosteleriaGestionar,
+            Permisos.HosteleriaGestionar, Permisos.ReservaGestionar,
             Permisos.InformeLeer, Permisos.DatosExportar,
         });
 

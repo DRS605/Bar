@@ -1,0 +1,142 @@
+using System.Net;
+using System.Net.Http.Json;
+using FluentAssertions;
+using Xunit;
+
+namespace AlxorCore.IntegrationTests;
+
+/// <summary>Pruebas de integración del módulo Reservas: agenda, estados, sentar y calendario iCal.</summary>
+public sealed class ReservasEndpointsTests : IClassFixture<FabricaApiPruebas>
+{
+    private readonly FabricaApiPruebas _fabrica;
+
+    public ReservasEndpointsTests(FabricaApiPruebas fabrica) => _fabrica = fabrica;
+
+    private sealed record ReservaResp(Guid Id, string NombreCliente, DateTimeOffset FechaHora, int Comensales, Guid? MesaId, string Estado, Guid? ComandaId);
+    private sealed record MesaResp(Guid Id, string Nombre, bool Ocupada, Guid? ComandaAbiertaId);
+    private sealed record AgendaResp(string Token, string Ruta, string Url);
+
+    private static readonly DateTimeOffset Cuando = new(2026, 2, 14, 21, 0, 0, TimeSpan.Zero);
+
+    private static object NuevaReserva(Guid? mesaId = null) => new
+    {
+        NombreCliente = "Ana",
+        FechaHora = Cuando,
+        Comensales = 4,
+        Telefono = "600111222",
+        Email = "ana@ej.com",
+        DuracionMinutos = 90,
+        MesaId = mesaId,
+        Notas = "cumpleaños",
+    };
+
+    private static async Task<ReservaResp> CrearAsync(HttpClient cliente, Guid? mesaId = null)
+    {
+        var resp = await cliente.PostAsJsonAsync("/reservas", NuevaReserva(mesaId));
+        resp.StatusCode.Should().Be(HttpStatusCode.Created);
+        return (await resp.Content.ReadFromJsonAsync<ReservaResp>())!;
+    }
+
+    [Fact]
+    public async Task Crea_una_reserva_y_aparece_en_la_agenda()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var reserva = await CrearAsync(cliente);
+        reserva.Estado.Should().Be("Pendiente");
+
+        var lista = await cliente.GetFromJsonAsync<List<ReservaResp>>("/reservas");
+        lista.Should().ContainSingle(r => r.Id == reserva.Id);
+    }
+
+    [Fact]
+    public async Task Transiciones_confirmar_y_cancelar()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var reserva = await CrearAsync(cliente);
+
+        var conf = await cliente.PostAsync(new Uri($"/reservas/{reserva.Id}/confirmar", UriKind.Relative), null);
+        conf.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await conf.Content.ReadFromJsonAsync<ReservaResp>())!.Estado.Should().Be("Confirmada");
+
+        var canc = await cliente.PostAsync(new Uri($"/reservas/{reserva.Id}/cancelar", UriKind.Relative), null);
+        (await canc.Content.ReadFromJsonAsync<ReservaResp>())!.Estado.Should().Be("Cancelada");
+
+        // Ya no se puede confirmar una cancelada.
+        var reconf = await cliente.PostAsync(new Uri($"/reservas/{reserva.Id}/confirmar", UriKind.Relative), null);
+        reconf.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task Sentar_con_mesa_abre_la_comanda_y_ocupa_la_mesa()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var mesa = (await (await cliente.PostAsJsonAsync("/mesas", new { Nombre = "Mesa 1", Capacidad = 4 })).Content.ReadFromJsonAsync<MesaResp>())!;
+        var reserva = await CrearAsync(cliente, mesa.Id);
+
+        var sentar = await cliente.PostAsync(new Uri($"/reservas/{reserva.Id}/sentar", UriKind.Relative), null);
+        sentar.StatusCode.Should().Be(HttpStatusCode.OK);
+        var sentada = (await sentar.Content.ReadFromJsonAsync<ReservaResp>())!;
+        sentada.Estado.Should().Be("Sentada");
+        sentada.ComandaId.Should().NotBeNull();
+
+        var mesas = await cliente.GetFromJsonAsync<List<MesaResp>>("/mesas");
+        var m = mesas!.Single(x => x.Id == mesa.Id);
+        m.Ocupada.Should().BeTrue();
+        m.ComandaAbiertaId.Should().Be(sentada.ComandaId);
+    }
+
+    [Fact]
+    public async Task Descarga_el_ical_de_una_reserva()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var reserva = await CrearAsync(cliente);
+
+        var resp = await cliente.GetAsync(new Uri($"/reservas/{reserva.Id}/ical", UriKind.Relative));
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        resp.Content.Headers.ContentType!.MediaType.Should().Be("text/calendar");
+        var texto = await resp.Content.ReadAsStringAsync();
+        texto.Should().Contain("BEGIN:VCALENDAR").And.Contain("BEGIN:VEVENT").And.Contain("Reserva Ana");
+    }
+
+    [Fact]
+    public async Task El_feed_de_agenda_es_suscribible_sin_sesion()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        await CrearAsync(cliente);
+
+        var agenda = await cliente.GetFromJsonAsync<AgendaResp>("/reservas/agenda");
+        agenda!.Token.Should().NotBeNullOrWhiteSpace();
+        agenda.Ruta.Should().Be($"/agenda/{agenda.Token}.ics");
+
+        // Un cliente SIN token de sesión puede leer el calendario mediante el enlace secreto.
+        var anonimo = _fabrica.CreateClient();
+        var feed = await anonimo.GetAsync(new Uri(agenda.Ruta, UriKind.Relative));
+        feed.StatusCode.Should().Be(HttpStatusCode.OK);
+        feed.Content.Headers.ContentType!.MediaType.Should().Be("text/calendar");
+        (await feed.Content.ReadAsStringAsync()).Should().Contain("BEGIN:VEVENT").And.Contain("Reserva Ana");
+
+        // Un token inexistente devuelve 404.
+        var malo = await anonimo.GetAsync(new Uri("/agenda/token-que-no-existe.ics", UriKind.Relative));
+        malo.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Regenerar_el_enlace_invalida_el_anterior()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var antes = await cliente.GetFromJsonAsync<AgendaResp>("/reservas/agenda");
+        var despues = (await (await cliente.PostAsync(new Uri("/reservas/agenda/regenerar", UriKind.Relative), null)).Content.ReadFromJsonAsync<AgendaResp>())!;
+        despues.Token.Should().NotBe(antes!.Token);
+
+        var anonimo = _fabrica.CreateClient();
+        (await anonimo.GetAsync(new Uri(antes.Ruta, UriKind.Relative))).StatusCode.Should().Be(HttpStatusCode.NotFound);
+        (await anonimo.GetAsync(new Uri(despues.Ruta, UriKind.Relative))).StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Sin_empresa_seleccionada_no_se_pueden_listar_reservas()
+    {
+        var cliente = await Ayudas.AutenticadoAsync(_fabrica);
+        (await cliente.GetAsync(new Uri("/reservas", UriKind.Relative))).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+}

@@ -63,6 +63,7 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>, IAsyncLi
         var gastos = ambito.ServiceProvider.GetRequiredService<AlxorCore.Gastos.Infraestructura.GastosDbContext>();
         var tesoreria = ambito.ServiceProvider.GetRequiredService<AlxorCore.Tesoreria.Infraestructura.TesoreriaDbContext>();
         var hosteleria = ambito.ServiceProvider.GetRequiredService<AlxorCore.Hosteleria.Infraestructura.HosteleriaDbContext>();
+        var reservas = ambito.ServiceProvider.GetRequiredService<AlxorCore.Reservas.Infraestructura.ReservasDbContext>();
         var auditoria = ambito.ServiceProvider.GetRequiredService<AlxorCore.Auditoria.Infraestructura.AuditoriaDbContext>();
 
         await identidad.Database.MigrateAsync().ConfigureAwait(false);
@@ -73,10 +74,11 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>, IAsyncLi
         await gastos.Database.MigrateAsync().ConfigureAwait(false);
         await tesoreria.Database.MigrateAsync().ConfigureAwait(false);
         await hosteleria.Database.MigrateAsync().ConfigureAwait(false);
+        await reservas.Database.MigrateAsync().ConfigureAwait(false);
         await auditoria.Database.MigrateAsync().ConfigureAwait(false);
 
         await identidad.Database.ExecuteSqlRawAsync(
-            "TRUNCATE identidad.usuario, organizacion.empresa, organizacion.membresia, organizacion.serie_numeracion, terceros.cliente, terceros.proveedor, catalogo.producto, catalogo.movimiento_stock, facturacion.factura, facturacion.linea_factura, facturacion.factura_recurrente, facturacion.linea_recurrente, facturacion.presupuesto, facturacion.linea_presupuesto, gastos.gasto, tesoreria.movimiento, hosteleria.linea_comanda, hosteleria.comanda, hosteleria.mesa, auditoria.registro_auditoria")
+            "TRUNCATE identidad.usuario, organizacion.empresa, organizacion.membresia, organizacion.serie_numeracion, terceros.cliente, terceros.proveedor, catalogo.producto, catalogo.movimiento_stock, facturacion.factura, facturacion.linea_factura, facturacion.factura_recurrente, facturacion.linea_recurrente, facturacion.presupuesto, facturacion.linea_presupuesto, gastos.gasto, tesoreria.movimiento, hosteleria.linea_comanda, hosteleria.comanda, hosteleria.mesa, reservas.reserva, reservas.agenda_calendario, auditoria.registro_auditoria")
             .ConfigureAwait(false);
     }
 

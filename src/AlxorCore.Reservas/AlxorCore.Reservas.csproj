@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>AlxorCore.Reservas</RootNamespace>
+    <AssemblyName>AlxorCore.Reservas</AssemblyName>
+  </PropertyGroup>
+
+  <!--
+    Reservas compone Hostelería: al "sentar" una reserva puede abrir la comanda de su mesa.
+    Referencia la capa de Aplicación (contratos) de Hostelería, nunca su infraestructura.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\AlxorCore.Nucleo\AlxorCore.Nucleo.csproj" />
+    <ProjectReference Include="..\AlxorCore.Hosteleria\AlxorCore.Hosteleria.csproj" />
+  </ItemGroup>
+
+</Project>
