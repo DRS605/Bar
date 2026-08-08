@@ -82,6 +82,102 @@ public class ReservaTests
     }
 }
 
+public class TurnoTests
+{
+    private static readonly IReloj Reloj = new RelojFijo();
+    private static readonly Guid Empresa = Guid.NewGuid();
+
+    private static Turno Cena() =>
+        Turno.Crear(Empresa, "Cena", DiasSemana.Viernes | DiasSemana.Sabado, new TimeOnly(20, 0), new TimeOnly(23, 30), 20, Reloj).Valor;
+
+    [Fact]
+    public void Aplica_dentro_del_dia_y_hora()
+    {
+        // 2026-02-14 es sábado.
+        Cena().Aplica(new DateTimeOffset(2026, 2, 14, 21, 0, 0, TimeSpan.Zero)).Should().BeTrue();
+    }
+
+    [Fact]
+    public void No_aplica_fuera_de_hora()
+    {
+        Cena().Aplica(new DateTimeOffset(2026, 2, 14, 18, 0, 0, TimeSpan.Zero)).Should().BeFalse();
+    }
+
+    [Fact]
+    public void No_aplica_en_dia_no_incluido()
+    {
+        // 2026-02-16 es lunes (no está en Viernes|Sábado).
+        Cena().Aplica(new DateTimeOffset(2026, 2, 16, 21, 0, 0, TimeSpan.Zero)).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Turno_que_cruza_medianoche()
+    {
+        var t = Turno.Crear(Empresa, "Copas", DiasSemana.Todos, new TimeOnly(22, 0), new TimeOnly(2, 0), 0, Reloj).Valor;
+        t.Aplica(new DateTimeOffset(2026, 2, 14, 23, 30, 0, TimeSpan.Zero)).Should().BeTrue();
+        t.Aplica(new DateTimeOffset(2026, 2, 14, 1, 0, 0, TimeSpan.Zero)).Should().BeTrue();
+        t.Aplica(new DateTimeOffset(2026, 2, 14, 12, 0, 0, TimeSpan.Zero)).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Crear_sin_dias_o_con_horas_iguales_falla()
+    {
+        Turno.Crear(Empresa, "X", DiasSemana.Ninguno, new TimeOnly(20, 0), new TimeOnly(23, 0), 0, Reloj).EsFallo.Should().BeTrue();
+        Turno.Crear(Empresa, "X", DiasSemana.Todos, new TimeOnly(20, 0), new TimeOnly(20, 0), 0, Reloj).EsFallo.Should().BeTrue();
+    }
+}
+
+public class DisponibilidadTurnosTests
+{
+    private static readonly IReloj Reloj = new RelojFijo();
+    private static readonly Guid Empresa = Guid.NewGuid();
+    private static readonly DateTimeOffset Sabado21 = new(2026, 2, 14, 21, 0, 0, TimeSpan.Zero);
+
+    private static List<Turno> Turnos(int aforo) =>
+        new() { Turno.Crear(Empresa, "Cena", DiasSemana.Todos, new TimeOnly(20, 0), new TimeOnly(23, 30), aforo, Reloj).Valor };
+
+    private static ReservaDto Reserva(int pax, DateTimeOffset cuando, string estado = "Confirmada") =>
+        new(Guid.NewGuid(), "X", null, null, cuando, cuando.AddHours(2), 120, pax, null, null, estado, null, cuando);
+
+    [Fact]
+    public void Sin_turnos_no_restringe()
+    {
+        DisponibilidadTurnos.Validar(new List<Turno>(), new List<ReservaDto>(), Sabado21, 10).EsCorrecto.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Fuera_de_horario_falla()
+    {
+        var r = DisponibilidadTurnos.Validar(Turnos(0), new List<ReservaDto>(), new DateTimeOffset(2026, 2, 14, 12, 0, 0, TimeSpan.Zero), 2);
+        r.EsFallo.Should().BeTrue();
+        r.Error.Codigo.Should().Be("reserva.fuera_de_horario");
+    }
+
+    [Fact]
+    public void Respeta_el_aforo_del_turno()
+    {
+        var existentes = new List<ReservaDto> { Reserva(3, Sabado21) };
+        DisponibilidadTurnos.Validar(Turnos(4), existentes, Sabado21.AddMinutes(30), 1).EsCorrecto.Should().BeTrue();
+        var lleno = DisponibilidadTurnos.Validar(Turnos(4), existentes, Sabado21.AddMinutes(30), 2);
+        lleno.EsFallo.Should().BeTrue();
+        lleno.Error.Codigo.Should().Be("reserva.aforo_completo");
+    }
+
+    [Fact]
+    public void Las_canceladas_no_cuentan_para_el_aforo()
+    {
+        var existentes = new List<ReservaDto> { Reserva(4, Sabado21, "Cancelada") };
+        DisponibilidadTurnos.Validar(Turnos(4), existentes, Sabado21.AddMinutes(30), 4).EsCorrecto.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Al_editar_no_se_cuenta_a_si_misma()
+    {
+        var propia = Reserva(4, Sabado21);
+        DisponibilidadTurnos.Validar(Turnos(4), new List<ReservaDto> { propia }, Sabado21, 4, propia.Id).EsCorrecto.Should().BeTrue();
+    }
+}
+
 public class GeneradorICalTests
 {
     private static readonly DateTimeOffset Ahora = new(2026, 1, 1, 10, 0, 0, TimeSpan.Zero);

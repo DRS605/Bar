@@ -63,6 +63,28 @@ public static class EndpointsReservas
             .WithSummary("Sienta la reserva y, si tiene mesa, abre su comanda.")
             .RequierePermiso(Permisos.ReservaGestionar);
 
+        reservas.MapGet("/disponibilidad", DisponibilidadAsync)
+            .WithSummary("Ocupación (aforo usado/libre) de los turnos en una fecha.")
+            .RequireAuthorization();
+
+        var turnos = rutas.MapGroup("/turnos").WithTags("Turnos");
+
+        turnos.MapGet("", ListarTurnosAsync)
+            .WithSummary("Lista los turnos (horarios) de la empresa.")
+            .RequireAuthorization();
+
+        turnos.MapPost("", CrearTurnoAsync)
+            .WithSummary("Crea un turno de servicio.")
+            .RequierePermiso(Permisos.ReservaGestionar);
+
+        turnos.MapPut("/{id:guid}", ActualizarTurnoAsync)
+            .WithSummary("Actualiza un turno.")
+            .RequierePermiso(Permisos.ReservaGestionar);
+
+        turnos.MapDelete("/{id:guid}", DesactivarTurnoAsync)
+            .WithSummary("Retira (desactiva) un turno.")
+            .RequierePermiso(Permisos.ReservaGestionar);
+
         // Feed público suscribible: la credencial es el token del enlace (sin sesión).
         rutas.MapGet("/agenda/{token}.ics", FeedAsync)
             .WithTags("Reservas")
@@ -145,6 +167,44 @@ public static class EndpointsReservas
         var token = await caso.EjecutarAsync(contexto.EmpresaId.Value, regenerar: true, ct).ConfigureAwait(false);
         return Results.Ok(EnlaceAgenda(http, token));
     }
+
+    private static async Task<IResult> DisponibilidadAsync(IContextoEmpresa contexto, ObtenerDisponibilidad caso, IReloj reloj, DateOnly? dia, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var fecha = dia ?? DateOnly.FromDateTime(reloj.AhoraUtc.UtcDateTime);
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, fecha, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> ListarTurnosAsync(IContextoEmpresa contexto, ListarTurnos caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> CrearTurnoAsync(DatosTurno datos, IContextoEmpresa contexto, CrearTurno caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, datos, ct).ConfigureAwait(false);
+        return resultado.EsCorrecto ? resultado.ACreado($"/turnos/{resultado.Valor.Id}") : ResultadosHttp.AProblema(resultado.Error);
+    }
+
+    private static async Task<IResult> ActualizarTurnoAsync(Guid id, DatosTurno datos, ActualizarTurno caso, CancellationToken ct) =>
+        (await caso.EjecutarAsync(id, datos, ct).ConfigureAwait(false)).AOk();
+
+    private static async Task<IResult> DesactivarTurnoAsync(Guid id, DesactivarTurno caso, CancellationToken ct) =>
+        (await caso.EjecutarAsync(id, ct).ConfigureAwait(false)).ASinContenido();
 
     private static async Task<IResult> FeedAsync(string token, FeedCalendario caso, CancellationToken ct)
     {

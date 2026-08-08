@@ -32,6 +32,7 @@ public static class RegistroServicios
         servicios.AddScoped<IRepositorioReservas>(sp => sp.GetRequiredService<RepositorioReservas>());
         servicios.AddScoped<IConsultaReservas>(sp => sp.GetRequiredService<RepositorioReservas>());
         servicios.AddScoped<IRepositorioAgenda, RepositorioAgenda>();
+        servicios.AddScoped<IRepositorioTurnos, RepositorioTurnos>();
 
         servicios.AddScoped<CrearReserva>();
         servicios.AddScoped<ActualizarReserva>();
@@ -41,6 +42,11 @@ public static class RegistroServicios
         servicios.AddScoped<ObtenerReserva>();
         servicios.AddScoped<ObtenerAgenda>();
         servicios.AddScoped<FeedCalendario>();
+        servicios.AddScoped<CrearTurno>();
+        servicios.AddScoped<ActualizarTurno>();
+        servicios.AddScoped<DesactivarTurno>();
+        servicios.AddScoped<ListarTurnos>();
+        servicios.AddScoped<ObtenerDisponibilidad>();
 
         return servicios;
     }

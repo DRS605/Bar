@@ -22,6 +22,8 @@ public sealed class ReservasDbContext : DbContextEmpresaBase, IUnidadDeTrabajoRe
 
     public DbSet<Reserva> Reservas => Set<Reserva>();
 
+    public DbSet<Turno> Turnos => Set<Turno>();
+
     public DbSet<AgendaCalendario> Agendas => Set<AgendaCalendario>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -57,6 +59,28 @@ internal sealed class ConfiguracionReserva : IEntityTypeConfiguration<Reserva>
         builder.Ignore(r => r.EventosDominio);
         builder.Ignore(r => r.FechaHoraFin);
         builder.Ignore(r => r.EsModificable);
+    }
+}
+
+internal sealed class ConfiguracionTurno : IEntityTypeConfiguration<Turno>
+{
+    public void Configure(EntityTypeBuilder<Turno> builder)
+    {
+        builder.ToTable("turno");
+        builder.HasKey(t => t.Id);
+        builder.Property(t => t.Id).HasColumnName("id");
+        builder.Property(t => t.EmpresaId).HasColumnName("empresa_id").IsRequired();
+        builder.Property(t => t.Nombre).HasColumnName("nombre").HasMaxLength(Turno.LongitudMaximaNombre).IsRequired();
+        builder.Property(t => t.Dias).HasColumnName("dias").HasConversion<int>().IsRequired();
+        builder.Property(t => t.HoraInicio).HasColumnName("hora_inicio").IsRequired();
+        builder.Property(t => t.HoraFin).HasColumnName("hora_fin").IsRequired();
+        builder.Property(t => t.AforoComensales).HasColumnName("aforo_comensales").IsRequired();
+        builder.Property(t => t.Activo).HasColumnName("activo").IsRequired();
+        builder.Property(t => t.CreadoEn).HasColumnName("creado_en").IsRequired();
+        builder.Property(t => t.ActualizadoEn).HasColumnName("actualizado_en").IsRequired();
+
+        builder.HasIndex(t => new { t.EmpresaId, t.Activo }).HasDatabaseName("ix_turno_empresa_activo");
+        builder.Ignore(t => t.EventosDominio);
     }
 }
 
@@ -109,6 +133,24 @@ internal sealed class RepositorioReservas : IRepositorioReservas, IConsultaReser
         var reservas = await consulta.OrderBy(r => r.FechaHora).ToListAsync(ct).ConfigureAwait(false);
         return reservas.Select(ReservaDto.Desde).ToList();
     }
+}
+
+internal sealed class RepositorioTurnos : IRepositorioTurnos
+{
+    private readonly ReservasDbContext _contexto;
+
+    public RepositorioTurnos(ReservasDbContext contexto) => _contexto = contexto;
+
+    public Task<Turno?> ObtenerPorIdAsync(Guid id, CancellationToken ct = default) =>
+        _contexto.Turnos.SingleOrDefaultAsync(t => t.Id == id, ct);
+
+    public async Task<IReadOnlyList<Turno>> ListarActivosAsync(Guid empresaId, CancellationToken ct = default) =>
+        await _contexto.Turnos.Where(t => t.EmpresaId == empresaId && t.Activo).ToListAsync(ct).ConfigureAwait(false);
+
+    public async Task<IReadOnlyList<Turno>> ListarTodosAsync(Guid empresaId, CancellationToken ct = default) =>
+        await _contexto.Turnos.Where(t => t.EmpresaId == empresaId).OrderByDescending(t => t.Activo).ThenBy(t => t.HoraInicio).ToListAsync(ct).ConfigureAwait(false);
+
+    public void Agregar(Turno turno) => _contexto.Turnos.Add(turno);
 }
 
 internal sealed class RepositorioAgenda : IRepositorioAgenda

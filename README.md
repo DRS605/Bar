@@ -143,7 +143,7 @@ dotnet ef migrations add <Nombre> \
 | **Gastos** | ✅ Terminado |
 | **Tesorería** (cobros y pagos) | ✅ Terminado |
 | **Hostelería** (mesas y comandas de bar/restaurante → ticket) | ✅ Terminado |
-| **Reservas** (agenda + calendario iCal para Google/Apple/Outlook) | ✅ Terminado |
+| **Reservas** (agenda, turnos/horarios con aforo, calendario iCal) | ✅ Terminado |
 | **Documentos** (PDF y email) | ✅ Terminado |
 | **Informes** (dashboard, libros de IVA, gestoría, beneficio) | ✅ Terminado |
 | **Auditoría** (registro de quién hizo qué y cuándo) | ✅ Terminado |

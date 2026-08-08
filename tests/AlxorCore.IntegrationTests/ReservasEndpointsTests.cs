@@ -139,4 +139,65 @@ public sealed class ReservasEndpointsTests : IClassFixture<FabricaApiPruebas>
         var cliente = await Ayudas.AutenticadoAsync(_fabrica);
         (await cliente.GetAsync(new Uri("/reservas", UriKind.Relative))).StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
+
+    private sealed record TurnoResp(Guid Id, string Nombre, int Dias, string HoraInicio, string HoraFin, int AforoComensales, bool Activo);
+    private sealed record DispResp(Guid TurnoId, string Nombre, int Aforo, int Reservado, int Libre);
+
+    private static object Reserva(DateTimeOffset cuando, int pax) => new
+    {
+        NombreCliente = "Ana",
+        FechaHora = cuando,
+        Comensales = pax,
+    };
+
+    [Fact]
+    public async Task Los_turnos_definen_el_horario_y_el_aforo_de_las_reservas()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+
+        // Cena todos los días 20:00–23:30 con aforo 4.
+        var crear = await cliente.PostAsJsonAsync("/turnos", new { Nombre = "Cena", Dias = 127, HoraInicio = "20:00", HoraFin = "23:30", AforoComensales = 4 });
+        crear.StatusCode.Should().Be(HttpStatusCode.Created);
+        var turno = (await crear.Content.ReadFromJsonAsync<TurnoResp>())!;
+        turno.HoraInicio.Should().Be("20:00");
+
+        var lista = await cliente.GetFromJsonAsync<List<TurnoResp>>("/turnos");
+        lista.Should().ContainSingle(t => t.Id == turno.Id && t.Activo);
+
+        var dia = new DateTimeOffset(2026, 2, 14, 0, 0, 0, TimeSpan.Zero);
+
+        // Fuera de horario (18:00) → 400.
+        var fuera = await cliente.PostAsJsonAsync("/reservas", Reserva(dia.AddHours(18), 2));
+        fuera.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        // Dentro de horario (21:00), 3 pax → OK.
+        var dentro = await cliente.PostAsJsonAsync("/reservas", Reserva(dia.AddHours(21), 3));
+        dentro.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        // Otra de 2 pax (22:00) supera el aforo de 4 → 409.
+        var lleno = await cliente.PostAsJsonAsync("/reservas", Reserva(dia.AddHours(22), 2));
+        lleno.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        // Disponibilidad del día: 3 reservados, 1 libre.
+        var disp = await cliente.GetFromJsonAsync<List<DispResp>>("/reservas/disponibilidad?dia=2026-02-14");
+        var d = disp!.Single(x => x.TurnoId == turno.Id);
+        d.Aforo.Should().Be(4);
+        d.Reservado.Should().Be(3);
+        d.Libre.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Un_turno_desactivado_deja_de_restringir()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var turno = (await (await cliente.PostAsJsonAsync("/turnos", new { Nombre = "Comida", Dias = 127, HoraInicio = "13:00", HoraFin = "16:00", AforoComensales = 2 })).Content.ReadFromJsonAsync<TurnoResp>())!;
+
+        var dia = new DateTimeOffset(2026, 2, 14, 0, 0, 0, TimeSpan.Zero);
+        // A las 21:00 no hay turno → 400.
+        (await cliente.PostAsJsonAsync("/reservas", Reserva(dia.AddHours(21), 2))).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        // Al retirar el único turno, se abre la reserva libre.
+        (await cliente.DeleteAsync(new Uri($"/turnos/{turno.Id}", UriKind.Relative))).StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await cliente.PostAsJsonAsync("/reservas", Reserva(dia.AddHours(21), 2))).StatusCode.Should().Be(HttpStatusCode.Created);
+    }
 }

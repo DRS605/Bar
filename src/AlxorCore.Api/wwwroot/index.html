@@ -851,9 +851,33 @@
         return b.join(" "); };
       const filas=reservas.map(r=>`<tr><td>${new Date(r.fechaHora).toLocaleString("es-ES",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</td><td><strong>${r.nombreCliente}</strong>${r.telefono?`<br><small class="muted">${r.telefono}</small>`:""}</td><td class="num">${r.comensales}</td><td>${r.mesaId?mesaNombre(r.mesaId):"—"}</td><td>${pill(r.estado)}</td><td class="right" style="white-space:nowrap">${acc(r)}</td></tr>`).join("");
       const cuerpo=reservas.length?`<table><thead><tr><th>Cuándo</th><th>Cliente</th><th class="num">Pax</th><th>Mesa</th><th>Estado</th><th></th></tr></thead><tbody>${filas}</tbody></table><p class="muted" style="font-size:12px;margin:12px 0 0">«Sentar» abre la comanda de la mesa asignada. Con 📅 descargas la reserva para tu calendario; con «Suscribir calendario» conectas Google, Apple u Outlook.</p>`:vacio("reservas","Sin reservas todavía","Anota la primera reserva y compártela con tu calendario.",`<button class="btn small" onclick="resNueva()">+ Nueva reserva</button>`);
-      const acciones=`<div style="display:flex;gap:8px"><button class="btn small ghost" onclick="resSuscribir()">📆 Suscribir calendario</button><button class="btn small" onclick="resNueva()">+ Nueva reserva</button></div>`;
+      const acciones=`<div style="display:flex;gap:8px"><button class="btn small ghost" onclick="vTurnos()">⏱ Turnos y horarios</button><button class="btn small ghost" onclick="resSuscribir()">📆 Suscribir calendario</button><button class="btn small" onclick="resNueva()">+ Nueva reserva</button></div>`;
       view(panel("Reservas",cuerpo,acciones));
     }
+    /* --- Turnos y horarios --- */
+    const DIAS_SEMANA=[["L",1],["M",2],["X",4],["J",8],["V",16],["S",32],["D",64]];
+    let turnosCache=[];
+    async function vTurnos(){
+      view('<div class="muted">Cargando…</div>');
+      const ts=await api("/turnos"); turnosCache=ts;
+      const chips=t=>t.diasNombres.map(d=>`<span class="pill" style="padding:2px 7px">${d}</span>`).join(" ")||'<span class="muted">—</span>';
+      const filas=ts.map(t=>`<tr style="${t.activo?"":"opacity:.5"}"><td><strong>${t.nombre}</strong></td><td>${chips(t)}</td><td class="mono">${t.horaInicio}–${t.horaFin}</td><td class="num">${t.aforoComensales>0?t.aforoComensales:'<span class="muted">sin límite</span>'}</td><td class="right">${t.activo?`<button class="btn small ghost" onclick="turnoEditar('${t.id}')">Editar</button> <button class="btn small secondary" onclick="turnoRetirar('${t.id}')">Retirar</button>`:'<span class="muted">Retirado</span>'}</td></tr>`).join("");
+      const cuerpo=ts.length?`<table><thead><tr><th>Turno</th><th>Días</th><th>Horario</th><th class="num">Aforo</th><th></th></tr></thead><tbody>${filas}</tbody></table><p class="muted" style="font-size:12px;margin:12px 0 0">Con turnos definidos, las reservas solo se aceptan dentro de su horario y hasta su aforo. Sin turnos, la reserva es libre a cualquier hora.</p>`:vacio("reservas","Sin turnos todavía","Crea turnos (Comida, Cena…) para fijar el horario y el aforo de las reservas.",`<button class="btn small" onclick="turnoModal()">+ Nuevo turno</button>`);
+      const acc=`<div style="display:flex;gap:8px"><button class="btn small ghost" onclick="vReservas()">← Reservas</button><button class="btn small" onclick="turnoModal()">+ Nuevo turno</button></div>`;
+      view(panel("Turnos y horarios",cuerpo,acc));
+    }
+    function turnoEditar(id){ const t=turnosCache.find(x=>x.id===id); if(t) turnoModal(t); }
+    function turnoModal(t){ const e=!!t;
+      const checks=DIAS_SEMANA.map(([l,v])=>`<label style="display:inline-flex;align-items:center;gap:4px;margin:0 12px 6px 0;font-weight:500"><input type="checkbox" class="tn_dia" value="${v}" ${(e?(t.dias&v):(v<=16))?"checked":""}/> ${l}</label>`).join("");
+      abrir(e?"Editar turno":"Nuevo turno",
+        `<label>Nombre</label><input id="tn_nombre" value="${e?t.nombre:""}" placeholder="Comida, Cena…"/>
+         <label style="margin-top:10px">Días</label><div style="margin:4px 0 4px">${checks}</div>
+         <div class="grid2"><div><label>Desde</label><input id="tn_ini" type="time" value="${e?t.horaInicio:"20:00"}"/></div><div><label>Hasta</label><input id="tn_fin" type="time" value="${e?t.horaFin:"23:30"}"/></div></div>
+         <label>Aforo — comensales (0 = sin límite)</label><input id="tn_aforo" type="number" min="0" value="${e?t.aforoComensales:0}"/>`,
+        async()=>{ let dias=0; document.querySelectorAll(".tn_dia:checked").forEach(c=>dias+=Number(c.value)); if(!dias)throw new Error("Elige al menos un día.");
+          const b=JSON.stringify({nombre:val("tn_nombre"),dias,horaInicio:val("tn_ini"),horaFin:val("tn_fin"),aforoComensales:Number(val("tn_aforo")||0)});
+          await api("/turnos"+(e?"/"+t.id:""),{method:e?"PUT":"POST",body:b}); toast(e?"Turno actualizado":"Turno creado","ok"); vTurnos(); }); }
+    async function turnoRetirar(id){ try{ await api("/turnos/"+id,{method:"DELETE"}); toast("Turno retirado","ok"); vTurnos(); }catch(e){ toast(e.message,"err"); } }
     function resNueva(){ resModal(null); }
     function resEditar(id){ const r=resReservas.find(x=>x.id===id); if(r) resModal(r); }
     function resModal(r){ const e=!!r;

@@ -19,6 +19,23 @@ Ciclo de vida (máquina de estados):
 Solo se puede **editar** una reserva mientras está Pendiente o Confirmada. Sentar reutiliza
 `AbrirComanda` de Hostelería, de modo que la mesa queda ocupada y lista para pedir.
 
+## Turnos y horarios
+
+`Turno` { Nombre («Comida», «Cena»…), **Dias** (banderas de la semana), **HoraInicio/HoraFin**,
+**AforoComensales** (0 = sin límite), Activo }. Multiempresa (RLS por empresa). Un turno define a la
+vez el **horario** en que el local acepta reservas y, si se indica, el **aforo** de comensales.
+`Turno.Aplica(fechaHora)` decide si cubre un momento (día + hora, admite cruzar la medianoche).
+
+Al crear o editar una reserva se comprueba la disponibilidad (`DisponibilidadTurnos`, función pura):
+
+- **Sin turnos definidos** → reserva **libre** a cualquier hora (comportamiento por defecto).
+- **Con turnos** → la reserva debe caer en un turno abierto (si no, `reserva.fuera_de_horario`, 400) y
+  no superar su aforo sumando el resto de reservas activas de ese turno y día (si lo supera,
+  `reserva.aforo_completo`, 409). Las canceladas y no-shows no cuentan.
+
+`GET /reservas/disponibilidad?dia=` devuelve, por turno, el aforo, lo **reservado** y lo **libre** de
+esa fecha.
+
 ## Calendario iCalendar (conexión con Google y otras apps)
 
 `GeneradorICal` produce documentos **iCalendar (RFC 5545)** —un `VEVENT` por reserva— que entienden
@@ -50,26 +67,32 @@ entonces se fija el contexto para leer sus reservas con el aislamiento habitual 
 | `GET` | `/reservas/agenda` | permiso `reserva.gestionar` | Enlace suscribible de la agenda. |
 | `POST` | `/reservas/agenda/regenerar` | permiso `reserva.gestionar` | Regenera el enlace (invalida el anterior). |
 | `GET` | `/agenda/{token}.ics` | **anónimo** (token) | Feed iCalendar suscribible de la empresa. |
+| `GET` | `/reservas/disponibilidad?dia=` | JWT + empresa | Aforo usado/libre por turno en una fecha. |
+| `GET` | `/turnos` | JWT + empresa | Lista de turnos (horarios). |
+| `POST` | `/turnos` | permiso `reserva.gestionar` | Crea un turno. **201** |
+| `PUT` | `/turnos/{id}` | permiso `reserva.gestionar` | Actualiza un turno. |
+| `DELETE` | `/turnos/{id}` | permiso `reserva.gestionar` | Retira (desactiva) un turno. **204** |
 
 El permiso **`reserva.gestionar`** lo tienen los roles *Propietario* y *Usuario*.
 
 ## Persistencia
 
-Esquema **`reservas`**: `reserva` (RLS por empresa) y `agenda_calendario` (mapa token→empresa, sin RLS
-para poder resolver el feed público). Repositorios de escritura (`IRepositorioReservas`,
-`IRepositorioAgenda`) y consulta (`IConsultaReservas`).
+Esquema **`reservas`**: `reserva` y `turno` (RLS por empresa) y `agenda_calendario` (mapa
+token→empresa, sin RLS para poder resolver el feed público). Repositorios de escritura
+(`IRepositorioReservas`, `IRepositorioTurnos`, `IRepositorioAgenda`) y consulta (`IConsultaReservas`).
 
 ## Interfaz web
 
 Sección **«Reservas»**: agenda con estados y acciones (confirmar, cancelar, no-show, **sentar**),
 alta/edición con mesa y duración, descarga `.ics` por reserva y botón **«Suscribir calendario»** que
-muestra el enlace para pegar en Google/Apple/Outlook.
+muestra el enlace para pegar en Google/Apple/Outlook. Desde ahí se abre **«Turnos y horarios»** para
+crear/editar/retirar turnos (días, franja horaria y aforo).
 
 ## Tests
 
-- **Unitarios**: máquina de estados de `Reserva` (crear/validar, confirmar, cancelar, sentar, no
-  editable tras cerrar) y formato del `GeneradorICal` (VCALENDAR/VEVENT, fechas UTC, escapado, estado
-  CANCELLED).
+- **Unitarios**: máquina de estados de `Reserva`; `Turno.Aplica` (día/hora, cruce de medianoche) y la
+  validación de `DisponibilidadTurnos` (sin turnos, fuera de horario, aforo, canceladas, edición); y
+  formato del `GeneradorICal` (VCALENDAR/VEVENT, fechas UTC, escapado, estado CANCELLED).
 - **Integración**: alta y listado, transiciones, sentar que abre comanda y ocupa la mesa, descarga
-  `.ics`, feed suscribible **sin sesión** con token válido/ inválido, regeneración del enlace y
-  exigencia de empresa activa.
+  `.ics`, feed suscribible **sin sesión** con token válido/inválido, regeneración del enlace, turnos
+  que imponen horario y aforo (con disponibilidad) y su desactivación, y exigencia de empresa activa.

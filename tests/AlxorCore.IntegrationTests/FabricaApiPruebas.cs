@@ -78,7 +78,7 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>, IAsyncLi
         await auditoria.Database.MigrateAsync().ConfigureAwait(false);
 
         await identidad.Database.ExecuteSqlRawAsync(
-            "TRUNCATE identidad.usuario, organizacion.empresa, organizacion.membresia, organizacion.serie_numeracion, terceros.cliente, terceros.proveedor, catalogo.producto, catalogo.movimiento_stock, facturacion.factura, facturacion.linea_factura, facturacion.factura_recurrente, facturacion.linea_recurrente, facturacion.presupuesto, facturacion.linea_presupuesto, gastos.gasto, tesoreria.movimiento, hosteleria.linea_comanda, hosteleria.comanda, hosteleria.mesa, reservas.reserva, reservas.agenda_calendario, auditoria.registro_auditoria")
+            "TRUNCATE identidad.usuario, organizacion.empresa, organizacion.membresia, organizacion.serie_numeracion, terceros.cliente, terceros.proveedor, catalogo.producto, catalogo.movimiento_stock, facturacion.factura, facturacion.linea_factura, facturacion.factura_recurrente, facturacion.linea_recurrente, facturacion.presupuesto, facturacion.linea_presupuesto, gastos.gasto, tesoreria.movimiento, hosteleria.linea_comanda, hosteleria.comanda, hosteleria.mesa, reservas.reserva, reservas.turno, reservas.agenda_calendario, auditoria.registro_auditoria")
             .ConfigureAwait(false);
     }
 
