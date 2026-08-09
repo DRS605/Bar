@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ALXOR · Core One</title>
+  <title>Comandia · Hostelería</title>
   <style>
     :root {
       /* Paleta: cian de acento contrastado con azul marino en el texto. */
@@ -218,16 +218,16 @@
   <!-- LOGIN -->
   <div id="login" class="login">
     <div class="promo">
-      <div class="wordmark"><span class="mark"></span> ALXOR <span class="tag">Core One</span></div>
-      <h2>La gestión de tu negocio, sin manual.</h2>
-      <p class="lead">Factura, controla tus gastos y cobra a tiempo. Todo en un sitio, en menos clics.</p>
+      <div class="wordmark"><span class="mark"></span> Comandia <span class="tag">Hostelería</span></div>
+      <h2>Tu bar, bajo control. Sin manual.</h2>
+      <p class="lead">Mesas, comandas, reservas y facturación. Todo en un sitio, en menos clics.</p>
       <ul>
         <li>${'' /* placeholders replaced below */}</li>
       </ul>
     </div>
     <div class="panel">
       <div class="login-card">
-        <div class="wordmark" style="margin-bottom:26px"><span class="mark"></span> ALXOR <span class="tag">Core One</span></div>
+        <div class="wordmark" style="margin-bottom:26px"><span class="mark"></span> Comandia <span class="tag">Hostelería</span></div>
         <h1>Bienvenido de nuevo</h1>
         <p class="sub">Entra para gestionar tu empresa.</p>
         <label>Correo electrónico</label>
@@ -248,7 +248,7 @@
   <!-- APP -->
   <div id="app" class="app">
     <aside class="sidebar">
-      <div class="head"><div class="wordmark" style="font-size:17px"><span class="mark"></span> ALXOR</div><span class="tag">Core One</span></div>
+      <div class="head"><div class="wordmark" style="font-size:17px"><span class="mark"></span> Comandia</div><span class="tag">Hostelería</span></div>
       <div class="navlabel">Gestión</div>
       <nav id="nav"></nav>
       <div class="spacer"></div>
@@ -434,7 +434,7 @@
       const hero=`<div class="hero">
         <span class="eyebrow"><span class="dot"></span>${fecha.charAt(0).toUpperCase()+fecha.slice(1)}</span>
         <h1>${saludo}, ${nombre} 👋</h1>
-        <p>Este es el pulso de <strong>${empresa.razonSocial}</strong>. Emite una factura, registra un gasto o deja que ALXOR facture solo por ti.</p>
+        <p>Este es el pulso de <strong>${empresa.razonSocial}</strong>. Emite una factura, registra un gasto o deja que Comandia facture solo por ti.</p>
         <div class="acciones">
           <button class="btn light" onclick="modalFactura()">＋ Nueva factura</button>
           <button class="btn line" onclick="ir('recurrentes')">↻ Facturación periódica</button>
@@ -475,7 +475,7 @@
       const filas=rs.map(r=>`<tr><td><strong>${r.nombre}</strong></td><td>${r.clienteNombre}</td><td class="muted">${r.periodicidad}</td><td class="muted">${fdate(r.proximaEmision)}</td><td class="num"><strong>${eur(r.total)}</strong></td><td class="right">${badge(r.activa)}</td><td class="right"><button class="btn small secondary" onclick="toggleRecurrente('${r.id}',${!r.activa})">${r.activa?'Pausar':'Reanudar'}</button></td></tr>`).join("");
       const acciones=`<div style="display:flex;gap:10px;align-items:center"><button class="btn small ghost" onclick="procesarRecurrentes()">↻ Emitir vencidas</button><button class="btn small" onclick="modalRecurrente()">+ Nueva periódica</button></div>`;
       const cuerpo=rs.length?`<table><thead><tr><th>Concepto</th><th>Cliente</th><th>Cada</th><th>Próxima</th><th class="num">Importe</th><th class="right">Estado</th><th></th></tr></thead><tbody>${filas}</tbody></table>`
-        :vacio("recurrentes","Sin facturación periódica todavía","Crea una suscripción o cuota y ALXOR emitirá la factura solo cuando toque.",`<button class="btn small" onclick="modalRecurrente()">+ Nueva periódica</button>`);
+        :vacio("recurrentes","Sin facturación periódica todavía","Crea una suscripción o cuota y Comandia emitirá la factura solo cuando toque.",`<button class="btn small" onclick="modalRecurrente()">+ Nueva periódica</button>`);
       view(panel("Facturación periódica",cuerpo,acciones));
     }
     async function toggleRecurrente(id,activa){ try{ await api(`/facturas-recurrentes/${id}/estado`,{method:"POST",body:JSON.stringify({activa})}); vRecurrentes(); }catch(e){ alert(e.message);} }

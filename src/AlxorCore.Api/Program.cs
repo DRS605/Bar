@@ -81,9 +81,9 @@ builder.Services.AddSwaggerGen(opciones =>
 {
     opciones.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "ALXOR Core API",
+        Title = "Comandia API",
         Version = "v1",
-        Description = "API del núcleo ALXOR Core. Módulo Identidad.",
+        Description = "API de Comandia — gestión de hostelería (sobre ALXOR Core).",
     });
 
     var esquemaJwt = new OpenApiSecurityScheme
