@@ -65,8 +65,8 @@
     .btn.ghost { background: var(--accent-soft); color: var(--accent); box-shadow:none; }
     .error { color: var(--neg); font-size: 12.5px; margin-top: 12px; min-height: 16px; }
 
-    /* ---------- APP shell ---------- */
-    .app { display:none; grid-template-columns: 248px 1fr; min-height: 100vh; }
+    /* ---------- APP shell (sin barra lateral: menú en teselas) ---------- */
+    .app { display:none; flex-direction:column; min-height: 100vh; }
     .sidebar { background: var(--side); border-right: none; padding: 18px 14px; display:flex; flex-direction:column; }
     .sidebar .head { display:flex; align-items:center; justify-content:flex-start; gap:10px; flex-wrap:wrap; padding: 4px 6px 18px; }
     .sidebar .head .wordmark { color: var(--side-strong); font-family: var(--display); font-weight:700; }
@@ -90,12 +90,40 @@
     .userbox .who b { font-size: 13px; color: var(--side-strong); } .userbox .who span { font-size: 12px; color: rgba(255,255,255,.45); }
 
     .main { display:flex; flex-direction:column; min-width:0; }
-    .topbar { height: 66px; border-bottom: 1px solid var(--line); background: var(--surface); display:flex; align-items:center; justify-content:space-between; padding: 0 30px; }
+    .topbar { height: 64px; border-bottom: 1px solid var(--line); background: var(--surface); display:flex; align-items:center; justify-content:space-between; padding: 0 26px; position:sticky; top:0; z-index:20; }
+    .tb-left { display:flex; align-items:center; gap:14px; min-width:0; }
+    .brandbtn { display:flex; align-items:center; gap:10px; background:none; border:none; padding:0; cursor:pointer; }
+    .brandbtn .mark { width:32px; height:32px; border-radius:9px; }
+    .brandbtn .mark svg { width:19px; height:19px; }
+    .brandbtn .brandtxt { font-family: var(--display); font-weight:700; font-size:19px; color: var(--ink); letter-spacing:0; }
+    .back { background: var(--accent-soft); color: var(--accent); border:none; border-radius:999px; padding:7px 14px; font-weight:650; font-size:13px; cursor:pointer; }
+    .back:hover { filter: brightness(.97); }
     .topbar .title { font-size: 16px; font-weight: 680; letter-spacing:-.01em; }
+    .tb-left .brandbtn + .title { padding-left:14px; border-left:1px solid var(--line); }
     .company { display:flex; align-items:center; gap:10px; color:var(--muted); font-weight: 550; }
     .company .chip { display:flex; align-items:center; gap:8px; background:#f5f6f8; border:1px solid var(--line); padding: 6px 12px; border-radius: 999px; }
     .avatar { width:32px; height:32px; border-radius:50%; background: var(--grad); color:#fff; display:grid; place-items:center; font-weight:650; font-size:13px; flex:none; }
-    .content { padding: 28px 30px; max-width: 1120px; width: 100%; }
+    .content { padding: 30px; max-width: 1180px; width: 100%; margin: 0 auto; }
+
+    /* ---------- Lanzador (inicio): saludo + KPIs + teselas ---------- */
+    .lgreet { margin: 2px 0 22px; }
+    .lgreet .eyebrow { display:inline-flex; align-items:center; gap:7px; font-size:11.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: var(--accent); margin-bottom:8px; }
+    .lgreet .eyebrow .dot { width:7px; height:7px; border-radius:50%; background: var(--pos); }
+    .lgreet h1 { font-family: var(--display); font-weight:600; font-size: clamp(26px,3.6vw,34px); letter-spacing:-.01em; margin:0 0 4px; }
+    .lgreet p { color: var(--muted); margin:0; font-size:14.5px; }
+    .catlabel { font-size: 11px; text-transform:uppercase; letter-spacing:.1em; color: var(--muted); font-weight:700; margin: 26px 2px 12px; }
+    .tiles { display:grid; grid-template-columns: repeat(auto-fill, minmax(228px,1fr)); gap: 14px; }
+    .tile { display:flex; align-items:center; gap:14px; text-align:left; background: var(--surface); border:1px solid var(--line); border-radius:16px; padding:18px; cursor:pointer; transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease; box-shadow: var(--shadow); }
+    .tile:hover { transform: translateY(-3px); box-shadow: 0 12px 26px rgba(20,60,45,.12); border-color:#d5e3db; }
+    .tile .tileic { width:46px; height:46px; border-radius:13px; flex:none; display:grid; place-items:center; background: var(--accent-soft); color: var(--accent); }
+    .tile .tileic svg { width:23px; height:23px; stroke: currentColor; fill:none; stroke-width:1.8; }
+    .tile .tiletx { display:flex; flex-direction:column; gap:2px; min-width:0; }
+    .tile .tiletx b { font-size:15px; letter-spacing:-.01em; }
+    .tile .tiletx small { color: var(--muted); font-size:12.5px; }
+    .tile.feat { background: var(--side); border-color: var(--side); color:#eef4f0; }
+    .tile.feat .tiletx small { color: rgba(255,255,255,.6); }
+    .tile.feat .tileic { background: rgba(255,255,255,.14); color:#fff; }
+    .tile.feat:hover { box-shadow: 0 14px 30px rgba(20,60,45,.35); }
 
     .greet { margin-bottom: 22px; }
     .greet h1 { font-family: var(--display); font-weight:600; font-size: 26px; letter-spacing:-.01em; margin: 0 0 4px; }
@@ -254,24 +282,18 @@
 
   <!-- APP -->
   <div id="app" class="app">
-    <aside class="sidebar">
-      <div class="head"><div class="wordmark" style="font-size:17px"><span class="mark"><svg viewBox="0 0 24 24"><path d="M6.4 3.4h8.2L18 6.8V19a1.3 1.3 0 0 1-1.3 1.3H6.4A1.3 1.3 0 0 1 5.1 19V4.7A1.3 1.3 0 0 1 6.4 3.4z"/><path d="M14.3 3.5V7H18"/><path d="M8.2 13.1l2.3 2.3 4.6-4.7"/></svg></span> Comandia</div><span class="tag">Hostelería</span></div>
-      <div class="navlabel">Gestión</div>
-      <nav id="nav"></nav>
-      <div class="spacer"></div>
-      <div class="userbox"><div class="avatar" id="sideAvatar">U</div><div class="who"><b id="sideNombre">Usuario</b><br><span id="sideEmpresa">—</span></div></div>
-    </aside>
-    <div class="main">
-      <header class="topbar">
-        <div style="display:flex;align-items:center;gap:10px;min-width:0">
-          <button class="hamb" id="hambBtn" onclick="toggleMenu()" aria-label="Abrir menú">☰</button>
-          <div class="title" id="viewTitle">Inicio</div>
-        </div>
-        <div class="company"><span class="chip" id="empresaChip"></span><div class="avatar" id="avatar">U</div></div>
-      </header>
-      <div class="content" id="view"></div>
-    </div>
-    <div class="backdrop" id="backdrop" onclick="closeMenu()"></div>
+    <header class="topbar">
+      <div class="tb-left">
+        <button class="brandbtn" onclick="ir('inicio')" aria-label="Inicio">
+          <span class="mark"><svg viewBox="0 0 24 24"><path d="M6.4 3.4h8.2L18 6.8V19a1.3 1.3 0 0 1-1.3 1.3H6.4A1.3 1.3 0 0 1 5.1 19V4.7A1.3 1.3 0 0 1 6.4 3.4z"/><path d="M14.3 3.5V7H18"/><path d="M8.2 13.1l2.3 2.3 4.6-4.7"/></svg></span>
+          <span class="brandtxt">Comandia</span>
+        </button>
+        <button class="back" id="backBtn" onclick="ir('inicio')" style="display:none">‹ Inicio</button>
+        <div class="title" id="viewTitle"></div>
+      </div>
+      <div class="company"><span class="chip" id="empresaChip"></span><div class="avatar" id="avatar">U</div></div>
+    </header>
+    <div class="content" id="view"></div>
   </div>
 
   <!-- MODAL -->
@@ -406,24 +428,22 @@
 
     function arrancar() {
       document.getElementById("login").style.display="none";
-      document.getElementById("app").style.display="grid";
+      document.getElementById("app").style.display="flex";
       const ini=(usuario?.nombre||"U").slice(0,1).toUpperCase();
       document.getElementById("avatar").textContent=ini;
-      document.getElementById("sideAvatar").textContent=ini;
-      document.getElementById("sideNombre").textContent=usuario?.nombre||"Usuario";
-      document.getElementById("sideEmpresa").textContent=empresa.razonSocial;
       const chip=document.getElementById("empresaChip");
       chip.innerHTML=`<span class="avatar mini">${empresa.razonSocial.slice(0,1)}</span><span class="cname">${empresa.razonSocial}</span> <span style="opacity:.6;margin-left:4px">▾</span>`;
       chip.style.cursor="pointer"; chip.title="Cambiar de empresa"; chip.onclick=modalEmpresas;
-      document.getElementById("nav").innerHTML=renderNav();
       ir("inicio");
     }
 
-    function toggleMenu(){ const s=document.querySelector(".sidebar"), b=document.getElementById("backdrop"); const abierto=s.classList.toggle("open"); b.classList.toggle("show",abierto); }
-    function closeMenu(){ const s=document.querySelector(".sidebar"), b=document.getElementById("backdrop"); if(s)s.classList.remove("open"); if(b)b.classList.remove("show"); }
-    function ir(k){ closeMenu(); if(vista==="tpv" && k!=="tpv" && typeof tpvParar==="function") tpvParar(); vista=k;
-      document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("active",a.dataset.k===k));
-      document.getElementById("viewTitle").textContent=TITULOS[k]||k;
+    function toggleMenu(){}
+    function closeMenu(){}
+    function ir(k){ if(vista==="tpv" && k!=="tpv" && typeof tpvParar==="function") tpvParar(); vista=k;
+      const back=document.getElementById("backBtn"), title=document.getElementById("viewTitle");
+      if(k==="inicio"){ if(back)back.style.display="none"; if(title)title.textContent=""; }
+      else { if(back)back.style.display=""; if(title)title.textContent=TITULOS[k]||k; }
+      window.scrollTo(0,0);
       ({inicio:vInicio,presupuestos:vPresupuestos,facturas:vFacturas,tpv:vTpv,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,hosteleria:vHosteleria,plano:vPlano,reservas:vReservas,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,remesas:vRemesa,pagos:vPagos,conciliacion:vConciliacion,informes:vInformes,ajustes:vAjustes}[k])();
     }
     const view = h => document.getElementById("view").innerHTML=h;
@@ -433,34 +453,27 @@
 
     async function vInicio() {
       view('<div class="muted">Cargando…</div>');
-      const [d,facturas,recurrentes]=await Promise.all([api("/informes/dashboard"),api("/facturas"),api("/facturas-recurrentes").catch(()=>[])]);
+      const [d,mesas,reservas]=await Promise.all([api("/informes/dashboard"),api("/mesas").catch(()=>[]),api("/reservas").catch(()=>[])]);
       const fecha=new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"});
       const hora=new Date().getHours(); const saludo=hora<13?"Buenos días":hora<20?"Buenas tardes":"Buenas noches";
       const nombre=(usuario?.nombre||"").split(" ")[0];
-      const hero=`<div class="hero">
-        <span class="eyebrow"><span class="dot"></span>${fecha.charAt(0).toUpperCase()+fecha.slice(1)}</span>
-        <h1>${saludo}, ${nombre} 👋</h1>
-        <p>Este es el pulso de <strong>${empresa.razonSocial}</strong>. Abre una mesa, cobra un ticket o registra una compra.</p>
-        <div class="acciones">
-          <button class="btn light" onclick="ir('tpv')">🧾 Ir al TPV</button>
-          <button class="btn line" onclick="ir('hosteleria')">🍽 Mesas y barra</button>
-          <button class="btn line" onclick="modalGasto()">＋ Registrar gasto</button>
-        </div></div>`;
+      const ocup=mesas.filter(m=>m.ocupada).length;
+      const hoy=new Date().toISOString().slice(0,10);
+      const resHoy=reservas.filter(r=>String(r.fechaHora).slice(0,10)===hoy && (r.estado==="Pendiente"||r.estado==="Confirmada")).length;
+      const greet=`<div class="lgreet"><span class="eyebrow"><span class="dot"></span>${fecha.charAt(0).toUpperCase()+fecha.slice(1)}</span><h1>${saludo}, ${nombre}</h1><p>Este es el pulso de <strong>${empresa.razonSocial}</strong>. Elige por dónde empezar.</p></div>`;
       const kpis=`<div class="kpis">
         <div class="kpi"><div class="top"><div class="chipico">${kIcon.fact}</div></div><div class="lbl">Ventas este mes</div><div class="val">${eur(d.facturadoMes)}</div></div>
-        <div class="kpi warn"><div class="top"><div class="chipico">${kIcon.cobro}</div></div><div class="lbl">Pendiente de cobro</div><div class="val ${d.pendienteCobro>0?'neg':''}">${eur(d.pendienteCobro)}</div></div>
         <div class="kpi"><div class="top"><div class="chipico">${kIcon.gasto}</div></div><div class="lbl">Gastos este mes</div><div class="val">${eur(d.gastadoMes)}</div></div>
-        <div class="kpi pos"><div class="top"><div class="chipico">${kIcon.pago}</div></div><div class="lbl">Pendiente de pago</div><div class="val">${eur(d.pendientePago)}</div></div></div>`;
-      const filas=facturas.slice(0,6).map(f=>`<tr><td><strong>${f.numeroCompleto}</strong></td><td>${f.clienteNombre}</td><td class="muted">${fdate(f.fechaEmision)}</td><td class="num"><strong>${eur(f.total)}</strong></td><td class="right"><span class="pill ok">${f.estado}</span></td></tr>`).join("");
-      const tabla=facturas.length?`<table><thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th class="num">Total</th><th class="right">Estado</th></tr></thead><tbody>${filas}</tbody></table>`
-        :vacio("facturas","Aún no has emitido facturas","Crea tu primera factura y cóbrala en un minuto.",`<button class="btn small" onclick="modalFactura()">+ Nueva factura</button>`);
-      const activas=recurrentes.filter(r=>r.activa).sort((a,b)=>a.proximaEmision<b.proximaEmision?-1:1).slice(0,4);
-      let periodicas="";
-      if(activas.length){
-        const pf=activas.map(r=>`<tr><td><strong>${r.nombre}</strong></td><td>${r.clienteNombre}</td><td class="muted">${r.periodicidad}</td><td class="muted">${fdate(r.proximaEmision)}</td><td class="num"><strong>${eur(r.total)}</strong></td></tr>`).join("");
-        periodicas=panel("Próximas facturas automáticas",`<table><thead><tr><th>Concepto</th><th>Cliente</th><th>Cada</th><th>Próxima</th><th class="num">Importe</th></tr></thead><tbody>${pf}</tbody></table>`,`<button class="btn small ghost" onclick="ir('recurrentes')">Gestionar</button>`);
-      }
-      view(hero+kpis+panel("Últimas ventas",tabla)+periodicas);
+        <div class="kpi pos"><div class="top"><div class="chipico">${ICON.hosteleria}</div></div><div class="lbl">Mesas ocupadas</div><div class="val">${ocup}<span style="font-size:15px;color:var(--muted)"> / ${mesas.length}</span></div></div>
+        <div class="kpi"><div class="top"><div class="chipico">${ICON.reservas}</div></div><div class="lbl">Reservas hoy</div><div class="val">${resHoy}</div></div></div>`;
+      const tile=(k,titulo,hint,feat)=>`<button class="tile ${feat?'feat':''}" onclick="ir('${k}')"><span class="tileic">${ICON[k]}</span><span class="tiletx"><b>${titulo}</b><small>${hint}</small></span></button>`;
+      const grupo=(label,html)=>`<div class="catlabel">${label}</div><div class="tiles">${html}</div>`;
+      const menu=
+        grupo("Sala", tile("hosteleria","Barra / Salón",`${ocup} de ${mesas.length} mesas ocupadas`)+tile("plano","Plano del local","Croquis y zonas")+tile("reservas","Reservas",`${resHoy} para hoy`))+
+        grupo("Ventas", tile("tpv","TPV · Tickets","Cobrar en la barra",true)+tile("clientes","Clientes","Habituales y datos"))+
+        grupo("Compras", tile("gastos","Gastos","Compras y tickets de proveedor")+tile("proveedores","Proveedores","Tu agenda")+tile("pagos","Pagos","Pagos a proveedores"))+
+        grupo("Catálogo y datos", tile("productos","Artículos","Carta y stock")+tile("informes","Informes","Ventas y libros")+tile("ajustes","Ajustes","Empresa y usuarios"));
+      view(greet+kpis+menu);
     }
 
     async function vFacturas() {
