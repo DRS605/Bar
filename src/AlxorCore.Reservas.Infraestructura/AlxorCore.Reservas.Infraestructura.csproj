@@ -9,6 +9,10 @@
     <ProjectReference Include="..\AlxorCore.Nucleo\AlxorCore.Nucleo.csproj" />
     <ProjectReference Include="..\AlxorCore.Persistencia\AlxorCore.Persistencia.csproj" />
     <ProjectReference Include="..\AlxorCore.Reservas\AlxorCore.Reservas.csproj" />
+    <!-- Para los correos: datos del local (Organización) y el envío + iCal (Documentos). -->
+    <ProjectReference Include="..\AlxorCore.Hosteleria\AlxorCore.Hosteleria.csproj" />
+    <ProjectReference Include="..\AlxorCore.Organizacion\AlxorCore.Organizacion.csproj" />
+    <ProjectReference Include="..\AlxorCore.Documentos\AlxorCore.Documentos.csproj" />
   </ItemGroup>
 
   <ItemGroup>

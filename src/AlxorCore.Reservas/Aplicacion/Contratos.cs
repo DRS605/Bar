@@ -24,12 +24,40 @@ public sealed record ReservaDto(
         r.Comensales, r.MesaId, r.Notas, r.Estado.ToString(), r.ComandaId, r.CreadaEn);
 }
 
-/// <summary>Repositorio de reservas (escritura).</summary>
+/// <summary>Tipo de correo que se envía al cliente de una reserva.</summary>
+public enum TipoCorreoReserva
+{
+    /// <summary>Al crear la reserva: confirmación con el archivo de calendario.</summary>
+    Confirmacion,
+
+    /// <summary>Recordatorio automático la víspera.</summary>
+    Recordatorio,
+
+    /// <summary>Aviso de cancelación.</summary>
+    Cancelacion,
+}
+
+/// <summary>
+/// Puerto de aviso al cliente por correo. La implementación compone el mensaje (asunto, cuerpo HTML
+/// y, salvo la cancelación, el adjunto iCalendar) y lo envía; es tolerante a fallos (nunca lanza).
+/// </summary>
+public interface INotificadorReservas
+{
+    Task EnviarAsync(TipoCorreoReserva tipo, Guid empresaId, ReservaDto reserva, CancellationToken ct = default);
+}
+
+/// <summary>Repositorio de reservas (escritura y lecturas de dominio para el recordatorio).</summary>
 public interface IRepositorioReservas
 {
     Task<Reserva?> ObtenerPorIdAsync(Guid id, CancellationToken ct = default);
 
     void Agregar(Reserva reserva);
+
+    /// <summary>Empresas con reservas activas, con correo y sin recordatorio, dentro de la ventana indicada.</summary>
+    Task<IReadOnlyList<Guid>> EmpresasConRecordatorioAsync(DateTimeOffset desde, DateTimeOffset hasta, CancellationToken ct = default);
+
+    /// <summary>Reservas de la empresa pendientes de recordatorio dentro de la ventana.</summary>
+    Task<IReadOnlyList<Reserva>> ListarParaRecordatorioAsync(Guid empresaId, DateTimeOffset desde, DateTimeOffset hasta, CancellationToken ct = default);
 }
 
 /// <summary>Consultas de lectura de reservas.</summary>

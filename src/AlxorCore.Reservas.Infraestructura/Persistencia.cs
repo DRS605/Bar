@@ -52,6 +52,7 @@ internal sealed class ConfiguracionReserva : IEntityTypeConfiguration<Reserva>
         builder.Property(r => r.Notas).HasColumnName("notas").HasMaxLength(Reserva.LongitudMaximaNotas);
         builder.Property(r => r.Estado).HasColumnName("estado").HasMaxLength(20).HasConversion<string>().IsRequired();
         builder.Property(r => r.ComandaId).HasColumnName("comanda_id");
+        builder.Property(r => r.RecordatorioEnviadoEn).HasColumnName("recordatorio_enviado_en");
         builder.Property(r => r.CreadaEn).HasColumnName("creada_en").IsRequired();
         builder.Property(r => r.ActualizadaEn).HasColumnName("actualizada_en").IsRequired();
 
@@ -110,6 +111,18 @@ internal sealed class RepositorioReservas : IRepositorioReservas, IConsultaReser
         _contexto.Reservas.SingleOrDefaultAsync(r => r.Id == id, ct);
 
     public void Agregar(Reserva reserva) => _contexto.Reservas.Add(reserva);
+
+    public async Task<IReadOnlyList<Guid>> EmpresasConRecordatorioAsync(DateTimeOffset desde, DateTimeOffset hasta, CancellationToken ct = default) =>
+        await _contexto.Reservas.IgnoreQueryFilters()
+            .Where(r => r.FechaHora >= desde && r.FechaHora <= hasta && r.RecordatorioEnviadoEn == null && r.Email != null
+                && (r.Estado == EstadoReserva.Pendiente || r.Estado == EstadoReserva.Confirmada))
+            .Select(r => r.EmpresaId).Distinct().ToListAsync(ct).ConfigureAwait(false);
+
+    public async Task<IReadOnlyList<Reserva>> ListarParaRecordatorioAsync(Guid empresaId, DateTimeOffset desde, DateTimeOffset hasta, CancellationToken ct = default) =>
+        await _contexto.Reservas
+            .Where(r => r.EmpresaId == empresaId && r.FechaHora >= desde && r.FechaHora <= hasta && r.RecordatorioEnviadoEn == null && r.Email != null
+                && (r.Estado == EstadoReserva.Pendiente || r.Estado == EstadoReserva.Confirmada))
+            .OrderBy(r => r.FechaHora).ToListAsync(ct).ConfigureAwait(false);
 
     public async Task<ReservaDto?> ObtenerAsync(Guid reservaId, CancellationToken ct = default)
     {

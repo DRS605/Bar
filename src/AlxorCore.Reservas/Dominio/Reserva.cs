@@ -85,6 +85,9 @@ public sealed class Reserva : RaizAgregadoEmpresa<Guid>
     /// <summary>Comanda abierta al sentar la reserva (si se abrió una); nulo en otro caso.</summary>
     public Guid? ComandaId { get; private set; }
 
+    /// <summary>Momento en que se envió el correo de recordatorio; nulo si aún no se ha enviado.</summary>
+    public DateTimeOffset? RecordatorioEnviadoEn { get; private set; }
+
     public DateTimeOffset CreadaEn { get; private set; }
 
     public DateTimeOffset ActualizadaEn { get; private set; }
@@ -190,6 +193,13 @@ public sealed class Reserva : RaizAgregadoEmpresa<Guid>
         ComandaId = comandaId;
         ActualizadaEn = reloj.AhoraUtc;
         return Resultado.Ok();
+    }
+
+    /// <summary>Marca que ya se ha enviado el recordatorio (para no repetirlo).</summary>
+    public void MarcarRecordatorioEnviado(IReloj reloj)
+    {
+        ArgumentNullException.ThrowIfNull(reloj);
+        RecordatorioEnviadoEn = reloj.AhoraUtc;
     }
 
     private static Error? Validar(string? nombre, ref string? telefono, ref string? email, ref int duracionMinutos, int comensales, ref string? notas)

@@ -1,10 +1,13 @@
+using AlxorCore.Documentos.Aplicacion;
 using AlxorCore.Identidad.Infraestructura.Persistencia;
 using AlxorCore.Organizacion.Infraestructura.Persistencia;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Npgsql;
 using Xunit;
 
@@ -32,9 +35,17 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>, IAsyncLi
         Environment.SetEnvironmentVariable("ConnectionStrings__AlxorCore", CadenaConexion);
     }
 
+    /// <summary>Doble de correo que captura los mensajes enviados, para poder comprobarlos en los tests.</summary>
+    public CorreoDePrueba Correos { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
+        builder.ConfigureTestServices(servicios =>
+        {
+            servicios.RemoveAll<IServicioCorreo>();
+            servicios.AddSingleton<IServicioCorreo>(Correos);
+        });
         builder.ConfigureAppConfiguration((_, configuracion) =>
         {
             configuracion.AddInMemoryCollection(new Dictionary<string, string?>
@@ -46,6 +57,7 @@ public sealed class FabricaApiPruebas : WebApplicationFactory<Program>, IAsyncLi
                 ["Jwt:MinutosExpiracion"] = "60",
                 // El proceso automático se prueba de forma determinista con /procesar; se apaga aquí.
                 ["FacturacionRecurrente:Activo"] = "false",
+                ["RecordatorioReservas:Activo"] = "false",
             });
         });
     }

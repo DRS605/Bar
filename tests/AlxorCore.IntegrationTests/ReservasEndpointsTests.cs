@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using AlxorCore.Documentos.Aplicacion;
 using FluentAssertions;
 using Xunit;
 
@@ -184,6 +185,77 @@ public sealed class ReservasEndpointsTests : IClassFixture<FabricaApiPruebas>
         d.Aforo.Should().Be(4);
         d.Reservado.Should().Be(3);
         d.Libre.Should().Be(1);
+    }
+
+    private sealed record EnviadosResp(int Enviados);
+
+    private static string EmailUnico() => $"cli-{Guid.NewGuid():N}@ej.com";
+
+    [Fact]
+    public async Task Al_crear_con_email_se_envia_confirmacion_con_ics()
+    {
+        _fabrica.Correos.Limpiar();
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var email = EmailUnico();
+
+        var crear = await cliente.PostAsJsonAsync("/reservas", new { NombreCliente = "Ana", FechaHora = Cuando, Comensales = 4, Email = email });
+        crear.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var msgs = _fabrica.Correos.Para(email);
+        msgs.Should().ContainSingle();
+        msgs[0].Asunto.Should().Contain("reserva");
+        msgs[0].Cuerpo.Should().Contain("Reserva confirmada").And.Contain("Empresa de Pruebas SL");
+        msgs[0].Adjunto.Length.Should().BeGreaterThan(0);
+        msgs[0].NombreAdjunto.Should().Be("reserva.ics");
+    }
+
+    [Fact]
+    public async Task Sin_email_no_se_envia_nada()
+    {
+        _fabrica.Correos.Limpiar();
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+
+        var crear = await cliente.PostAsJsonAsync("/reservas", new { NombreCliente = "Ana", FechaHora = Cuando, Comensales = 2 });
+        crear.StatusCode.Should().Be(HttpStatusCode.Created);
+        _fabrica.Correos.Total.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Al_cancelar_con_email_se_envia_aviso_sin_adjunto()
+    {
+        _fabrica.Correos.Limpiar();
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var email = EmailUnico();
+        var reserva = (await (await cliente.PostAsJsonAsync("/reservas", new { NombreCliente = "Ana", FechaHora = Cuando, Comensales = 2, Email = email })).Content.ReadFromJsonAsync<ReservaResp>())!;
+
+        await cliente.PostAsync(new Uri($"/reservas/{reserva.Id}/cancelar", UriKind.Relative), null);
+
+        var msgs = _fabrica.Correos.Para(email);
+        msgs.Should().HaveCount(2);
+        msgs[^1].Asunto.Should().Contain("cancelada");
+        msgs[^1].NombreAdjunto.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task El_recordatorio_se_envia_una_sola_vez_para_reservas_proximas()
+    {
+        _fabrica.Correos.Limpiar();
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var email = EmailUnico();
+        var cuando = DateTimeOffset.UtcNow.AddHours(3);
+        await cliente.PostAsJsonAsync("/reservas", new { NombreCliente = "Ana", FechaHora = cuando, Comensales = 2, Email = email });
+        _fabrica.Correos.Limpiar(); // descartamos la confirmación del alta
+
+        var r1 = await cliente.PostAsync(new Uri("/reservas/recordatorios/procesar", UriKind.Relative), null);
+        (await r1.Content.ReadFromJsonAsync<EnviadosResp>())!.Enviados.Should().Be(1);
+        var msgs = _fabrica.Correos.Para(email);
+        msgs.Should().ContainSingle();
+        msgs[0].Asunto.Should().Contain("Te esperamos");
+
+        // Segunda pasada: ya no se reenvía.
+        var r2 = await cliente.PostAsync(new Uri("/reservas/recordatorios/procesar", UriKind.Relative), null);
+        (await r2.Content.ReadFromJsonAsync<EnviadosResp>())!.Enviados.Should().Be(0);
+        _fabrica.Correos.Para(email).Should().ContainSingle();
     }
 
     [Fact]

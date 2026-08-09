@@ -50,6 +50,11 @@ builder.Services.Configure<AlxorCore.Api.Servicios.OpcionesFacturacionRecurrente
     builder.Configuration.GetSection(AlxorCore.Api.Servicios.OpcionesFacturacionRecurrente.Seccion));
 builder.Services.AddHostedService<AlxorCore.Api.Servicios.ServicioFacturacionRecurrente>();
 
+// --- Recordatorios de reservas (proceso en segundo plano) ---
+builder.Services.Configure<AlxorCore.Api.Servicios.OpcionesRecordatorioReservas>(
+    builder.Configuration.GetSection(AlxorCore.Api.Servicios.OpcionesRecordatorioReservas.Seccion));
+builder.Services.AddHostedService<AlxorCore.Api.Servicios.ServicioRecordatorioReservas>();
+
 // Los enumerados se serializan por nombre en la API.
 builder.Services.ConfigureHttpJsonOptions(opciones =>
     opciones.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));

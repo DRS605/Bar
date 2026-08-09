@@ -33,14 +33,16 @@ public sealed class CrearReserva
     private readonly IRepositorioReservas _reservas;
     private readonly IRepositorioTurnos _turnos;
     private readonly IConsultaReservas _consulta;
+    private readonly INotificadorReservas _notificador;
     private readonly IUnidadDeTrabajoReservas _unidadDeTrabajo;
     private readonly IReloj _reloj;
 
-    public CrearReserva(IRepositorioReservas reservas, IRepositorioTurnos turnos, IConsultaReservas consulta, IUnidadDeTrabajoReservas unidadDeTrabajo, IReloj reloj)
+    public CrearReserva(IRepositorioReservas reservas, IRepositorioTurnos turnos, IConsultaReservas consulta, INotificadorReservas notificador, IUnidadDeTrabajoReservas unidadDeTrabajo, IReloj reloj)
     {
         _reservas = reservas;
         _turnos = turnos;
         _consulta = consulta;
+        _notificador = notificador;
         _unidadDeTrabajo = unidadDeTrabajo;
         _reloj = reloj;
     }
@@ -63,7 +65,14 @@ public sealed class CrearReserva
 
         _reservas.Agregar(reserva.Valor);
         await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
-        return Resultado.Ok(ReservaDto.Desde(reserva.Valor));
+
+        var dto = ReservaDto.Desde(reserva.Valor);
+        if (!string.IsNullOrWhiteSpace(dto.Email))
+        {
+            await _notificador.EnviarAsync(TipoCorreoReserva.Confirmacion, empresaId, dto, ct).ConfigureAwait(false);
+        }
+
+        return Resultado.Ok(dto);
     }
 }
 
@@ -141,12 +150,14 @@ public enum TransicionReserva
 public sealed class CambiarEstadoReserva
 {
     private readonly IRepositorioReservas _reservas;
+    private readonly INotificadorReservas _notificador;
     private readonly IUnidadDeTrabajoReservas _unidadDeTrabajo;
     private readonly IReloj _reloj;
 
-    public CambiarEstadoReserva(IRepositorioReservas reservas, IUnidadDeTrabajoReservas unidadDeTrabajo, IReloj reloj)
+    public CambiarEstadoReserva(IRepositorioReservas reservas, INotificadorReservas notificador, IUnidadDeTrabajoReservas unidadDeTrabajo, IReloj reloj)
     {
         _reservas = reservas;
+        _notificador = notificador;
         _unidadDeTrabajo = unidadDeTrabajo;
         _reloj = reloj;
     }
@@ -173,7 +184,55 @@ public sealed class CambiarEstadoReserva
         }
 
         await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
-        return Resultado.Ok(ReservaDto.Desde(reserva));
+
+        var dto = ReservaDto.Desde(reserva);
+        if (transicion == TransicionReserva.Cancelar && !string.IsNullOrWhiteSpace(dto.Email))
+        {
+            await _notificador.EnviarAsync(TipoCorreoReserva.Cancelacion, reserva.EmpresaId, dto, ct).ConfigureAwait(false);
+        }
+
+        return Resultado.Ok(dto);
+    }
+}
+
+/// <summary>
+/// Caso de uso: enviar los recordatorios de las reservas próximas de una empresa. Lo invoca el proceso
+/// periódico (y un endpoint manual). Marca cada reserva para no repetir el aviso.
+/// </summary>
+public sealed class EnviarRecordatoriosReservas
+{
+    /// <summary>Antelación con la que se avisa (horas antes de la reserva).</summary>
+    public const int HorasAntes = 24;
+
+    private readonly IRepositorioReservas _reservas;
+    private readonly INotificadorReservas _notificador;
+    private readonly IUnidadDeTrabajoReservas _unidadDeTrabajo;
+    private readonly IReloj _reloj;
+
+    public EnviarRecordatoriosReservas(IRepositorioReservas reservas, INotificadorReservas notificador, IUnidadDeTrabajoReservas unidadDeTrabajo, IReloj reloj)
+    {
+        _reservas = reservas;
+        _notificador = notificador;
+        _unidadDeTrabajo = unidadDeTrabajo;
+        _reloj = reloj;
+    }
+
+    public async Task<int> EjecutarAsync(Guid empresaId, CancellationToken ct = default)
+    {
+        var ahora = _reloj.AhoraUtc;
+        var hasta = ahora.AddHours(HorasAntes);
+        var reservas = await _reservas.ListarParaRecordatorioAsync(empresaId, ahora, hasta, ct).ConfigureAwait(false);
+
+        var enviados = 0;
+        foreach (var reserva in reservas)
+        {
+            await _notificador.EnviarAsync(TipoCorreoReserva.Recordatorio, empresaId, ReservaDto.Desde(reserva), ct).ConfigureAwait(false);
+            reserva.MarcarRecordatorioEnviado(_reloj);
+            await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+            enviados++;
+        }
+
+        return enviados;
     }
 }
 

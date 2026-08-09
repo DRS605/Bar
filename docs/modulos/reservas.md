@@ -51,6 +51,21 @@ El feed es **público por diseño** (los calendarios se suscriben sin iniciar se
 `agenda_calendario` no lleva el filtro multiempresa: es el propio token el que resuelve la empresa, y
 entonces se fija el contexto para leer sus reservas con el aislamiento habitual (RLS incluida).
 
+## Correos al cliente
+
+Si la reserva tiene correo, se avisa al cliente (puerto `INotificadorReservas`, tolerante a fallos —
+nunca interrumpe la operación). El cuerpo HTML lo compone `GeneradorCorreoReserva` (función pura) y,
+salvo la cancelación, se adjunta el `.ics` de la reserva. Se envía por el puerto `IServicioCorreo`
+(común con las facturas; en el MVP es un *stub* que registra en el log, listo para un SMTP real).
+
+- **Confirmación** — al **crear** la reserva (con el archivo de calendario).
+- **Cancelación** — al **cancelar**.
+- **Recordatorio** — automático la víspera. Un proceso periódico
+  (`ServicioRecordatorioReservas`, sección de configuración `RecordatorioReservas`) recorre todas las
+  empresas y, con la empresa fijada, envía el recordatorio de las reservas dentro de las próximas
+  `HorasAntes` (24 h) que aún no lo tengan (campo `RecordatorioEnviadoEn`, para no repetir). También
+  se puede lanzar a mano con `POST /reservas/recordatorios/procesar`.
+
 ## API
 
 | Método | Ruta | Auth | Descripción |
@@ -67,6 +82,7 @@ entonces se fija el contexto para leer sus reservas con el aislamiento habitual 
 | `GET` | `/reservas/agenda` | permiso `reserva.gestionar` | Enlace suscribible de la agenda. |
 | `POST` | `/reservas/agenda/regenerar` | permiso `reserva.gestionar` | Regenera el enlace (invalida el anterior). |
 | `GET` | `/agenda/{token}.ics` | **anónimo** (token) | Feed iCalendar suscribible de la empresa. |
+| `POST` | `/reservas/recordatorios/procesar` | permiso `reserva.gestionar` | Envía ahora los recordatorios próximos. |
 | `GET` | `/reservas/disponibilidad?dia=` | JWT + empresa | Aforo usado/libre por turno en una fecha. |
 | `GET` | `/turnos` | JWT + empresa | Lista de turnos (horarios). |
 | `POST` | `/turnos` | permiso `reserva.gestionar` | Crea un turno. **201** |

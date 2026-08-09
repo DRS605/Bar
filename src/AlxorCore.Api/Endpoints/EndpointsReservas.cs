@@ -63,6 +63,10 @@ public static class EndpointsReservas
             .WithSummary("Sienta la reserva y, si tiene mesa, abre su comanda.")
             .RequierePermiso(Permisos.ReservaGestionar);
 
+        reservas.MapPost("/recordatorios/procesar", ProcesarRecordatoriosAsync)
+            .WithSummary("Envía ahora los recordatorios de las reservas próximas de la empresa.")
+            .RequierePermiso(Permisos.ReservaGestionar);
+
         reservas.MapGet("/disponibilidad", DisponibilidadAsync)
             .WithSummary("Ocupación (aforo usado/libre) de los turnos en una fecha.")
             .RequireAuthorization();
@@ -166,6 +170,17 @@ public static class EndpointsReservas
 
         var token = await caso.EjecutarAsync(contexto.EmpresaId.Value, regenerar: true, ct).ConfigureAwait(false);
         return Results.Ok(EnlaceAgenda(http, token));
+    }
+
+    private static async Task<IResult> ProcesarRecordatoriosAsync(IContextoEmpresa contexto, EnviarRecordatoriosReservas caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var enviados = await caso.EjecutarAsync(contexto.EmpresaId.Value, ct).ConfigureAwait(false);
+        return Results.Ok(new { enviados });
     }
 
     private static async Task<IResult> DisponibilidadAsync(IContextoEmpresa contexto, ObtenerDisponibilidad caso, IReloj reloj, DateOnly? dia, CancellationToken ct)

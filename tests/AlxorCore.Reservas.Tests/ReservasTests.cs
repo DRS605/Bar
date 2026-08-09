@@ -209,3 +209,33 @@ public class GeneradorICalTests
         GeneradorICal.Generar(new[] { Dto("Cancelada") }, "Reservas", Ahora).Should().Contain("STATUS:CANCELLED");
     }
 }
+
+public class GeneradorCorreoReservaTests
+{
+    private static DatosCorreoReserva Datos() => new(
+        "Sol de Levante", "Ana", new DateTimeOffset(2026, 2, 14, 21, 0, 0, TimeSpan.Zero), 90, 4, "Terraza 1", "Cumpleaños");
+
+    [Fact]
+    public void Confirmacion_incluye_local_fecha_y_datos()
+    {
+        var (asunto, html) = GeneradorCorreoReserva.Generar(TipoCorreoReserva.Confirmacion, Datos());
+        asunto.Should().Contain("Sol de Levante").And.Contain("21:00");
+        html.Should().Contain("Reserva confirmada").And.Contain("Ana").And.Contain("Terraza 1").And.Contain("Cumpleaños");
+        html.Should().Contain("14 de febrero");
+        asunto.Should().Contain("sábado 14 de febrero");
+    }
+
+    [Fact]
+    public void Recordatorio_y_cancelacion_tienen_su_tono()
+    {
+        GeneradorCorreoReserva.Generar(TipoCorreoReserva.Recordatorio, Datos()).Html.Should().Contain("Te esperamos");
+        GeneradorCorreoReserva.Generar(TipoCorreoReserva.Cancelacion, Datos()).Asunto.Should().Contain("cancelada");
+    }
+
+    [Fact]
+    public void Escapa_el_html_del_nombre()
+    {
+        var d = Datos() with { NombreCliente = "<b>Ana</b>" };
+        GeneradorCorreoReserva.Generar(TipoCorreoReserva.Confirmacion, d).Html.Should().Contain("&lt;b&gt;Ana&lt;/b&gt;");
+    }
+}
