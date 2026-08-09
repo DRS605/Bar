@@ -56,7 +56,8 @@ entonces se fija el contexto para leer sus reservas con el aislamiento habitual 
 Si la reserva tiene correo, se avisa al cliente (puerto `INotificadorReservas`, tolerante a fallos —
 nunca interrumpe la operación). El cuerpo HTML lo compone `GeneradorCorreoReserva` (función pura) y,
 salvo la cancelación, se adjunta el `.ics` de la reserva. Se envía por el puerto `IServicioCorreo`
-(común con las facturas; en el MVP es un *stub* que registra en el log, listo para un SMTP real).
+(común con las facturas): **SMTP real** si hay servidor configurado en la sección `Correo`, o el
+*stub* que registra en el log si no lo hay.
 
 - **Confirmación** — al **crear** la reserva (con el archivo de calendario).
 - **Cancelación** — al **cancelar**.

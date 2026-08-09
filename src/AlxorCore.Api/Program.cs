@@ -41,7 +41,7 @@ builder.Services.AgregarModuloGastos(builder.Configuration);
 builder.Services.AgregarModuloTesoreria(builder.Configuration);
 builder.Services.AgregarModuloHosteleria(builder.Configuration);
 builder.Services.AgregarModuloReservas(builder.Configuration);
-builder.Services.AgregarModuloDocumentos();
+builder.Services.AgregarModuloDocumentos(builder.Configuration);
 builder.Services.AgregarModuloInformes();
 builder.Services.AgregarModuloAuditoria(builder.Configuration);
 

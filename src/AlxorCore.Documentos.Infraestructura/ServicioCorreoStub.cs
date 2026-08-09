@@ -4,8 +4,9 @@ using Microsoft.Extensions.Logging;
 namespace AlxorCore.Documentos.Infraestructura;
 
 /// <summary>
-/// Implementación provisional (stub) del envío de correo: registra el envío en el log. El proveedor
-/// real (SMTP/servicio) se añadirá sin cambiar el puerto <see cref="IServicioCorreo"/>.
+/// Implementación de reserva (stub) del envío de correo: registra el envío en el log. Se usa cuando no
+/// hay servidor SMTP configurado (sección «Correo» vacía); en cuanto se configura, la composición
+/// elige <see cref="Correo.ServicioCorreoSmtp"/> sin cambiar el puerto <see cref="IServicioCorreo"/>.
 /// </summary>
 internal sealed class ServicioCorreoStub : IServicioCorreo
 {

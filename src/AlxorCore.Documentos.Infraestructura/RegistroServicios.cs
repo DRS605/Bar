@@ -1,4 +1,6 @@
 using AlxorCore.Documentos.Aplicacion;
+using AlxorCore.Documentos.Infraestructura.Correo;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using QuestPDF.Infrastructure;
 
@@ -7,16 +9,31 @@ namespace AlxorCore.Documentos.Infraestructura;
 /// <summary>Composición del módulo Documentos (PDF y correo). No tiene persistencia propia.</summary>
 public static class RegistroServicios
 {
-    public static IServiceCollection AgregarModuloDocumentos(this IServiceCollection servicios)
+    public static IServiceCollection AgregarModuloDocumentos(this IServiceCollection servicios, IConfiguration configuracion)
     {
         ArgumentNullException.ThrowIfNull(servicios);
+        ArgumentNullException.ThrowIfNull(configuracion);
 
         // Licencia Community de QuestPDF (gratuita para facturación de pequeño volumen).
         QuestPDF.Settings.License = LicenseType.Community;
 
         servicios.AddScoped<IGeneradorPdfFactura, GeneradorPdfFacturaQuestPdf>();
         servicios.AddScoped<IGeneradorPdfPresupuesto, GeneradorPdfPresupuestoQuestPdf>();
-        servicios.AddScoped<IServicioCorreo, ServicioCorreoStub>();
+
+        // Correo: SMTP real si está configurado (sección «Correo», compartida con Identidad); si no, el
+        // stub, que registra el envío en el log. El puerto IServicioCorreo no cambia en ningún caso.
+        servicios.AddOptions<OpcionesCorreo>().Bind(configuracion.GetSection(OpcionesCorreo.Seccion));
+        var opcionesCorreo = new OpcionesCorreo();
+        configuracion.GetSection(OpcionesCorreo.Seccion).Bind(opcionesCorreo);
+        if (opcionesCorreo.Configurado)
+        {
+            servicios.AddScoped<IServicioCorreo, ServicioCorreoSmtp>();
+        }
+        else
+        {
+            servicios.AddScoped<IServicioCorreo, ServicioCorreoStub>();
+        }
+
         servicios.AddScoped<GenerarPdfFactura>();
         servicios.AddScoped<EnviarFacturaPorEmail>();
         servicios.AddScoped<GenerarPdfPresupuesto>();
