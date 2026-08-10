@@ -272,6 +272,9 @@
         <button class="btn" onclick="entrar()">Entrar</button>
         <div style="text-align:right;margin-top:12px"><a href="#" onclick="mostrarRecuperar();return false" style="color:var(--accent);font-size:13px;text-decoration:none">¿Olvidaste tu contraseña?</a></div>
         <div class="error" id="loginError"></div>
+        <div style="text-align:center;margin-top:16px;padding-top:16px;border-top:1px solid var(--line);font-size:13px;color:#8aa0ad">
+          ¿Primera vez? <a href="#" onclick="mostrarRegistro();return false" style="color:var(--accent);font-weight:650;text-decoration:none">Crea tu cuenta →</a>
+        </div>
         <div style="text-align:center;margin-top:18px;font-size:12px;color:#8aa0ad">
           <a href="/privacidad.html" target="_blank" style="color:inherit">Privacidad</a> ·
           <a href="/terminos.html" target="_blank" style="color:inherit">Términos</a>
@@ -425,6 +428,24 @@
         if(r.token){ document.getElementById("rec_token").value=r.token; toast("Enlace generado (modo demo). Fija tu nueva contraseña.","ok"); }
         else { toast("Si el correo existe, te hemos enviado un enlace.","ok"); }
       }catch(e){ toast(e.message,"err"); } }
+
+    /* Alta de cuenta: registra, entra automáticamente y guía a crear la primera empresa. */
+    function mostrarRegistro(){
+      abrir("Crea tu cuenta",`<p class="muted" style="margin:0 0 12px">Regístrate para empezar a gestionar tu bar con Comandia.</p>
+        <label>Nombre</label><input id="reg_nombre" placeholder="Tu nombre"/>
+        <label>Correo electrónico</label><input id="reg_email" type="email" autocomplete="username" placeholder="tu@correo.com"/>
+        <label>Contraseña</label><input id="reg_pass" type="password" autocomplete="new-password" placeholder="Mínimo 8 caracteres"/>`,
+        async()=>{
+          const nombre=val("reg_nombre").trim(), email=val("reg_email").trim(), pass=val("reg_pass");
+          if(!nombre||!email||!pass) throw new Error("Completa nombre, correo y contraseña.");
+          await api("/auth/registro",{method:"POST",body:JSON.stringify({email,nombre,contrasena:pass})});
+          const login=await api("/auth/login",{method:"POST",body:JSON.stringify({email,contrasena:pass})});
+          token=login.token; usuario=login.usuario;
+          const empresas=await api("/empresas");
+          if(empresas.length){ await activarEmpresa(empresas[0]); }
+          else { toast("Cuenta creada. Ahora crea tu local.","ok"); setTimeout(modalNuevaEmpresa,0); }
+        });
+    }
 
     function arrancar() {
       document.getElementById("login").style.display="none";

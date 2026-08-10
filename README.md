@@ -51,6 +51,9 @@ productos, gastos, cobros e informes. Diseño limpio, pocos colores y pocos clic
 
 ## Arranque rápido (Docker)
 
+> ¿Quieres instalarlo en tu propio ordenador paso a paso? Sigue **[INSTALACION.md](INSTALACION.md)**
+> (guía para localhost en Windows, macOS o Linux, con y sin Docker).
+
 Con Docker basta un comando para levantar la API + PostgreSQL:
 
 ```bash
