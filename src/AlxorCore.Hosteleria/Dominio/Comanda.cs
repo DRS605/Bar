@@ -133,6 +133,17 @@ public sealed class Comanda : RaizAgregadoEmpresa<Guid>
             return Resultado.Fallo<LineaComanda>(Error.Validacion("comanda.precio_negativo", "El precio no puede ser negativo."));
         }
 
+        // Si ya se pidió el mismo producto al mismo precio e IVA, se acumula en su línea (una comanda
+        // muestra «Caña ×3», no tres líneas de «Caña»). Un precio distinto (tarifa cambiada) abre línea.
+        var existente = _lineas.FirstOrDefault(
+            l => l.ProductoId == productoId && l.PrecioUnitario == precioUnitario && l.CodigoIva == codigoIva);
+        if (existente is not null)
+        {
+            existente.Incrementar(cantidad);
+            Recalcular(reloj);
+            return Resultado.Ok(existente);
+        }
+
         var linea = new LineaComanda(EmpresaId, Id, productoId, descripcion!.Trim(), cantidad, precioUnitario, codigoIva, porcentajeIva);
         _lineas.Add(linea);
         Recalcular(reloj);
@@ -158,6 +169,35 @@ public sealed class Comanda : RaizAgregadoEmpresa<Guid>
         _lineas.Remove(linea);
         Recalcular(reloj);
         return Resultado.Ok();
+    }
+
+    /// <summary>
+    /// Fija la cantidad de una línea (ajuste directo con los botones +/− del TPV). Solo mientras la
+    /// comanda está abierta. Para dejarla en cero, usa <see cref="QuitarLinea"/>.
+    /// </summary>
+    public Resultado<LineaComanda> FijarCantidadLinea(Guid lineaId, decimal cantidad, IReloj reloj)
+    {
+        ArgumentNullException.ThrowIfNull(reloj);
+
+        if (Estado != EstadoComanda.Abierta)
+        {
+            return Resultado.Fallo<LineaComanda>(Error.Conflicto("comanda.no_abierta", "Solo se pueden ajustar líneas de una comanda abierta."));
+        }
+
+        var linea = _lineas.SingleOrDefault(l => l.Id == lineaId);
+        if (linea is null)
+        {
+            return Resultado.Fallo<LineaComanda>(Error.NoEncontrado("comanda.linea_no_encontrada", "La línea no existe en la comanda."));
+        }
+
+        if (cantidad <= 0)
+        {
+            return Resultado.Fallo<LineaComanda>(Error.Validacion("comanda.cantidad_invalida", "La cantidad debe ser mayor que cero; para eliminar la línea, quítala."));
+        }
+
+        linea.FijarCantidad(cantidad);
+        Recalcular(reloj);
+        return Resultado.Ok(linea);
     }
 
     /// <summary>Actualiza las notas de la comanda mientras está abierta.</summary>

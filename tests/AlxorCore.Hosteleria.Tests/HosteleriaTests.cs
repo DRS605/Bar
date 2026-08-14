@@ -112,6 +112,30 @@ public class ComandaTests
     }
 
     [Fact]
+    public void Agregar_mismo_producto_acumula_en_una_sola_linea()
+    {
+        var comanda = ComandaAbierta();
+        comanda.AgregarLinea(Producto, "Caña", 2m, 1.50m, "IVA10", 10m, Reloj);
+        var segunda = comanda.AgregarLinea(Producto, "Caña", 1m, 1.50m, "IVA10", 10m, Reloj);
+
+        segunda.EsCorrecto.Should().BeTrue();
+        comanda.Lineas.Should().ContainSingle();
+        comanda.Lineas[0].Cantidad.Should().Be(3m);
+        comanda.BaseImponible.Should().Be(4.50m);
+        comanda.Total.Should().Be(4.95m);
+    }
+
+    [Fact]
+    public void Mismo_producto_a_distinto_precio_abre_linea_nueva()
+    {
+        var comanda = ComandaAbierta();
+        comanda.AgregarLinea(Producto, "Caña", 1m, 1.50m, "IVA10", 10m, Reloj);
+        comanda.AgregarLinea(Producto, "Caña (happy hour)", 1m, 1.00m, "IVA10", 10m, Reloj);
+
+        comanda.Lineas.Should().HaveCount(2);
+    }
+
+    [Fact]
     public void Quitar_linea_recalcula_totales()
     {
         var comanda = ComandaAbierta();

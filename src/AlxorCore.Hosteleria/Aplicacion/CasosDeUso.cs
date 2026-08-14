@@ -19,6 +19,9 @@ public sealed record DatosPosicion(double PosX, double PosY);
 /// <summary>Datos para añadir una línea a una comanda (un producto del catálogo y su cantidad).</summary>
 public sealed record DatosLineaComanda(Guid ProductoId, decimal Cantidad = 1m);
 
+/// <summary>Datos para fijar la cantidad de una línea existente.</summary>
+public sealed record DatosCantidadLinea(decimal Cantidad);
+
 /// <summary>Datos para abrir una comanda en una mesa.</summary>
 public sealed record DatosAbrirComanda(Guid MesaId, string? Notas = null);
 
@@ -247,6 +250,41 @@ public sealed class AgregarLineaComanda
         if (linea.EsFallo)
         {
             return Resultado.Fallo<ComandaDto>(linea.Error);
+        }
+
+        await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+        return Resultado.Ok(ComandaDto.Desde(comanda));
+    }
+}
+
+/// <summary>Caso de uso: fijar la cantidad de una línea (botones +/− del TPV de mesa).</summary>
+public sealed class FijarCantidadLineaComanda
+{
+    private readonly IRepositorioComandas _comandas;
+    private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
+    private readonly IReloj _reloj;
+
+    public FijarCantidadLineaComanda(IRepositorioComandas comandas, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    {
+        _comandas = comandas;
+        _unidadDeTrabajo = unidadDeTrabajo;
+        _reloj = reloj;
+    }
+
+    public async Task<Resultado<ComandaDto>> EjecutarAsync(Guid comandaId, Guid lineaId, DatosCantidadLinea datos, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(datos);
+
+        var comanda = await _comandas.ObtenerPorIdAsync(comandaId, ct).ConfigureAwait(false);
+        if (comanda is null)
+        {
+            return Resultado.Fallo<ComandaDto>(Error.NoEncontrado("comanda.no_encontrada", "La comanda no existe."));
+        }
+
+        var r = comanda.FijarCantidadLinea(lineaId, datos.Cantidad, _reloj);
+        if (r.EsFallo)
+        {
+            return Resultado.Fallo<ComandaDto>(r.Error);
         }
 
         await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);

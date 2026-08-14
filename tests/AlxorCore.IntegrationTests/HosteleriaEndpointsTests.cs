@@ -181,6 +181,43 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
     }
 
     [Fact]
+    public async Task Pedir_el_mismo_producto_dos_veces_acumula_en_una_sola_linea()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var producto = await CrearCañaAsync(cliente, stock: false);
+        var mesa = await CrearMesaAsync(cliente);
+        var comanda = (await (await cliente.PostAsJsonAsync("/comandas", new { MesaId = mesa.Id })).Content.ReadFromJsonAsync<ComandaResp>())!;
+
+        await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/lineas", new { ProductoId = producto.Id, Cantidad = 2m });
+        var segunda = (await (await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/lineas", new { ProductoId = producto.Id, Cantidad = 1m })).Content.ReadFromJsonAsync<ComandaResp>())!;
+
+        segunda.Lineas.Should().ContainSingle();
+        segunda.Lineas.Single().Cantidad.Should().Be(3m);
+        segunda.Total.Should().Be(4.95m);
+    }
+
+    [Fact]
+    public async Task Fijar_la_cantidad_de_una_linea_recalcula_el_total()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var producto = await CrearCañaAsync(cliente, stock: false);
+        var mesa = await CrearMesaAsync(cliente);
+        var comanda = (await (await cliente.PostAsJsonAsync("/comandas", new { MesaId = mesa.Id })).Content.ReadFromJsonAsync<ComandaResp>())!;
+        var conLinea = (await (await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/lineas", new { ProductoId = producto.Id, Cantidad = 1m })).Content.ReadFromJsonAsync<ComandaResp>())!;
+        var lineaId = conLinea.Lineas.Single().Id;
+
+        var fijar = await cliente.PutAsJsonAsync($"/comandas/{comanda.Id}/lineas/{lineaId}", new { Cantidad = 5m });
+        fijar.StatusCode.Should().Be(HttpStatusCode.OK);
+        var actualizada = (await fijar.Content.ReadFromJsonAsync<ComandaResp>())!;
+        actualizada.Lineas.Single().Cantidad.Should().Be(5m);
+        actualizada.Total.Should().Be(8.25m);
+
+        // Cantidad cero se rechaza (para eliminar se usa el borrado de la línea).
+        var cero = await cliente.PutAsJsonAsync($"/comandas/{comanda.Id}/lineas/{lineaId}", new { Cantidad = 0m });
+        cero.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task No_se_puede_cobrar_una_comanda_vacia()
     {
         var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);

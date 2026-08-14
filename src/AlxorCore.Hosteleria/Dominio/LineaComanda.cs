@@ -62,4 +62,18 @@ public sealed class LineaComanda : EntidadBase<Guid>
 
     /// <summary>Importe total de la línea con IVA incluido.</summary>
     public decimal Total => Redondeo.Dos(Base + CuotaIva);
+
+    /// <summary>
+    /// Suma cantidad a la línea (pedir otra unidad del mismo producto). Lo usa la comanda para acumular
+    /// en una sola línea las consumiciones repetidas, en vez de duplicarlas.
+    /// </summary>
+    internal void Incrementar(decimal cantidad) => FijarCantidad(Cantidad + cantidad);
+
+    /// <summary>Fija la cantidad de la línea (edición directa desde la comanda) y recalcula base e IVA.</summary>
+    internal void FijarCantidad(decimal cantidad)
+    {
+        Cantidad = cantidad;
+        Base = Redondeo.Dos(Cantidad * PrecioUnitario);
+        CuotaIva = Redondeo.Dos(Base * PorcentajeIva / 100m);
+    }
 }

@@ -53,6 +53,10 @@ public static class EndpointsHosteleria
             .WithSummary("Añade un producto a la comanda.")
             .RequierePermiso(Permisos.HosteleriaGestionar);
 
+        comandas.MapPut("/{id:guid}/lineas/{lineaId:guid}", FijarCantidadLineaAsync)
+            .WithSummary("Fija la cantidad de una línea (botones +/− del TPV).")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
         comandas.MapDelete("/{id:guid}/lineas/{lineaId:guid}", QuitarLineaAsync)
             .WithSummary("Quita una línea de la comanda.")
             .RequierePermiso(Permisos.HosteleriaGestionar);
@@ -124,6 +128,9 @@ public static class EndpointsHosteleria
 
     private static async Task<IResult> AgregarLineaAsync(Guid id, DatosLineaComanda datos, AgregarLineaComanda caso, CancellationToken ct) =>
         (await caso.EjecutarAsync(id, datos, ct).ConfigureAwait(false)).AOk();
+
+    private static async Task<IResult> FijarCantidadLineaAsync(Guid id, Guid lineaId, DatosCantidadLinea datos, FijarCantidadLineaComanda caso, CancellationToken ct) =>
+        (await caso.EjecutarAsync(id, lineaId, datos, ct).ConfigureAwait(false)).AOk();
 
     private static async Task<IResult> QuitarLineaAsync(Guid id, Guid lineaId, QuitarLineaComanda caso, CancellationToken ct) =>
         (await caso.EjecutarAsync(id, lineaId, ct).ConfigureAwait(false)).AOk();

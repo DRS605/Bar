@@ -26,9 +26,12 @@ Multiempresa (RLS por empresa; la comanda es la raíz del agregado y sus líneas
 Ciclo de vida:
 
 1. **Abrir** una comanda en una mesa **libre** (una mesa no puede tener dos comandas abiertas a la vez).
-2. **Añadir / quitar líneas** mientras está abierta. Cada línea se toma de un **producto del catálogo**;
-   su precio y su IVA se **congelan** en ese momento, de modo que un cambio de tarifa posterior no
-   altere una cuenta ya en marcha. Los totales se recalculan en cada cambio.
+2. **Añadir / ajustar / quitar líneas** mientras está abierta. Cada línea se toma de un **producto del
+   catálogo**; su precio y su IVA se **congelan** en ese momento, de modo que un cambio de tarifa
+   posterior no altere una cuenta ya en marcha. Pedir **el mismo producto** (al mismo precio e IVA) se
+   **acumula en su línea** (una comanda muestra «Caña ×3», no tres líneas); un precio distinto abre
+   línea nueva. Se puede **fijar la cantidad** de una línea (botones +/− del TPV). Los totales se
+   recalculan en cada cambio.
 3. **Cobrar**: emite un **ticket** (factura simplificada, serie `T`) con las líneas congeladas y elige
    la forma de cobro (Efectivo/Tarjeta/Otro). La comanda queda **Cobrada** e inmutable y la mesa libre.
 4. **Anular**: cierra una comanda abierta sin cobrarla (la mesa se libera). No se puede anular una ya
@@ -62,7 +65,8 @@ duplicar la lógica fiscal. La comanda solo guarda la referencia al ticket gener
 | `GET` | `/comandas` | JWT + empresa | Comandas abiertas de la empresa. |
 | `GET` | `/comandas/{id}` | JWT + empresa | Comanda con sus líneas. |
 | `POST` | `/comandas` | permiso `hosteleria.gestionar` | Abre una comanda en una mesa. **201** |
-| `POST` | `/comandas/{id}/lineas` | permiso `hosteleria.gestionar` | Añade un producto a la comanda. |
+| `POST` | `/comandas/{id}/lineas` | permiso `hosteleria.gestionar` | Añade un producto (acumula si se repite). |
+| `PUT` | `/comandas/{id}/lineas/{lineaId}` | permiso `hosteleria.gestionar` | Fija la cantidad de una línea (+/−). |
 | `DELETE` | `/comandas/{id}/lineas/{lineaId}` | permiso `hosteleria.gestionar` | Quita una línea. |
 | `POST` | `/comandas/{id}/cobrar` | permiso `hosteleria.gestionar` | Cobra emitiendo el ticket. |
 | `POST` | `/comandas/{id}/anular` | permiso `hosteleria.gestionar` | Anula la comanda. **204** |
@@ -77,8 +81,11 @@ ofrece escritura (`IRepositorioMesas`, `IRepositorioComandas`) y consultas (`ICo
 
 ## Interfaz web
 
-Sección **«Barra / Salón»**: rejilla de mesas (libres/ocupadas con su total) y editor de comanda para
-añadir consumiciones, anular o cobrar eligiendo la forma de pago.
+Sección **«Barra / Salón»**: rejilla de mesas (libres/ocupadas con su total) y **TPV de mesa** rápido —
+una **rejilla de productos** (un toque = pedir, con búsqueda/escáner) y la **comanda en vivo** con
+selectores **+/−** por línea y total al instante. Los toques se reflejan de inmediato (optimista) y se
+sincronizan en una cola (una operación a la vez, para no chocar); la respuesta del servidor manda. Desde
+ahí se anula o se cobra eligiendo la forma de pago.
 
 Sección **«Plano del local»**: lienzo donde se **dibujan y arrastran** las mesas (por forma y estado)
 sobre las zonas (Salón, Terraza, Barra), se toca una mesa para abrir/ver su comanda y se **descarga el
@@ -87,8 +94,10 @@ dibujo** del plano en SVG para imprimirlo.
 ## Tests
 
 - **Unitarios**: validaciones de `Mesa` (incluidas forma y posición/`Colocar` con acotado al lienzo) y
-  ciclo de vida de `Comanda` (abrir, recalcular totales con IVA al añadir/quitar líneas, no cobrar
-  vacía, congelar el ticket al cobrar, no modificar tras cobrar, anular).
+  ciclo de vida de `Comanda` (abrir, recalcular totales con IVA al añadir/quitar líneas, **acumular el
+  mismo producto en una línea** y **abrir línea nueva a distinto precio**, no cobrar vacía, congelar el
+  ticket al cobrar, no modificar tras cobrar, anular).
 - **Integración**: flujo completo abrir → pedir → cobrar (genera ticket, libera la mesa y descuenta
   stock), crear barra con forma y recolocarla en el plano, una sola comanda por mesa, listado de
-  abiertas, quitar línea, no cobrar vacía, anular y exigencia de empresa activa.
+  abiertas, acumular el mismo producto en una línea, fijar la cantidad de una línea (y rechazar cero),
+  quitar línea, no cobrar vacía, anular y exigencia de empresa activa.
