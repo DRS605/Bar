@@ -903,8 +903,12 @@
     function hosCobrar(id){
       abrir("Cobrar comanda",
         `<label>Forma de cobro</label><select id="hos_metodo"><option value="Efectivo">Efectivo</option><option value="Tarjeta">Tarjeta</option><option value="Otro">Otro</option></select>
+         <label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-weight:500;cursor:pointer"><input id="hos_print" type="checkbox" style="width:auto" checked/> 🖨️ Imprimir ticket en la impresora</label>
          <p class="muted" style="font-size:12px;margin-top:10px">Se emitirá un ticket (factura simplificada), se descontará el stock y la mesa quedará libre.</p>`,
-        async()=>{ const metodo=val("hos_metodo"); await hosCola; const c=await api("/comandas/"+id+"/cobrar",{method:"POST",body:JSON.stringify({metodo})}); toast("Cobrado · ticket "+(c.numeroTicket||""),"ok"); vHosteleria(); }); }
+        async()=>{ const metodo=val("hos_metodo"); const imprimir=document.getElementById("hos_print").checked; await hosCola;
+          const c=await api("/comandas/"+id+"/cobrar",{method:"POST",body:JSON.stringify({metodo})}); toast("Cobrado · ticket "+(c.numeroTicket||""),"ok");
+          if(imprimir && c.facturaId){ try{ await api("/facturas/"+c.facturaId+"/imprimir",{method:"POST"}); toast("🖨️ Ticket enviado a la impresora","ok"); }catch(e){ toast(e.message,"err"); } }
+          vHosteleria(); }); }
 
     /* ===== Plano del local: dibuja y coloca mesas, barra y terraza ===== */
     let planoMesas=[];

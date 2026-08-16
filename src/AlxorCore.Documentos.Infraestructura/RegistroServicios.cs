@@ -1,5 +1,6 @@
 using AlxorCore.Documentos.Aplicacion;
 using AlxorCore.Documentos.Infraestructura.Correo;
+using AlxorCore.Documentos.Infraestructura.Impresion;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using QuestPDF.Infrastructure;
@@ -34,10 +35,27 @@ public static class RegistroServicios
             servicios.AddScoped<IServicioCorreo, ServicioCorreoStub>();
         }
 
+        // Impresión de tickets: generador ESC/POS y la impresora (de red si hay host en la sección
+        // «Impresora»; si no, la nula, que informa de que no está configurada).
+        servicios.AddScoped<IGeneradorTicketEscPos, GeneradorTicketEscPos>();
+        servicios.AddOptions<OpcionesImpresora>().Bind(configuracion.GetSection(OpcionesImpresora.Seccion));
+        var opcionesImpresora = new OpcionesImpresora();
+        configuracion.GetSection(OpcionesImpresora.Seccion).Bind(opcionesImpresora);
+        if (opcionesImpresora.Configurada)
+        {
+            servicios.AddScoped<IImpresoraTickets, ImpresoraTicketsRed>();
+        }
+        else
+        {
+            servicios.AddScoped<IImpresoraTickets, ImpresoraTicketsNula>();
+        }
+
         servicios.AddScoped<GenerarPdfFactura>();
         servicios.AddScoped<EnviarFacturaPorEmail>();
         servicios.AddScoped<GenerarPdfPresupuesto>();
         servicios.AddScoped<EnviarPresupuestoPorEmail>();
+        servicios.AddScoped<ObtenerTicketEscPos>();
+        servicios.AddScoped<ImprimirTicket>();
 
         return servicios;
     }

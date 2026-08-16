@@ -104,6 +104,28 @@ Mailgun o el correo de tu propio dominio.
 
 ---
 
+## Impresora de tickets (opcional)
+
+Comandia imprime el ticket en impresoras térmicas por **red** (RAW/JetDirect, puerto **9100**), que es
+como funcionan la mayoría de las de barra. Basta indicar su **IP** en la sección `Impresora`. Con Docker,
+en `docker-compose.override.yml`:
+
+```yaml
+    environment:
+      Impresora__Host: "192.168.1.50"   # IP de tu impresora
+      Impresora__Puerto: "9100"
+```
+
+Sin SDK, con `dotnet run`, pon esos valores en `appsettings.json`. Al cobrar una comanda, marca
+**«Imprimir ticket»** y saldrá impreso. Si tu impresora es **USB**, compártela en red o usa un servidor
+de impresión que exponga el puerto 9100; como alternativa, `GET /facturas/{id}/ticket.escpos` descarga
+el ticket en ESC/POS para enviarlo tú a la impresora.
+
+> Sin impresora configurada, el cobro funciona igual (solo omite la impresión). Prueba con papel al
+> conectar la tuya: el formato ESC/POS es estándar (80 mm), pero conviene verificarlo con tu modelo.
+
+---
+
 ## Problemas frecuentes
 
 - **El puerto 3400 está ocupado**: cambia el mapeo en `docker-compose.override.yml`

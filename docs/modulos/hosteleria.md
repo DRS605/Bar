@@ -86,7 +86,8 @@ una **rejilla de productos** (un toque = pedir, con búsqueda/escáner y **filtr
 los artículos la tienen —«Cervezas», «Tapas»…— más «Otros» para los que no) y la **comanda en vivo** con
 selectores **+/−** por línea y total al instante. Los toques se reflejan de inmediato (optimista) y se
 sincronizan en una cola (una operación a la vez, para no chocar); la respuesta del servidor manda. Desde
-ahí se anula o se cobra eligiendo la forma de pago.
+ahí se anula o se cobra eligiendo la forma de pago, con opción de **imprimir el ticket** en la impresora
+térmica (ver módulo Documentos).
 
 Sección **«Plano del local»**: lienzo donde se **dibujan y arrastran** las mesas (por forma y estado)
 sobre las zonas (Salón, Terraza, Barra), se toca una mesa para abrir/ver su comanda y se **descarga el

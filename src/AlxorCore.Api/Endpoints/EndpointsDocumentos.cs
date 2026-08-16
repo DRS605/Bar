@@ -27,6 +27,14 @@ public static class EndpointsDocumentos
             .WithTags("Documentos").WithSummary("Envía la factura por correo con el PDF adjunto.")
             .RequierePermiso(Permisos.FacturaLeer);
 
+        rutas.MapGet("/facturas/{id:guid}/ticket.escpos", TicketEscPosAsync)
+            .WithTags("Documentos").WithSummary("Descarga el ticket de la factura en formato ESC/POS (impresora térmica).")
+            .RequierePermiso(Permisos.FacturaLeer);
+
+        rutas.MapPost("/facturas/{id:guid}/imprimir", ImprimirAsync)
+            .WithTags("Documentos").WithSummary("Imprime el ticket de la factura en la impresora térmica configurada.")
+            .RequierePermiso(Permisos.FacturaLeer);
+
         rutas.MapGet("/presupuestos/{id:guid}/pdf", PdfPresupuestoAsync)
             .WithTags("Documentos").WithSummary("Descarga el PDF de un presupuesto.")
             .RequierePermiso(Permisos.FacturaLeer);
@@ -59,6 +67,30 @@ public static class EndpointsDocumentos
         }
 
         var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, new EnviarFacturaComando(id, peticion.Email), ct).ConfigureAwait(false);
+        return resultado.ASinContenido();
+    }
+
+    private static async Task<IResult> TicketEscPosAsync(Guid id, IContextoEmpresa contexto, ObtenerTicketEscPos caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, id, ct).ConfigureAwait(false);
+        return resultado.EsCorrecto
+            ? Results.File(resultado.Valor.Contenido, "application/octet-stream", resultado.Valor.NombreArchivo)
+            : ResultadosHttp.AProblema(resultado.Error);
+    }
+
+    private static async Task<IResult> ImprimirAsync(Guid id, IContextoEmpresa contexto, ImprimirTicket caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, id, ct).ConfigureAwait(false);
         return resultado.ASinContenido();
     }
 

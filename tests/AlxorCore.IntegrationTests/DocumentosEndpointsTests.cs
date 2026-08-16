@@ -46,4 +46,32 @@ public sealed class DocumentosEndpointsTests : IClassFixture<FabricaApiPruebas>
         var enviar = await cliente.PostAsJsonAsync($"/facturas/{facturaId}/enviar", new { Email = "cliente@ejemplo.com" });
         enviar.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
+
+    [Fact]
+    public async Task Descargar_ticket_escpos_de_factura()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var facturaId = await EmitirFacturaAsync(cliente);
+
+        var respuesta = await cliente.GetAsync(new Uri($"/facturas/{facturaId}/ticket.escpos", UriKind.Relative));
+
+        respuesta.StatusCode.Should().Be(HttpStatusCode.OK);
+        respuesta.Content.Headers.ContentType!.MediaType.Should().Be("application/octet-stream");
+        var bytes = await respuesta.Content.ReadAsByteArrayAsync();
+        bytes.Take(2).Should().Equal(new byte[] { 0x1B, 0x40 });                    // ESC @ (inicializa)
+        bytes.TakeLast(4).Should().Equal(new byte[] { 0x1D, 0x56, 0x42, 0x00 });    // GS V B (corta)
+    }
+
+    [Fact]
+    public async Task Imprimir_sin_impresora_configurada_devuelve_error_legible()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var facturaId = await EmitirFacturaAsync(cliente);
+
+        var imprimir = await cliente.PostAsync(new Uri($"/facturas/{facturaId}/imprimir", UriKind.Relative), content: null);
+
+        imprimir.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var problema = await imprimir.Content.ReadAsStringAsync();
+        problema.Should().Contain("impresora.no_configurada");
+    }
 }
