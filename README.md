@@ -1,10 +1,23 @@
-# ALXOR Core
+# Comandia
 
-El **ERP más sencillo del mercado** para autónomos y pequeñas empresas españolas. El objetivo no
-es tener más funcionalidades que SAP, Odoo o Ekon, sino que **cualquier persona pueda emitir una
-factura en menos de cinco minutos sin leer un manual**.
+**Software de gestión para bares y restaurantes.** Toma de comandas en mesa con un **TPV rápido**,
+reservas con recordatorio, control de compras/stock y **tickets** — con la facturación en regla
+(**VeriFactu**). Sencillo de usar y de instalar. Construido sobre el núcleo **ALXOR Core**
+(.NET 8 + PostgreSQL).
 
-> Documento de diseño técnico y funcional: [`docs/diseno-tecnico-funcional.md`](docs/diseno-tecnico-funcional.md)
+> Instálalo en tu ordenador: **[INSTALACION.md](INSTALACION.md)** · Diseño técnico:
+> [`docs/diseno-tecnico-funcional.md`](docs/diseno-tecnico-funcional.md)
+
+## Qué incluye
+
+- **TPV de barra/salón** — mesas y comandas con **rejilla táctil por categorías** (un toque = pedir),
+  cobro y **ticket** con impresión térmica **ESC/POS**.
+- **Reservas** — agenda con **recordatorio por correo**, **turnos y aforo**, y **calendario iCal**
+  (se suscribe en Google/Apple/Outlook).
+- **Compras y almacén** — artículos con categorías, control de **stock**, proveedores y gastos.
+- **Facturación y Hacienda** — facturas y tickets con **VeriFactu** (huella + QR), libros de IVA e
+  informes de negocio.
+- **Multiempresa, permisos y auditoría** de serie; interfaz y correos en **español**.
 
 ## Principios
 
@@ -32,22 +45,25 @@ Los nombres del dominio, las tablas y la API están en **español**.
 ```
 src/
   AlxorCore.Nucleo                     # SharedKernel: Resultado, Error, EntidadBase, eventos, IContextoEmpresa, IReloj
-  AlxorCore.Identidad                  # Módulo Identidad: Dominio + Aplicación (puro, sin frameworks)
-  AlxorCore.Identidad.Infraestructura  # EF Core, hasher, JWT, repositorios, migraciones
-  AlxorCore.Api                        # Host ASP.NET Core: endpoints REST, JWT, OpenAPI
+  AlxorCore.Hosteleria(.Infraestructura)  # Mesas y comandas (TPV de barra/salón) → ticket
+  AlxorCore.Reservas(.Infraestructura)    # Agenda, turnos/aforo y calendario iCal
+  AlxorCore.Catalogo / Facturacion / …    # Núcleo ALXOR: artículos, IVA, facturas (VeriFactu), etc.
+  AlxorCore.Documentos.Infraestructura    # PDF, correo SMTP y ticket ESC/POS (impresora térmica)
+  AlxorCore.Api                        # Host ASP.NET Core: endpoints REST, JWT, OpenAPI + SPA (wwwroot)
 tests/
-  AlxorCore.Identidad.Tests            # Tests unitarios (dominio + aplicación)
+  AlxorCore.<Modulo>.Tests             # Tests unitarios (dominio + aplicación) por módulo
   AlxorCore.IntegrationTests           # Tests de integración de extremo a extremo (API + PostgreSQL)
 docs/
   diseno-tecnico-funcional.md          # Diseño del producto y del MVP
-  modulos/identidad.md                 # Documentación del módulo Identidad
+  modulos/hosteleria.md · reservas.md  # Documentación de los módulos de hostelería
 ```
 
 ## Interfaz web
 
-La API sirve también una **interfaz web** (SPA) en la raíz (`/`), en el mismo origen que la API. Con
-`docker compose up` la tienes en `http://localhost:8080`: login, panel con KPIs, facturas, clientes, barra/salón (mesas y comandas), reservas con calendario iCal,
-productos, gastos, cobros e informes. Diseño limpio, pocos colores y pocos clics.
+Comandia sirve su **interfaz web** (SPA) en la raíz (`/`), en el mismo origen que la API. Con
+`docker compose up` la tienes en `http://localhost:8080`: acceso, panel con KPIs, **barra/salón**
+(mesas y comandas), **reservas** con calendario iCal, artículos, compras/gastos, facturas e informes.
+Diseño limpio, táctil y con pocos clics.
 
 ## Arranque rápido (Docker)
 
