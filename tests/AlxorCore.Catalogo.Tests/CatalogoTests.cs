@@ -81,6 +81,22 @@ public class ProductoTests
     }
 
     [Fact]
+    public void Categoria_se_normaliza_y_es_opcional()
+    {
+        Producto.Crear(Empresa, null, "Caña", TipoProducto.Bien, 1.5m, 0m, "IVA10", "ud", Reloj).Valor.Categoria.Should().BeNull();
+        Producto.Crear(Empresa, null, "Caña", TipoProducto.Bien, 1.5m, 0m, "IVA10", "ud", Reloj, categoria: "  Cervezas  ").Valor.Categoria.Should().Be("Cervezas");
+        Producto.Crear(Empresa, null, "Caña", TipoProducto.Bien, 1.5m, 0m, "IVA10", "ud", Reloj, categoria: "   ").Valor.Categoria.Should().BeNull();
+    }
+
+    [Fact]
+    public void Actualizar_cambia_la_categoria()
+    {
+        var p = Producto.Crear(Empresa, null, "Vino", TipoProducto.Bien, 2.2m, 0m, "IVA10", "ud", Reloj, categoria: "Vinos").Valor;
+        p.Actualizar(null, "Vino", TipoProducto.Bien, 2.2m, 0m, "IVA10", "ud", Reloj, categoria: "Vinos tintos").EsCorrecto.Should().BeTrue();
+        p.Categoria.Should().Be("Vinos tintos");
+    }
+
+    [Fact]
     public void Crear_rechaza_precio_compra_negativo()
     {
         Producto.Crear(Empresa, null, "X", TipoProducto.Servicio, 10m, -5m, null, null, Reloj).EsFallo.Should().BeTrue();

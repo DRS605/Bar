@@ -13,7 +13,8 @@ altere las facturas ya emitidas. `GET /impuestos` los expone.
 
 `Producto` { Referencia (opcional), Nombre, Tipo (Bien/Servicio), **PrecioUnitario** (venta),
 **PrecioCompra** (coste, para el margen; 0 si no aplica), CodigoIva por defecto (validado contra el
-catálogo), Unidad, **ProveedorHabitualId** (proveedor habitual del artículo; referencia opcional a
+catálogo), Unidad, **Categoria** (opcional, p. ej. «Cervezas», «Tapas»; agrupa los artículos en el TPV
+de barra/salón), **ProveedorHabitualId** (proveedor habitual del artículo; referencia opcional a
 Terceros), Activo }. Multiempresa (RLS por empresa).
 
 Al añadir un producto a una factura se prerrellenan su precio de venta, su IVA y también su
@@ -66,6 +67,7 @@ El repositorio ofrece escritura (`IRepositorioProductos`, `IRepositorioHistorico
 
 ## Tests
 
-- **Unitarios**: catálogo de IVA y validaciones de `Producto` (nombre, precio, precio de compra, IVA).
-- **Integración**: listar impuestos, CRUD de productos, histórico de precios (alta + cambios) y
-  aislamiento por empresa.
+- **Unitarios**: catálogo de IVA y validaciones de `Producto` (nombre, precio, precio de compra, IVA) y
+  normalización/edición de la **categoría**.
+- **Integración**: listar impuestos, CRUD de productos, **categoría** (alta y reasignación), histórico
+  de precios (alta + cambios) y aislamiento por empresa.

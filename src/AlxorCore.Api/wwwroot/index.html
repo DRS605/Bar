@@ -201,6 +201,10 @@
     .hos-step button:active { background:var(--accent); color:#fff; }
     .hos-step button:disabled { opacity:.35; cursor:default; }
     .hos-step span { min-width:34px; text-align:center; font-weight:700; font-variant-numeric:tabular-nums; }
+    .hos-cats { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+    .hos-cat { border:1px solid var(--line); background:var(--surface); color:var(--muted); border-radius:999px; padding:7px 14px; font-size:13px; font-weight:600; cursor:pointer; transition:all .12s; }
+    .hos-cat:hover { border-color:var(--accent); color:var(--ink); }
+    .hos-cat.on { background:var(--accent); border-color:var(--accent); color:#fff; }
     .cart-line { display:flex; align-items:center; gap:8px; padding:9px 0; border-bottom:1px solid var(--line); }
     .cart-line .cl-n { flex:1; font-size:13.5px; }
     .cart-line .cl-n small { color:var(--muted); }
@@ -774,6 +778,7 @@
     let hosProductos=[];
     let hosComanda=null;                 // comanda autoritativa (según el servidor)
     let hosCola=Promise.resolve();       // cola de sincronización: una operación a la vez (evita choques)
+    let hosCatActiva="";                 // categoría seleccionada en el TPV ("" = todas)
     async function vHosteleria(){
       view('<div class="muted">Cargando…</div>');
       const [mesas,prods]=await Promise.all([api("/mesas"),api("/productos").catch(()=>[])]);
@@ -806,13 +811,14 @@
     /* TPV de mesa: rejilla de productos (un toque = pedir) + comanda en vivo. Los toques se ven al
        instante (optimista) y se sincronizan en cola; la respuesta del servidor manda (totales/IVA). */
     function hosRenderComanda(c){
-      hosComanda=c;
+      hosComanda=c; hosCatActiva="";
       if(!hosProductos.length){
         const acc=`<div style="display:flex;gap:8px"><button class="btn small ghost" onclick="vHosteleria()">← Volver</button></div>`;
         view(panel("Comanda",'<p class="muted">No hay artículos en el catálogo. Crea productos en «Artículos» para poder tomar comandas.</p>',acc)); return;
       }
       const izq=`<div class="panel" style="margin:0"><div style="padding:14px 16px">
         <div class="scanbar"><input id="hosBuscar" placeholder="Buscar producto… (o escáner)" oninput="hosPintarGrid()" onkeydown="hosBuscarKey(event)" autofocus/></div>
+        <div id="hosCats" class="hos-cats"></div>
         <div class="tpv-res" id="hosGrid" style="margin-top:12px"></div></div></div>`;
       const der=`<div class="panel tpv-cart" style="margin:0"><div class="panel-head"><h2>Comanda</h2><span class="pill part">Mesa</span></div>
         <div style="padding:14px 18px"><div id="hosCart"></div><div id="hosTotal"></div>
@@ -822,12 +828,26 @@
           <button class="btn small" id="hosCobrarBtn" onclick="hosCobrar('${c.id}')">Cobrar</button>
         </div></div></div>`;
       view(`<div class="tpv">${izq}${der}</div>`);
-      hosPintarGrid(); hosPintarCart();
+      hosPintarCats(); hosPintarGrid(); hosPintarCart();
     }
+    function hosCategorias(){ return [...new Set(hosProductos.map(p=>p.categoria).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es")); }
+    function hosPintarCats(){
+      const cont=document.getElementById("hosCats"); if(!cont)return;
+      const cats=hosCategorias();
+      if(!cats.length){ cont.innerHTML=""; return; }  // sin categorías, no mostramos filtros
+      const sinCat=hosProductos.some(p=>!p.categoria);
+      const chip=(v,t)=>`<button class="hos-cat${hosCatActiva===v?" on":""}" onclick="hosFiltrarCat('${v.replace(/'/g,"\\'")}')">${t}</button>`;
+      cont.innerHTML=chip("","Todo")+cats.map(c=>chip(c,c)).join("")+(sinCat?chip("__sin__","Otros"):"");
+    }
+    function hosFiltrarCat(c){ hosCatActiva=c; hosPintarCats(); hosPintarGrid(); }
     function hosPintarGrid(){
       const cont=document.getElementById("hosGrid"); if(!cont)return;
       const q=(document.getElementById("hosBuscar")?.value||"").trim().toLowerCase();
-      const lista=hosProductos.filter(p=>!q||p.nombre.toLowerCase().includes(q)||(p.referencia||"").toLowerCase().includes(q));
+      const lista=hosProductos.filter(p=>{
+        if(hosCatActiva==="__sin__" && p.categoria) return false;
+        if(hosCatActiva && hosCatActiva!=="__sin__" && p.categoria!==hosCatActiva) return false;
+        return !q||p.nombre.toLowerCase().includes(q)||(p.referencia||"").toLowerCase().includes(q);
+      });
       cont.innerHTML=lista.length?lista.map(p=>`<div class="tpv-card" onclick="hosTap('${p.id}')"><div class="n">${p.nombre}</div><div class="p">${eur(p.precioUnitario)}</div></div>`).join("")
         :'<p class="muted" style="grid-column:1/-1">Ningún producto coincide.</p>';
     }
@@ -1332,12 +1352,13 @@
       abrir(editar?"Editar artículo":(p?"Nuevo artículo (copia)":"Nuevo artículo"),`<label>Nombre</label><input id="p_nombre" placeholder="Nombre del producto o servicio"/>
       <div class="grid2"><div><label>Código / EAN (opcional)</label><input id="p_ref" placeholder="Ej. 8412345678901"/></div><div><label>IVA</label>${ivaSel("p_iva")}</div></div>
       <div class="grid2"><div><label>Precio de venta (€)</label><input id="p_precio" type="number" step="0.01" value="0"/></div><div><label>Precio de compra / coste (€)</label><input id="p_compra" type="number" step="0.01" value="0"/></div></div>
+      <label>Categoría (opcional, agrupa en el TPV)</label><input id="p_cat" list="p_cat_lista" placeholder="Ej. Cervezas, Vinos, Tapas, Refrescos"/><datalist id="p_cat_lista">${[...new Set((_cacheProd||[]).map(x=>x.categoria).filter(Boolean))].map(c=>`<option value="${c}">`).join("")}</datalist>
       <label>Proveedor habitual (opcional)</label><select id="p_prov">${provOpts}</select>
       <label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-weight:500;cursor:pointer"><input id="p_stock_ctrl" type="checkbox" style="width:auto" onchange="document.getElementById('p_stock_box').style.display=this.checked?'block':'none'"/> Llevar control de stock (existencias)</label>
       <div id="p_stock_box" style="display:none;margin-top:8px"><label>Stock inicial (unidades)${editar?' <span class="muted">(no se modifica al editar; usa el botón 📦)</span>':''}</label><input id="p_stock_ini" type="number" step="0.001" value="0" ${editar?'disabled':''}/></div>
       <p class="muted" style="font-size:12px;margin:10px 0 0">El precio de compra sirve para calcular el margen en el informe de beneficio. El stock se descuenta automáticamente al facturar.</p>`,
-      async()=>{ const b=JSON.stringify({nombre:val("p_nombre"),referencia:val("p_ref")||null,precioUnitario:Number(val("p_precio")),precioCompra:Number(val("p_compra")),codigoIva:val("p_iva"),tipo:(p&&p.tipo)?p.tipo:"Servicio",proveedorHabitualId:val("p_prov")||null,controlarStock:document.getElementById("p_stock_ctrl").checked,stockInicial:Number(val("p_stock_ini")||0)}); await api("/productos"+(editar?"/"+p.id:""),{method:editar?"PUT":"POST",body:b}); vProductos(); });
-      if(p){ rellenar({p_nombre:p.nombre,p_ref:p.referencia,p_precio:p.precioUnitario,p_compra:p.precioCompra,p_iva:p.codigoIva,p_prov:p.proveedorHabitualId});
+      async()=>{ const b=JSON.stringify({nombre:val("p_nombre"),referencia:val("p_ref")||null,precioUnitario:Number(val("p_precio")),precioCompra:Number(val("p_compra")),codigoIva:val("p_iva"),tipo:(p&&p.tipo)?p.tipo:"Servicio",categoria:val("p_cat")||null,proveedorHabitualId:val("p_prov")||null,controlarStock:document.getElementById("p_stock_ctrl").checked,stockInicial:Number(val("p_stock_ini")||0)}); await api("/productos"+(editar?"/"+p.id:""),{method:editar?"PUT":"POST",body:b}); vProductos(); });
+      if(p){ rellenar({p_nombre:p.nombre,p_ref:p.referencia,p_precio:p.precioUnitario,p_compra:p.precioCompra,p_iva:p.codigoIva,p_cat:p.categoria,p_prov:p.proveedorHabitualId});
         if(p.controlarStock){ document.getElementById("p_stock_ctrl").checked=true; document.getElementById("p_stock_box").style.display="block"; } } }
     async function modalStock(id){ const p=_cacheProd.find(x=>x.id===id); const movs=await api(`/productos/${id}/stock`).catch(()=>[]);
       const hist=movs.length?`<table><thead><tr><th>Fecha</th><th>Tipo</th><th class="num">Cantidad</th><th class="num">Stock</th></tr></thead><tbody>${movs.map(m=>`<tr><td class="muted">${new Date(m.fecha).toLocaleDateString("es-ES")}</td><td>${m.tipo}${m.motivo?` <span class="muted">· ${m.motivo}</span>`:''}</td><td class="num">${numCant(m.cantidad)}</td><td class="num">${numCant(m.stockResultante)}</td></tr>`).join("")}</tbody></table>`:'<p class="muted">Sin movimientos todavía.</p>';

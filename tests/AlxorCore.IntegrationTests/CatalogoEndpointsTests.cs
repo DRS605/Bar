@@ -12,7 +12,7 @@ public sealed class CatalogoEndpointsTests : IClassFixture<FabricaApiPruebas>
 
     public CatalogoEndpointsTests(FabricaApiPruebas fabrica) => _fabrica = fabrica;
 
-    private sealed record ProductoDto(Guid Id, string Nombre, decimal PrecioUnitario, string CodigoIva, decimal PorcentajeIva, bool Activo, decimal PrecioCompra, Guid? ProveedorHabitualId);
+    private sealed record ProductoDto(Guid Id, string Nombre, decimal PrecioUnitario, string CodigoIva, decimal PorcentajeIva, bool Activo, decimal PrecioCompra, Guid? ProveedorHabitualId, string? Categoria);
     private sealed record ProveedorResp(Guid Id);
 
     private sealed record ImpuestoDto(string Codigo, string Nombre, string Tipo, decimal Porcentaje);
@@ -45,6 +45,23 @@ public sealed class CatalogoEndpointsTests : IClassFixture<FabricaApiPruebas>
 
         var obtenido = await cliente.GetFromJsonAsync<ProductoDto>($"/productos/{creado.Id}");
         obtenido!.Nombre.Should().Be("Consultoría");
+    }
+
+    [Fact]
+    public async Task Un_articulo_puede_tener_categoria_y_se_devuelve()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+
+        var creado = (await (await cliente.PostAsJsonAsync("/productos", new { Nombre = "Caña", PrecioUnitario = 1.5m, Tipo = "Bien", CodigoIva = "IVA10", Categoria = "  Cervezas  " })).Content.ReadFromJsonAsync<ProductoDto>())!;
+        creado.Categoria.Should().Be("Cervezas");
+
+        var obtenido = await cliente.GetFromJsonAsync<ProductoDto>($"/productos/{creado.Id}");
+        obtenido!.Categoria.Should().Be("Cervezas");
+
+        // Se puede reasignar la categoría.
+        await cliente.PutAsJsonAsync($"/productos/{creado.Id}", new { Nombre = "Caña", PrecioUnitario = 1.5m, Tipo = "Bien", CodigoIva = "IVA10", Categoria = "Cervezas de barril" });
+        var tras = await cliente.GetFromJsonAsync<ProductoDto>($"/productos/{creado.Id}");
+        tras!.Categoria.Should().Be("Cervezas de barril");
     }
 
     [Fact]

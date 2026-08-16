@@ -16,7 +16,8 @@ public sealed record DatosProducto(
     decimal PrecioCompra = 0m,
     Guid? ProveedorHabitualId = null,
     bool ControlarStock = false,
-    decimal StockInicial = 0m);
+    decimal StockInicial = 0m,
+    string? Categoria = null);
 
 /// <summary>Caso de uso: crear un producto en la empresa activa.</summary>
 public sealed class CrearProducto
@@ -38,7 +39,7 @@ public sealed class CrearProducto
     {
         ArgumentNullException.ThrowIfNull(datos);
 
-        var producto = Producto.Crear(empresaId, datos.Referencia, datos.Nombre, datos.Tipo, datos.PrecioUnitario, datos.PrecioCompra, datos.CodigoIva, datos.Unidad, _reloj, datos.ProveedorHabitualId, datos.ControlarStock, datos.StockInicial);
+        var producto = Producto.Crear(empresaId, datos.Referencia, datos.Nombre, datos.Tipo, datos.PrecioUnitario, datos.PrecioCompra, datos.CodigoIva, datos.Unidad, _reloj, datos.ProveedorHabitualId, datos.ControlarStock, datos.StockInicial, datos.Categoria);
         if (producto.EsFallo)
         {
             return Resultado.Fallo<ProductoDto>(producto.Error);
@@ -80,7 +81,7 @@ public sealed class ActualizarProducto
         var precioVentaAnterior = producto.PrecioUnitario;
         var precioCompraAnterior = producto.PrecioCompra;
 
-        var r = producto.Actualizar(datos.Referencia, datos.Nombre, datos.Tipo, datos.PrecioUnitario, datos.PrecioCompra, datos.CodigoIva, datos.Unidad, _reloj, datos.ProveedorHabitualId, datos.ControlarStock);
+        var r = producto.Actualizar(datos.Referencia, datos.Nombre, datos.Tipo, datos.PrecioUnitario, datos.PrecioCompra, datos.CodigoIva, datos.Unidad, _reloj, datos.ProveedorHabitualId, datos.ControlarStock, datos.Categoria);
         if (r.EsFallo)
         {
             return Resultado.Fallo<ProductoDto>(r.Error);

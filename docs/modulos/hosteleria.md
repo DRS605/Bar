@@ -82,7 +82,8 @@ ofrece escritura (`IRepositorioMesas`, `IRepositorioComandas`) y consultas (`ICo
 ## Interfaz web
 
 Sección **«Barra / Salón»**: rejilla de mesas (libres/ocupadas con su total) y **TPV de mesa** rápido —
-una **rejilla de productos** (un toque = pedir, con búsqueda/escáner) y la **comanda en vivo** con
+una **rejilla de productos** (un toque = pedir, con búsqueda/escáner y **filtros por categoría** cuando
+los artículos la tienen —«Cervezas», «Tapas»…— más «Otros» para los que no) y la **comanda en vivo** con
 selectores **+/−** por línea y total al instante. Los toques se reflejan de inmediato (optimista) y se
 sincronizan en una cola (una operación a la vez, para no chocar); la respuesta del servidor manda. Desde
 ahí se anula o se cobra eligiendo la forma de pago.

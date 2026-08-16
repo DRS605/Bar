@@ -49,6 +49,7 @@ internal sealed class ConfiguracionProducto : IEntityTypeConfiguration<Producto>
         builder.Property(p => p.PrecioCompra).HasColumnName("precio_compra").HasColumnType("numeric(12,2)").IsRequired();
         builder.Property(p => p.CodigoIva).HasColumnName("codigo_iva").HasMaxLength(10).IsRequired();
         builder.Property(p => p.Unidad).HasColumnName("unidad").HasMaxLength(20).IsRequired();
+        builder.Property(p => p.Categoria).HasColumnName("categoria").HasMaxLength(Producto.LongitudMaximaCategoria);
         builder.Property(p => p.ProveedorHabitualId).HasColumnName("proveedor_habitual_id");
         builder.Property(p => p.ControlarStock).HasColumnName("controlar_stock").IsRequired();
         builder.Property(p => p.Stock).HasColumnName("stock").HasColumnType("numeric(14,3)").IsRequired();

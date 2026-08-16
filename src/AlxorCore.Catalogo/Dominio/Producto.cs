@@ -25,6 +25,7 @@ public sealed record ProductoCreado(Guid ProductoId, Guid EmpresaId, DateTimeOff
 public sealed class Producto : RaizAgregadoEmpresa<Guid>
 {
     public const int LongitudMaximaNombre = 200;
+    public const int LongitudMaximaCategoria = 60;
 
     private Producto(Guid id)
         : base(id, Guid.Empty)
@@ -34,7 +35,7 @@ public sealed class Producto : RaizAgregadoEmpresa<Guid>
         Unidad = null!;
     }
 
-    private Producto(Guid id, Guid empresaId, string? referencia, string nombre, TipoProducto tipo, decimal precio, decimal precioCompra, string codigoIva, string unidad, Guid? proveedorHabitualId, bool controlarStock, decimal stockInicial, DateTimeOffset ahora)
+    private Producto(Guid id, Guid empresaId, string? referencia, string nombre, TipoProducto tipo, decimal precio, decimal precioCompra, string codigoIva, string unidad, Guid? proveedorHabitualId, bool controlarStock, decimal stockInicial, string? categoria, DateTimeOffset ahora)
         : base(id, empresaId)
     {
         Referencia = referencia;
@@ -47,12 +48,16 @@ public sealed class Producto : RaizAgregadoEmpresa<Guid>
         ProveedorHabitualId = proveedorHabitualId;
         ControlarStock = controlarStock;
         Stock = controlarStock ? stockInicial : 0m;
+        Categoria = NormalizarCategoria(categoria);
         Activo = true;
         CreadoEn = ahora;
         ActualizadoEn = ahora;
     }
 
     public string? Referencia { get; private set; }
+
+    /// <summary>Categoría/familia del artículo (p. ej. «Cervezas», «Vinos», «Tapas») para agrupar en el TPV. Opcional.</summary>
+    public string? Categoria { get; private set; }
 
     public string Nombre { get; private set; }
 
@@ -85,7 +90,7 @@ public sealed class Producto : RaizAgregadoEmpresa<Guid>
     public DateTimeOffset ActualizadoEn { get; private set; }
 
     public static Resultado<Producto> Crear(
-        Guid empresaId, string? referencia, string? nombre, TipoProducto tipo, decimal precioUnitario, decimal precioCompra, string? codigoIva, string? unidad, IReloj reloj, Guid? proveedorHabitualId = null, bool controlarStock = false, decimal stockInicial = 0m)
+        Guid empresaId, string? referencia, string? nombre, TipoProducto tipo, decimal precioUnitario, decimal precioCompra, string? codigoIva, string? unidad, IReloj reloj, Guid? proveedorHabitualId = null, bool controlarStock = false, decimal stockInicial = 0m, string? categoria = null)
     {
         ArgumentNullException.ThrowIfNull(reloj);
 
@@ -96,12 +101,12 @@ public sealed class Producto : RaizAgregadoEmpresa<Guid>
         }
 
         var producto = new Producto(
-            Guid.NewGuid(), empresaId, Normalizar(referencia), nombre!.Trim(), tipo, precioUnitario, precioCompra, codigoIva!, NormalizarUnidad(unidad), proveedorHabitualId, controlarStock, stockInicial, reloj.AhoraUtc);
+            Guid.NewGuid(), empresaId, Normalizar(referencia), nombre!.Trim(), tipo, precioUnitario, precioCompra, codigoIva!, NormalizarUnidad(unidad), proveedorHabitualId, controlarStock, stockInicial, categoria, reloj.AhoraUtc);
         producto.RegistrarEvento(new ProductoCreado(producto.Id, empresaId, reloj.AhoraUtc));
         return Resultado.Ok(producto);
     }
 
-    public Resultado Actualizar(string? referencia, string? nombre, TipoProducto tipo, decimal precioUnitario, decimal precioCompra, string? codigoIva, string? unidad, IReloj reloj, Guid? proveedorHabitualId = null, bool controlarStock = false)
+    public Resultado Actualizar(string? referencia, string? nombre, TipoProducto tipo, decimal precioUnitario, decimal precioCompra, string? codigoIva, string? unidad, IReloj reloj, Guid? proveedorHabitualId = null, bool controlarStock = false, string? categoria = null)
     {
         ArgumentNullException.ThrowIfNull(reloj);
 
@@ -120,6 +125,7 @@ public sealed class Producto : RaizAgregadoEmpresa<Guid>
         ControlarStock = controlarStock;
         CodigoIva = codigoIva!;
         Unidad = NormalizarUnidad(unidad);
+        Categoria = NormalizarCategoria(categoria);
         ActualizadoEn = reloj.AhoraUtc;
         return Resultado.Ok();
     }
@@ -197,6 +203,17 @@ public sealed class Producto : RaizAgregadoEmpresa<Guid>
     }
 
     private static string? Normalizar(string? valor) => string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();
+
+    private static string? NormalizarCategoria(string? categoria)
+    {
+        if (string.IsNullOrWhiteSpace(categoria))
+        {
+            return null;
+        }
+
+        var limpia = categoria.Trim();
+        return limpia.Length > LongitudMaximaCategoria ? limpia[..LongitudMaximaCategoria] : limpia;
+    }
 
     private static string NormalizarUnidad(string? unidad) => string.IsNullOrWhiteSpace(unidad) ? "ud" : unidad.Trim();
 }
