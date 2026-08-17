@@ -55,6 +55,20 @@ builder.Services.Configure<AlxorCore.Api.Servicios.OpcionesRecordatorioReservas>
     builder.Configuration.GetSection(AlxorCore.Api.Servicios.OpcionesRecordatorioReservas.Seccion));
 builder.Services.AddHostedService<AlxorCore.Api.Servicios.ServicioRecordatorioReservas>();
 
+// --- Remisión VeriFactu a la AEAT (SOAP + certificado si está configurado; si no, nula) ---
+builder.Services.Configure<AlxorCore.Api.Servicios.Verifactu.OpcionesVerifactu>(
+    builder.Configuration.GetSection(AlxorCore.Api.Servicios.Verifactu.OpcionesVerifactu.Seccion));
+var opcionesVerifactu = new AlxorCore.Api.Servicios.Verifactu.OpcionesVerifactu();
+builder.Configuration.GetSection(AlxorCore.Api.Servicios.Verifactu.OpcionesVerifactu.Seccion).Bind(opcionesVerifactu);
+if (opcionesVerifactu.Configurado)
+{
+    builder.Services.AddScoped<AlxorCore.Api.Servicios.Verifactu.IRemisorVerifactu, AlxorCore.Api.Servicios.Verifactu.RemisorVerifactuAeat>();
+}
+else
+{
+    builder.Services.AddScoped<AlxorCore.Api.Servicios.Verifactu.IRemisorVerifactu, AlxorCore.Api.Servicios.Verifactu.RemisorVerifactuNulo>();
+}
+
 // Los enumerados se serializan por nombre en la API.
 builder.Services.ConfigureHttpJsonOptions(opciones =>
     opciones.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));

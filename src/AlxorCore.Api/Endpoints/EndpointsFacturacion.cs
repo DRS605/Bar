@@ -31,6 +31,10 @@ public static class EndpointsFacturacion
             .WithSummary("Descarga el registro de alta VeriFactu (XML) de la factura.")
             .RequierePermiso(Permisos.FacturaLeer);
 
+        facturas.MapPost("/{id:guid}/verifactu/remitir", VerifactuRemitirAsync)
+            .WithSummary("Remite el registro VeriFactu de la factura a la AEAT (requiere certificado configurado).")
+            .RequierePermiso(Permisos.FacturaEmitir);
+
         rutas.MapPost("/tickets", EmitirTicketAsync)
             .WithTags("TPV / Tickets")
             .WithSummary("Emite un ticket (factura simplificada) desde el TPV.")
@@ -248,6 +252,32 @@ public static class EndpointsFacturacion
 
         var xml = AlxorCore.Api.Comun.GeneradorXmlVerifactu.Generar(factura, emisor);
         return Results.Text(xml, "application/xml");
+    }
+
+    private static async Task<IResult> VerifactuRemitirAsync(
+        Guid id, IContextoEmpresa contexto, IConsultaFacturas facturas,
+        AlxorCore.Organizacion.Aplicacion.Puertos.IConsultaEmpresas empresas,
+        AlxorCore.Api.Servicios.Verifactu.IRemisorVerifactu remisor, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var factura = await facturas.ObtenerAsync(id, ct).ConfigureAwait(false);
+        if (factura is null)
+        {
+            return ResultadosHttp.AProblema(Error.NoEncontrado("factura.no_encontrada", "La factura no existe."));
+        }
+
+        var emisor = await empresas.ObtenerAsync(contexto.EmpresaId.Value, ct).ConfigureAwait(false);
+        if (emisor is null)
+        {
+            return ResultadosHttp.AProblema(Error.NoEncontrado("empresa.no_encontrada", "La empresa no existe."));
+        }
+
+        var xml = AlxorCore.Api.Comun.GeneradorXmlVerifactu.Generar(factura, emisor);
+        return (await remisor.RemitirAsync(xml, ct).ConfigureAwait(false)).AOk();
     }
 }
 

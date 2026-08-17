@@ -62,18 +62,28 @@ Orden HAC/1177/2024):
 - Campos en `factura`: `huella`, `huella_anterior`, `id_registro`, `fecha_hora_gen_registro`,
   `estado_envio_aeat` (`Registrado` = generado y almacenado localmente).
 
-### Registro de alta en XML
+### Registro de alta en XML (remisible)
 
-`GET /facturas/{id}/verifactu.xml` genera el **registro de alta** en XML con los campos de la AEAT
-(`IDFactura`, `NombreRazonEmisor`, `TipoFactura`, desglose por tipo de IVA, `CuotaTotal`,
-`ImporteTotal`, `Encadenamiento` con la huella anterior, `SistemaInformatico`,
-`FechaHoraHusoGenRegistro`, `TipoHuella`, `Huella`). Es el documento que se remitiría al servicio web
-de la AEAT (`GeneradorXmlVerifactu`).
+`GET /facturas/{id}/verifactu.xml` genera el **documento remisible** completo (`GeneradorXmlVerifactu`):
+el sobre **`RegFactuSistemaFacturacion`** con su **`Cabecera`** (obligado a emitir) y el
+**`RegistroAlta`** (`IDFactura`, `NombreRazonEmisor`, `TipoFactura`, `Destinatarios`, desglose por tipo
+de IVA, `CuotaTotal`, `ImporteTotal`, `Encadenamiento` con la huella anterior, `SistemaInformatico`,
+`FechaHoraHusoGenRegistro`, `TipoHuella`, `Huella`), con los **espacios de nombres** oficiales
+(`SuministroLR.xsd` = `sum`, `SuministroInformacion.xsd` = `sum1`) y declaración UTF-8.
 
-> **Fuera de alcance por ahora**: el **envío en vivo del registro al servicio web SOAP de la AEAT**
-> (requiere certificado electrónico y el entorno de la Agencia). El registro se genera, se encadena y
-> se puede inspeccionar en XML; activar el envío es **aditivo** (conectar el certificado y el
-> endpoint) y no rehace el núcleo.
+### Remisión a la AEAT
+
+`POST /facturas/{id}/verifactu/remitir` envía el registro al **servicio web SOAP** de la AEAT con
+**autenticación mutua** (el certificado del obligado). La composición del sobre SOAP y la lectura de la
+respuesta (estado, CSV, error) están en `SobreSoapVerifactu`; el envío en `RemisorVerifactuAeat`, que se
+activa con la sección de configuración **`VeriFactu`** (`Activo`, `Entorno` preproducción/producción,
+`CertificadoRuta`, `CertificadoClave`, `EndpointUrl`). **Sin certificado** se usa `RemisorVerifactuNulo`
+y el endpoint responde `verifactu.no_configurado` (400), sin romper la operación.
+
+> **Pendiente de conectar con tu certificado**: los endpoints por defecto y los datos de registro del
+> sistema informático (SIF) deben **confirmarse en la certificación** contra el entorno de pruebas de la
+> AEAT; el `RegistroAnterior` completa `NumSerie`/`Fecha` del registro previo al activar el envío real.
+> Todo esto es **aditivo** (conectar el certificado) y no rehace el registro ni la huella.
 
 ## API
 
