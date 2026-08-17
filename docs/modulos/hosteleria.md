@@ -39,7 +39,10 @@ Ciclo de vida:
    (`CantidadCobrada`), así que la mesa **sigue abierta** con lo que falta hasta que el último pago la
    salda —momento en el que se cierra y libera igual que un cobro normal—. No se puede quitar ni bajar
    la cantidad de una línea por debajo de lo ya cobrado.
-5. **Anular**: cierra una comanda abierta sin cobrarla (la mesa se libera). No se puede anular una ya
+5. **Cuenta previa (pre-ticket)**: imprime lo consumido con sus importes y el total **sin cobrar ni
+   cerrar la mesa** —lo que el cliente pide para revisar antes de pagar—. Va marcada como **documento
+   sin valor fiscal** («No es una factura»); el ticket fiscal se emite al cobrar.
+6. **Anular**: cierra una comanda abierta sin cobrarla (la mesa se libera). No se puede anular una ya
    cobrada.
 
 ## Cobro = ticket (integración con Facturación y Catálogo)
@@ -98,6 +101,8 @@ marca lo enviado). En el editor de comanda, el botón **«🍳 Cocina»** lo dis
 | `PUT` | `/comandas/{id}/lineas/{lineaId}` | permiso `hosteleria.gestionar` | Fija la cantidad de una línea (+/−). |
 | `DELETE` | `/comandas/{id}/lineas/{lineaId}` | permiso `hosteleria.gestionar` | Quita una línea. |
 | `POST` | `/comandas/{id}/cocina` | permiso `hosteleria.gestionar` | Envía a cocina los artículos nuevos (marca e imprime). |
+| `GET` | `/comandas/{id}/cuenta.escpos` | permiso `hosteleria.gestionar` | Descarga la cuenta previa (pre-ticket, sin valor fiscal) en ESC/POS. |
+| `POST` | `/comandas/{id}/cuenta/imprimir` | permiso `hosteleria.gestionar` | Imprime la cuenta previa en la impresora térmica. |
 | `POST` | `/comandas/{id}/cobrar` | permiso `hosteleria.gestionar` | Cobra emitiendo el ticket. |
 | `POST` | `/comandas/{id}/cobrar-parcial` | permiso `hosteleria.gestionar` | Reparte la cuenta: cobra los artículos indicados con su ticket; cierra la mesa al saldar lo último. |
 | `POST` | `/comandas/{id}/anular` | permiso `hosteleria.gestionar` | Anula la comanda. **204** |
@@ -121,6 +126,8 @@ ahí se anula o se **cobra**: forma de pago con botones grandes, **teclado numé
 **cambio a devolver** en efectivo, **dividir a escote** (importe por comensal) y **«Repartir»** la
 cuenta **por artículos** —elegir lo que paga cada uno y emitir su ticket, dejando la mesa abierta hasta
 el último pago—, con opción de **imprimir el ticket** en la impresora térmica (ver módulo Documentos).
+El botón **«🧾 Cuenta»** imprime la **cuenta previa** (pre-ticket, sin valor fiscal) para que el cliente
+la revise antes de pagar, sin cerrar la mesa.
 
 Sección **«Plano del local»**: lienzo donde se **dibujan y arrastran** las mesas (por forma y estado)
 sobre las zonas (Salón, Terraza, Barra), se toca una mesa para abrir/ver su comanda y se **descarga el
@@ -140,5 +147,6 @@ dibujo** del plano en SVG para imprimirlo.
   abiertas, acumular el mismo producto en una línea, fijar la cantidad de una línea (y rechazar cero),
   quitar línea, **enviar a cocina los artículos nuevos sin repetirlos**, cobro que figura en el cierre
   de caja, **reparto por artículos** (un ticket por comensal, la mesa sigue abierta hasta el último pago
-  y cada cobro figura en caja; y rechazo del cobro por encima de lo pendiente), no cobrar vacía, anular
-  y exigencia de empresa activa.
+  y cada cobro figura en caja; y rechazo del cobro por encima de lo pendiente), **cuenta previa** en
+  ESC/POS (se descarga sin emitir factura ni cerrar la mesa; aviso al imprimir sin impresora), no cobrar
+  vacía, anular y exigencia de empresa activa.

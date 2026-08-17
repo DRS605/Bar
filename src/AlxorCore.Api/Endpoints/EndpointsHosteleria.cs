@@ -4,6 +4,8 @@ using AlxorCore.Hosteleria.Aplicacion;
 using AlxorCore.Nucleo.Autorizacion;
 using AlxorCore.Nucleo.Multiempresa;
 using AlxorCore.Nucleo.Resultados;
+using AlxorCore.Nucleo.Tiempo;
+using AlxorCore.Organizacion.Aplicacion.Puertos;
 using AlxorCore.Tesoreria.Aplicacion;
 
 namespace AlxorCore.Api.Endpoints;
@@ -73,6 +75,14 @@ public static class EndpointsHosteleria
 
         comandas.MapPost("/{id:guid}/cobrar-parcial", CobrarComandaParcialAsync)
             .WithSummary("Cobra parte de la comanda (reparto por artículos): emite un ticket de los artículos indicados y cierra la mesa cuando queda todo pagado.")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
+        comandas.MapGet("/{id:guid}/cuenta.escpos", DescargarCuentaAsync)
+            .WithSummary("Descarga la cuenta previa (pre-ticket, sin valor fiscal) de la comanda en ESC/POS.")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
+        comandas.MapPost("/{id:guid}/cuenta/imprimir", ImprimirCuentaAsync)
+            .WithSummary("Imprime la cuenta previa (pre-ticket) de la comanda en la impresora térmica.")
             .RequierePermiso(Permisos.HosteleriaGestionar);
 
         comandas.MapPost("/{id:guid}/anular", AnularComandaAsync)
@@ -236,6 +246,90 @@ public static class EndpointsHosteleria
         }
 
         return resultado.AOk();
+    }
+
+    private static async Task<Resultado<DatosCuenta>> ConstruirCuentaAsync(
+        Guid empresaId, Guid id, IConsultaComandas comandas, IConsultaMesas mesas, IConsultaEmpresas empresas, IReloj reloj, CancellationToken ct)
+    {
+        var comanda = await comandas.ObtenerAsync(id, ct).ConfigureAwait(false);
+        if (comanda is null)
+        {
+            return Resultado.Fallo<DatosCuenta>(Error.NoEncontrado("comanda.no_encontrada", "La comanda no existe."));
+        }
+
+        var empresa = await empresas.ObtenerAsync(empresaId, ct).ConfigureAwait(false);
+        if (empresa is null)
+        {
+            return Resultado.Fallo<DatosCuenta>(Error.NoEncontrado("empresa.no_encontrada", "La empresa no existe."));
+        }
+
+        var mesa = await mesas.ObtenerAsync(comanda.MesaId, ct).ConfigureAwait(false);
+        var lineas = comanda.Lineas
+            .Select(l => new LineaCuenta(l.Cantidad, l.Descripcion, l.PrecioUnitario, l.Total))
+            .ToList();
+
+        return Resultado.Ok(new DatosCuenta(
+            empresa.RazonSocial,
+            string.IsNullOrWhiteSpace(mesa?.Nombre) ? "Mesa" : mesa!.Nombre,
+            reloj.AhoraUtc,
+            lineas,
+            comanda.BaseImponible,
+            comanda.CuotaIva,
+            comanda.Total,
+            comanda.Notas));
+    }
+
+    private static async Task<IResult> DescargarCuentaAsync(
+        Guid id, IContextoEmpresa contexto, IConsultaComandas comandas, IConsultaMesas mesas,
+        IConsultaEmpresas empresas, IGeneradorCuenta generador, IReloj reloj, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var datos = await ConstruirCuentaAsync(contexto.EmpresaId.Value, id, comandas, mesas, empresas, reloj, ct).ConfigureAwait(false);
+        if (datos.EsFallo)
+        {
+            return ResultadosHttp.AProblema(datos.Error);
+        }
+
+        return Results.File(generador.Generar(datos.Valor), "application/octet-stream", $"cuenta-{datos.Valor.Mesa}.escpos");
+    }
+
+    private static async Task<IResult> ImprimirCuentaAsync(
+        Guid id, IContextoEmpresa contexto, IConsultaComandas comandas, IConsultaMesas mesas,
+        IConsultaEmpresas empresas, IGeneradorCuenta generador, IImpresoraTickets impresora, IReloj reloj, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        if (!impresora.Configurada)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("impresora.no_configurada",
+                "No hay ninguna impresora de tickets configurada. Configura la sección «Impresora» o descarga la cuenta."));
+        }
+
+        var datos = await ConstruirCuentaAsync(contexto.EmpresaId.Value, id, comandas, mesas, empresas, reloj, ct).ConfigureAwait(false);
+        if (datos.EsFallo)
+        {
+            return ResultadosHttp.AProblema(datos.Error);
+        }
+
+        try
+        {
+            await impresora.ImprimirAsync(generador.Generar(datos.Valor), ct).ConfigureAwait(false);
+        }
+#pragma warning disable CA1031 // Cualquier fallo de E/S con la impresora se traduce a un error de negocio legible.
+        catch (Exception ex)
+#pragma warning restore CA1031
+        {
+            return ResultadosHttp.AProblema(Error.Conflicto("impresora.error", $"No se pudo imprimir la cuenta: {ex.Message}"));
+        }
+
+        return Results.NoContent();
     }
 
     private static async Task<IResult> AnularComandaAsync(Guid id, AnularComanda caso, CancellationToken ct) =>

@@ -884,6 +884,7 @@
         <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
           <button class="btn small ghost" onclick="vHosteleria()">← Volver</button>
           <button class="btn small secondary" onclick="hosEnviarCocina('${c.id}')">🍳 Cocina</button>
+          <button class="btn small secondary" onclick="hosCuenta('${c.id}')">🧾 Cuenta</button>
           <button class="btn small secondary" onclick="hosAnular('${c.id}')">Anular</button>
           <button class="btn small secondary" id="hosRepartirBtn" onclick="hosRepartir('${c.id}')">Repartir</button>
           <button class="btn small" id="hosCobrarBtn" onclick="hosCobrar('${c.id}')">Cobrar</button>
@@ -961,6 +962,7 @@
         hosEncolar(()=>api("/comandas/"+id+"/lineas/"+lineaId,{method:"PUT",body:JSON.stringify({cantidad:nueva})})); }
     }
     async function hosAnular(id){ try{ await api("/comandas/"+id+"/anular",{method:"POST"}); toast("Comanda anulada","ok"); vHosteleria();}catch(e){toast(e.message,"err");} }
+    async function hosCuenta(id){ try{ await hosCola; await api("/comandas/"+id+"/cuenta/imprimir",{method:"POST"}); toast("🧾 Cuenta impresa para la mesa","ok"); }catch(e){ toast(e.message,"err"); } }
     async function hosEnviarCocina(id){ try{ await hosCola; const r=await api("/comandas/"+id+"/cocina",{method:"POST"});
         const n=(r.articulos||[]).reduce((s,a)=>s+Number(a.cantidad),0);
         toast(n>0?("🍳 Enviado a cocina · "+numCant(n)+" artículo(s)"):"Nada nuevo que enviar a cocina","ok"); }catch(e){ toast(e.message,"err"); } }

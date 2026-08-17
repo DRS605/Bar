@@ -319,6 +319,40 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
     }
 
     [Fact]
+    public async Task La_cuenta_previa_se_descarga_en_escpos_y_no_es_fiscal()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var cana = await CrearCañaAsync(cliente, stock: false);
+        var mesa = await CrearMesaAsync(cliente);
+        var comanda = (await (await cliente.PostAsJsonAsync("/comandas", new { MesaId = mesa.Id })).Content.ReadFromJsonAsync<ComandaResp>())!;
+        await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/lineas", new { ProductoId = cana.Id, Cantidad = 2m });
+
+        var resp = await cliente.GetAsync(new Uri($"/comandas/{comanda.Id}/cuenta.escpos", UriKind.Relative));
+        resp.StatusCode.Should().Be(HttpStatusCode.OK);
+        resp.Content.Headers.ContentType!.MediaType.Should().Be("application/octet-stream");
+        var bytes = await resp.Content.ReadAsByteArrayAsync();
+        bytes.Take(2).Should().Equal(new byte[] { 0x1B, 0x40 });                 // ESC @ (ESC/POS)
+        System.Text.Encoding.ASCII.GetString(bytes).Should().Contain("CUENTA");
+
+        // Es una vista previa: no emite factura ni cierra la comanda.
+        (await cliente.GetFromJsonAsync<List<FacturaResp>>("/facturas"))!.Should().BeEmpty();
+        (await cliente.GetFromJsonAsync<ComandaResp>($"/comandas/{comanda.Id}"))!.Estado.Should().Be("Abierta");
+    }
+
+    [Fact]
+    public async Task Imprimir_la_cuenta_sin_impresora_configurada_avisa()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var cana = await CrearCañaAsync(cliente, stock: false);
+        var mesa = await CrearMesaAsync(cliente);
+        var comanda = (await (await cliente.PostAsJsonAsync("/comandas", new { MesaId = mesa.Id })).Content.ReadFromJsonAsync<ComandaResp>())!;
+        await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/lineas", new { ProductoId = cana.Id, Cantidad = 1m });
+
+        var resp = await cliente.PostAsync(new Uri($"/comandas/{comanda.Id}/cuenta/imprimir", UriKind.Relative), content: null);
+        resp.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task Enviar_a_cocina_manda_los_articulos_nuevos_y_no_los_repite()
     {
         var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);

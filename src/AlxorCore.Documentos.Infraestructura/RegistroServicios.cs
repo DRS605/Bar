@@ -39,6 +39,7 @@ public static class RegistroServicios
         // «Impresora»; si no, la nula, que informa de que no está configurada).
         servicios.AddScoped<IGeneradorTicketEscPos, GeneradorTicketEscPos>();
         servicios.AddScoped<IGeneradorComandaCocina, GeneradorComandaCocinaEscPos>();
+        servicios.AddScoped<IGeneradorCuenta, GeneradorCuentaEscPos>();
         servicios.AddOptions<OpcionesImpresora>().Bind(configuracion.GetSection(OpcionesImpresora.Seccion));
         var opcionesImpresora = new OpcionesImpresora();
         configuracion.GetSection(OpcionesImpresora.Seccion).Bind(opcionesImpresora);

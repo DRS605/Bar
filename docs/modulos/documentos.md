@@ -54,6 +54,7 @@ Desde el TPV de mesa, la casilla **«Imprimir ticket»** del cobro envía el tic
 - `IServicioCorreo` → `ServicioCorreoSmtp` (SMTP real) si hay servidor configurado; si no, el stub.
 - `IGeneradorTicketEscPos` → `GeneradorTicketEscPos` (ESC/POS, página de códigos 858).
 - `IGeneradorComandaCocina` → `GeneradorComandaCocinaEscPos` (comanda de cocina en ESC/POS, sin precios).
+- `IGeneradorCuenta` → `GeneradorCuentaEscPos` (cuenta previa/pre-ticket en ESC/POS, con importes y marcada «sin valor fiscal»).
 - `IImpresoraTickets` → `ImpresoraTicketsRed` (TCP) si hay host configurado; si no, `ImpresoraTicketsNula`.
 
 ## Tests
@@ -63,7 +64,10 @@ Desde el TPV de mesa, la casilla **«Imprimir ticket»** del cobro envía el tic
   (inicialización `ESC @`, selección de página de códigos, corte final, presencia de local, número,
   líneas, «TOTAL» y «€»; y el bloque **VeriFactu** —leyenda, QR `GS v 0` y huella— presente con huella y
   ausente sin ella); `QrEscPos` (bloque ráster `GS v 0` con el tamaño declarado);
-  `GeneradorComandaCocinaEscPos` (mesa, artículos con cantidad y **sin precios**, corte).
+  `GeneradorComandaCocinaEscPos` (mesa, artículos con cantidad y **sin precios**, corte);
+  `GeneradorCuentaEscPos` (local, «CUENTA», mesa, líneas **con importes**, «TOTAL», «€», y el aviso
+  **«Documento sin valor fiscal / No es una factura»**, con `ESC @`…corte y página de códigos 858).
 - **Integración**: descarga del PDF (200, `application/pdf`, cabecera `%PDF`), envío por correo (204),
   descarga del ticket ESC/POS (200, `application/octet-stream`, `ESC @`…corte) e impresión sin impresora
-  configurada (400 `impresora.no_configurada`).
+  configurada (400 `impresora.no_configurada`). La **cuenta previa** de una comanda se prueba en el
+  módulo Hostelería (descarga ESC/POS sin emitir factura; aviso al imprimir sin impresora).
