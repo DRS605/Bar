@@ -1266,7 +1266,55 @@
       try{ panelUsuarios=await panelUsuariosHtml(); }catch(e){ panelUsuarios=""; }
       let panelAudit="";
       try{ panelAudit=await panelAuditoriaHtml(); }catch(e){ panelAudit=""; }
-      view(panelSeries+panelCobroHtml()+panelUsuarios+panelDatosHtml()+panelAudit);
+      view(panelSeries+panelCobroHtml()+panelUsuarios+panelDemoHtml()+panelDatosHtml()+panelAudit);
+    }
+    function panelDemoHtml(){
+      const cuerpo=`<p class="muted" style="margin:0 0 14px">Monta en un clic un <strong>bar de ejemplo</strong> —carta por categorías, mesas por zonas, turnos, reservas de hoy y una comanda abierta— en una <strong>empresa aparte</strong> («Bar de ejemplo»), sin tocar tus datos. Ideal para <strong>enseñar Comandia en vivo</strong>; cuando termines, bórrala desde «Tus empresas».</p>
+        <button class="btn small" id="btnDemo" onclick="demoMontarBar()">✨ Montar un bar de ejemplo</button>`;
+      return panel("Demostración",cuerpo);
+    }
+    async function demoMontarBar(){
+      const btn=document.getElementById("btnDemo"); if(btn){ btn.disabled=true; btn.textContent="Montando el bar…"; }
+      try{
+        toast("Preparando el bar de ejemplo…","ok");
+        // Empresa aislada: reutiliza «Bar de ejemplo» si ya existe; si no, la crea.
+        let lista=await api("/empresas").catch(()=>[]);
+        let emp=lista.find(e=>e.razonSocial==="Bar de ejemplo");
+        if(!emp){ emp=await api("/empresas",{method:"POST",body:JSON.stringify({razonSocial:"Bar de ejemplo",nif:"44112233G",calle:"Calle Mayor 8",codigoPostal:"41001",poblacion:"Sevilla",provincia:"Sevilla"})}); }
+        const sel=await api("/empresas/"+emp.id+"/seleccionar",{method:"POST"}); token=sel.token; empresa=emp;
+        // Idempotente: si el bar de ejemplo ya tiene mesas, solo cambiamos a él.
+        if((await api("/mesas").catch(()=>[])).length){ toast("Ya tenías un bar de ejemplo: entrando…","ok"); arrancar(); return; }
+        // Carta por categorías.
+        const carta=[["Cervezas",[["Caña",1.50],["Doble",2.20],["Tercio",2.50],["Sin alcohol",2.00]]],
+          ["Vinos",[["Vino tinto",2.20],["Vino blanco",2.20],["Copa de cava",3.00]]],
+          ["Refrescos",[["Agua",1.20],["Coca-Cola",1.80],["Tónica",2.00]]],
+          ["Cafés",[["Café",1.30],["Cortado",1.30],["Carajillo",2.00]]],
+          ["Tapas",[["Tortilla",4.50],["Croquetas",5.00],["Ensaladilla",6.00],["Jamón",12.00],["Patatas bravas",5.50]]]];
+        const prod={};
+        for(const [cat,items] of carta) for(const [n,p] of items){
+          const r=await api("/productos",{method:"POST",body:JSON.stringify({nombre:n,precioUnitario:p,precioCompra:Math.round(p*35)/100,codigoIva:"IVA10",tipo:"Bien",unidad:"ud",categoria:cat,controlarStock:false})});
+          prod[n]=r.id;
+        }
+        // Mesas por zonas.
+        const mesa={};
+        for(const [z,nombres,f] of [["Salón",["Mesa 1","Mesa 2","Mesa 3","Mesa 4"],"Cuadrada"],["Terraza",["Terraza 1","Terraza 2","Terraza 3"],"Redonda"],["Barra",["Barra"],"Rectangular"]])
+          for(const n of nombres){ const r=await api("/mesas",{method:"POST",body:JSON.stringify({nombre:n,zona:z,capacidad:4,forma:f})}); mesa[n]=r.id; }
+        // Turnos con aforo.
+        for(const [n,ini,fin] of [["Comida","13:00","16:00"],["Cena","20:00","23:30"]])
+          await api("/turnos",{method:"POST",body:JSON.stringify({nombre:n,dias:127,horaInicio:ini,horaFin:fin,aforoComensales:40})}).catch(()=>{});
+        // Reservas para hoy.
+        const hoy=new Date().toISOString().slice(0,10);
+        for(const [nombre,tel,hora,pax,mesaId,notas] of [["Ana García","600111222","21:00",4,mesa["Terraza 1"],"Cumpleaños"],["Carlos Ruiz","600333444","21:30",2,null,null],["Familia López","600555666","14:30",6,null,"Menú del día"]]){
+          const c={nombreCliente:nombre,telefono:tel,fechaHora:`${hoy}T${hora}:00`,duracionMinutos:90,comensales:pax,notas};
+          if(mesaId) c.mesaId=mesaId;
+          await api("/reservas",{method:"POST",body:JSON.stringify(c)}).catch(()=>{});
+        }
+        // Una comanda abierta.
+        const com=await api("/comandas",{method:"POST",body:JSON.stringify({mesaId:mesa["Mesa 1"],notas:"sin gluten"})}).catch(()=>null);
+        if(com) for(const [n,cant] of [["Caña",2],["Tortilla",1],["Croquetas",1]])
+          await api(`/comandas/${com.id}/lineas`,{method:"POST",body:JSON.stringify({productoId:prod[n],cantidad:cant})}).catch(()=>{});
+        toast("¡Bar de ejemplo listo! Ya puedes enseñarlo en vivo.","ok"); arrancar();
+      }catch(e){ toast(e.message,"err"); if(btn){ btn.disabled=false; btn.textContent="✨ Montar un bar de ejemplo"; } }
     }
     function panelCobroHtml(){
       const cuerpo=`<p class="muted" style="margin:0 0 14px">Para cobrar por <strong>domiciliación bancaria</strong> (remesas SEPA) necesitas el IBAN donde ingresar los recibos y tu <strong>identificador de acreedor</strong> (te lo da tu banco).</p>
