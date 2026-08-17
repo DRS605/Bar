@@ -822,8 +822,9 @@
         <div class="tpv-res" id="hosGrid" style="margin-top:12px"></div></div></div>`;
       const der=`<div class="panel tpv-cart" style="margin:0"><div class="panel-head"><h2>Comanda</h2><span class="pill part">Mesa</span></div>
         <div style="padding:14px 18px"><div id="hosCart"></div><div id="hosTotal"></div>
-        <div style="display:flex;gap:8px;margin-top:16px">
+        <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
           <button class="btn small ghost" onclick="vHosteleria()">← Volver</button>
+          <button class="btn small secondary" onclick="hosEnviarCocina('${c.id}')">🍳 Cocina</button>
           <button class="btn small secondary" onclick="hosAnular('${c.id}')">Anular</button>
           <button class="btn small" id="hosCobrarBtn" onclick="hosCobrar('${c.id}')">Cobrar</button>
         </div></div></div>`;
@@ -900,6 +901,9 @@
         hosEncolar(()=>api("/comandas/"+id+"/lineas/"+lineaId,{method:"PUT",body:JSON.stringify({cantidad:nueva})})); }
     }
     async function hosAnular(id){ try{ await api("/comandas/"+id+"/anular",{method:"POST"}); toast("Comanda anulada","ok"); vHosteleria();}catch(e){toast(e.message,"err");} }
+    async function hosEnviarCocina(id){ try{ await hosCola; const r=await api("/comandas/"+id+"/cocina",{method:"POST"});
+        const n=(r.articulos||[]).reduce((s,a)=>s+Number(a.cantidad),0);
+        toast(n>0?("🍳 Enviado a cocina · "+numCant(n)+" artículo(s)"):"Nada nuevo que enviar a cocina","ok"); }catch(e){ toast(e.message,"err"); } }
     function hosCobrar(id){
       abrir("Cobrar comanda",
         `<label>Forma de cobro</label><select id="hos_metodo"><option value="Efectivo">Efectivo</option><option value="Tarjeta">Tarjeta</option><option value="Otro">Otro</option></select>

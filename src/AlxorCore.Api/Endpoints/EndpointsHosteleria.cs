@@ -1,4 +1,5 @@
 using AlxorCore.Api.Comun;
+using AlxorCore.Documentos.Aplicacion;
 using AlxorCore.Hosteleria.Aplicacion;
 using AlxorCore.Nucleo.Autorizacion;
 using AlxorCore.Nucleo.Multiempresa;
@@ -60,6 +61,10 @@ public static class EndpointsHosteleria
 
         comandas.MapDelete("/{id:guid}/lineas/{lineaId:guid}", QuitarLineaAsync)
             .WithSummary("Quita una línea de la comanda.")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
+        comandas.MapPost("/{id:guid}/cocina", EnviarCocinaAsync)
+            .WithSummary("Envía a cocina/barra los artículos nuevos de la comanda (marca e imprime).")
             .RequierePermiso(Permisos.HosteleriaGestionar);
 
         comandas.MapPost("/{id:guid}/cobrar", CobrarComandaAsync)
@@ -135,6 +140,41 @@ public static class EndpointsHosteleria
 
     private static async Task<IResult> QuitarLineaAsync(Guid id, Guid lineaId, QuitarLineaComanda caso, CancellationToken ct) =>
         (await caso.EjecutarAsync(id, lineaId, ct).ConfigureAwait(false)).AOk();
+
+    private static async Task<IResult> EnviarCocinaAsync(
+        Guid id, IContextoEmpresa contexto, EnviarComandaCocina caso, IConsultaMesas mesas,
+        IGeneradorComandaCocina generador, IImpresoraTickets impresora, ILoggerFactory registros, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var resultado = await caso.EjecutarAsync(id, ct).ConfigureAwait(false);
+
+        // Imprimir la comanda de cocina de los artículos nuevos (mejor esfuerzo: no bloquea el pedido).
+        if (resultado.EsCorrecto && resultado.Valor.Articulos.Count > 0 && impresora.Configurada)
+        {
+            try
+            {
+                var mesa = await mesas.ObtenerAsync(resultado.Valor.MesaId, ct).ConfigureAwait(false);
+                var datos = new DatosComandaCocina(
+                    string.IsNullOrWhiteSpace(mesa?.Nombre) ? "Mesa" : mesa!.Nombre,
+                    resultado.Valor.Hora,
+                    resultado.Valor.Articulos.Select(a => new LineaCocina(a.Cantidad, a.Descripcion)).ToList(),
+                    resultado.Valor.Notas);
+                await impresora.ImprimirAsync(generador.Generar(datos), ct).ConfigureAwait(false);
+            }
+#pragma warning disable CA1031 // Un fallo de impresión no debe interrumpir el envío a cocina.
+            catch (Exception ex)
+#pragma warning restore CA1031
+            {
+                registros.CreateLogger("Hosteleria.Cocina").LogWarning(ex, "No se pudo imprimir la comanda de cocina {ComandaId}.", id);
+            }
+        }
+
+        return resultado.AOk();
+    }
 
     private static async Task<IResult> CobrarComandaAsync(
         Guid id, DatosCobro datos, IContextoEmpresa contexto, CobrarComanda caso,

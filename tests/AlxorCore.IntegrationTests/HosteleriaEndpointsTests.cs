@@ -27,6 +27,9 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
     private sealed record CierreMetodoResp(string Metodo, decimal Importe, int Numero);
     private sealed record CierreResp(decimal TotalCobrado, List<CierreMetodoResp> CobrosPorMetodo);
 
+    private sealed record ArticuloCocinaResp(decimal Cantidad, string Descripcion);
+    private sealed record CocinaResp(Guid MesaId, List<ArticuloCocinaResp> Articulos);
+
     private static async Task<ProductoResp> CrearCañaAsync(HttpClient cliente, decimal precio = 1.50m, bool stock = true, decimal stockInicial = 100m)
     {
         var resp = await cliente.PostAsJsonAsync("/productos", new
@@ -237,6 +240,23 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
         var cierre = await cliente.GetFromJsonAsync<CierreResp>($"/informes/cierre-caja?dia={hoy}");
         cierre!.CobrosPorMetodo.Should().ContainSingle(m => m.Metodo == "Tarjeta" && m.Importe == 3.30m && m.Numero == 1);
         cierre.TotalCobrado.Should().Be(3.30m);
+    }
+
+    [Fact]
+    public async Task Enviar_a_cocina_manda_los_articulos_nuevos_y_no_los_repite()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var producto = await CrearCañaAsync(cliente, stock: false);
+        var mesa = await CrearMesaAsync(cliente);
+        var comanda = (await (await cliente.PostAsJsonAsync("/comandas", new { MesaId = mesa.Id })).Content.ReadFromJsonAsync<ComandaResp>())!;
+        await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/lineas", new { ProductoId = producto.Id, Cantidad = 3m });
+
+        var envio1 = await (await cliente.PostAsync(new Uri($"/comandas/{comanda.Id}/cocina", UriKind.Relative), content: null)).Content.ReadFromJsonAsync<CocinaResp>();
+        envio1!.Articulos.Should().ContainSingle(a => a.Descripcion == "Caña" && a.Cantidad == 3m);
+
+        // Sin cambios, un segundo envío no manda nada de nuevo a cocina.
+        var envio2 = await (await cliente.PostAsync(new Uri($"/comandas/{comanda.Id}/cocina", UriKind.Relative), content: null)).Content.ReadFromJsonAsync<CocinaResp>();
+        envio2!.Articulos.Should().BeEmpty();
     }
 
     [Fact]

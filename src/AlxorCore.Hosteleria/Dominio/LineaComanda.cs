@@ -63,6 +63,24 @@ public sealed class LineaComanda : EntidadBase<Guid>
     /// <summary>Importe total de la línea con IVA incluido.</summary>
     public decimal Total => Redondeo.Dos(Base + CuotaIva);
 
+    /// <summary>Cantidad de esta línea ya enviada a cocina/barra (para acumular reenvíos parciales).</summary>
+    public decimal CantidadEnviadaCocina { get; private set; }
+
+    /// <summary>Cantidad pendiente de enviar a cocina (lo pedido menos lo ya enviado).</summary>
+    public decimal CantidadPendienteCocina => Cantidad > CantidadEnviadaCocina ? Cantidad - CantidadEnviadaCocina : 0m;
+
+    /// <summary>Marca como enviada la cantidad pendiente y devuelve cuánto se envía ahora (0 si nada).</summary>
+    internal decimal MarcarEnviadaCocina()
+    {
+        var nueva = CantidadPendienteCocina;
+        if (nueva > 0)
+        {
+            CantidadEnviadaCocina = Cantidad;
+        }
+
+        return nueva;
+    }
+
     /// <summary>
     /// Suma cantidad a la línea (pedir otra unidad del mismo producto). Lo usa la comanda para acumular
     /// en una sola línea las consumiciones repetidas, en vez de duplicarlas.

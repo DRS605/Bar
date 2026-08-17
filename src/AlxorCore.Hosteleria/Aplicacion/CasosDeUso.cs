@@ -292,6 +292,46 @@ public sealed class FijarCantidadLineaComanda
     }
 }
 
+/// <summary>Un artículo que se envía a cocina (cantidad nueva de este envío).</summary>
+public sealed record ArticuloCocinaDto(decimal Cantidad, string Descripcion);
+
+/// <summary>Lo que se manda a cocina/barra al enviar una comanda: mesa, hora y artículos nuevos.</summary>
+public sealed record ComandaCocinaDto(Guid ComandaId, Guid MesaId, DateTimeOffset Hora, IReadOnlyList<ArticuloCocinaDto> Articulos, string? Notas);
+
+/// <summary>Caso de uso: enviar a cocina/barra la parte pendiente de una comanda (marca y devuelve lo nuevo).</summary>
+public sealed class EnviarComandaCocina
+{
+    private readonly IRepositorioComandas _comandas;
+    private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
+    private readonly IReloj _reloj;
+
+    public EnviarComandaCocina(IRepositorioComandas comandas, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    {
+        _comandas = comandas;
+        _unidadDeTrabajo = unidadDeTrabajo;
+        _reloj = reloj;
+    }
+
+    public async Task<Resultado<ComandaCocinaDto>> EjecutarAsync(Guid comandaId, CancellationToken ct = default)
+    {
+        var comanda = await _comandas.ObtenerPorIdAsync(comandaId, ct).ConfigureAwait(false);
+        if (comanda is null)
+        {
+            return Resultado.Fallo<ComandaCocinaDto>(Error.NoEncontrado("comanda.no_encontrada", "La comanda no existe."));
+        }
+
+        var r = comanda.EnviarACocina();
+        if (r.EsFallo)
+        {
+            return Resultado.Fallo<ComandaCocinaDto>(r.Error);
+        }
+
+        await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+        var articulos = r.Valor.Select(a => new ArticuloCocinaDto(a.Cantidad, a.Descripcion)).ToList();
+        return Resultado.Ok(new ComandaCocinaDto(comanda.Id, comanda.MesaId, _reloj.AhoraUtc, articulos, comanda.Notas));
+    }
+}
+
 /// <summary>Caso de uso: quitar una línea de una comanda abierta.</summary>
 public sealed class QuitarLineaComanda
 {

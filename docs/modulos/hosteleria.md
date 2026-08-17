@@ -59,6 +59,18 @@ incluye el botón **«🧾 Cierre de caja»**.
 > Al tratarse de facturas simplificadas, una comanda que supere el tope legal del ticket
 > (3.000 €, art. 4 RD 1619/2012) se rechaza al cobrar; en ese caso debe emitirse factura ordinaria.
 
+## Comanda de cocina/barra
+
+`POST /comandas/{id}/cocina` envía a cocina la parte **pendiente** de la comanda: por cada línea, la
+cantidad que **aún no se había enviado** (así, al pedir más de un producto ya enviado, solo va lo
+nuevo). Cada línea guarda su `CantidadEnviadaCocina`, de modo que el reenvío es incremental e
+idempotente. `Comanda.EnviarACocina()` marca lo pendiente y devuelve los artículos nuevos.
+
+El endpoint imprime la **comanda de cocina** (`GeneradorComandaCocinaEscPos`, en Documentos): mesa,
+hora y artículos **en grande y sin precios** —distinta del ticket de cobro—, en la impresora
+configurada (**mejor esfuerzo**: un fallo de impresión no interrumpe el pedido; sin impresora, solo se
+marca lo enviado). En el editor de comanda, el botón **«🍳 Cocina»** lo dispara.
+
 ## API
 
 | Método | Ruta | Auth | Descripción |
@@ -74,6 +86,7 @@ incluye el botón **«🧾 Cierre de caja»**.
 | `POST` | `/comandas/{id}/lineas` | permiso `hosteleria.gestionar` | Añade un producto (acumula si se repite). |
 | `PUT` | `/comandas/{id}/lineas/{lineaId}` | permiso `hosteleria.gestionar` | Fija la cantidad de una línea (+/−). |
 | `DELETE` | `/comandas/{id}/lineas/{lineaId}` | permiso `hosteleria.gestionar` | Quita una línea. |
+| `POST` | `/comandas/{id}/cocina` | permiso `hosteleria.gestionar` | Envía a cocina los artículos nuevos (marca e imprime). |
 | `POST` | `/comandas/{id}/cobrar` | permiso `hosteleria.gestionar` | Cobra emitiendo el ticket. |
 | `POST` | `/comandas/{id}/anular` | permiso `hosteleria.gestionar` | Anula la comanda. **204** |
 
@@ -103,9 +116,11 @@ dibujo** del plano en SVG para imprimirlo.
 
 - **Unitarios**: validaciones de `Mesa` (incluidas forma y posición/`Colocar` con acotado al lienzo) y
   ciclo de vida de `Comanda` (abrir, recalcular totales con IVA al añadir/quitar líneas, **acumular el
-  mismo producto en una línea** y **abrir línea nueva a distinto precio**, no cobrar vacía, congelar el
-  ticket al cobrar, no modificar tras cobrar, anular).
+  mismo producto en una línea** y **abrir línea nueva a distinto precio**, **enviar a cocina solo lo
+  nuevo** de forma incremental e idempotente, no cobrar vacía, congelar el ticket al cobrar, no
+  modificar tras cobrar, anular).
 - **Integración**: flujo completo abrir → pedir → cobrar (genera ticket, libera la mesa y descuenta
   stock), crear barra con forma y recolocarla en el plano, una sola comanda por mesa, listado de
   abiertas, acumular el mismo producto en una línea, fijar la cantidad de una línea (y rechazar cero),
-  quitar línea, no cobrar vacía, anular y exigencia de empresa activa.
+  quitar línea, **enviar a cocina los artículos nuevos sin repetirlos**, cobro que figura en el cierre
+  de caja, no cobrar vacía, anular y exigencia de empresa activa.

@@ -38,6 +38,7 @@ public static class RegistroServicios
         // Impresión de tickets: generador ESC/POS y la impresora (de red si hay host en la sección
         // «Impresora»; si no, la nula, que informa de que no está configurada).
         servicios.AddScoped<IGeneradorTicketEscPos, GeneradorTicketEscPos>();
+        servicios.AddScoped<IGeneradorComandaCocina, GeneradorComandaCocinaEscPos>();
         servicios.AddOptions<OpcionesImpresora>().Bind(configuracion.GetSection(OpcionesImpresora.Seccion));
         var opcionesImpresora = new OpcionesImpresora();
         configuracion.GetSection(OpcionesImpresora.Seccion).Bind(opcionesImpresora);

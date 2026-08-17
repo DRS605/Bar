@@ -53,6 +53,7 @@ Desde el TPV de mesa, la casilla **«Imprimir ticket»** del cobro envía el tic
 - `IGeneradorPdfFactura` → implementado con QuestPDF.
 - `IServicioCorreo` → `ServicioCorreoSmtp` (SMTP real) si hay servidor configurado; si no, el stub.
 - `IGeneradorTicketEscPos` → `GeneradorTicketEscPos` (ESC/POS, página de códigos 858).
+- `IGeneradorComandaCocina` → `GeneradorComandaCocinaEscPos` (comanda de cocina en ESC/POS, sin precios).
 - `IImpresoraTickets` → `ImpresoraTicketsRed` (TCP) si hay host configurado; si no, `ImpresoraTicketsNula`.
 
 ## Tests
@@ -61,7 +62,8 @@ Desde el TPV de mesa, la casilla **«Imprimir ticket»** del cobro envía el tic
   tipo de contenido del adjunto según su extensión, y el caso sin adjunto); `GeneradorTicketEscPos`
   (inicialización `ESC @`, selección de página de códigos, corte final, presencia de local, número,
   líneas, «TOTAL» y «€»; y el bloque **VeriFactu** —leyenda, QR `GS v 0` y huella— presente con huella y
-  ausente sin ella); `QrEscPos` (bloque ráster `GS v 0` con el tamaño declarado).
+  ausente sin ella); `QrEscPos` (bloque ráster `GS v 0` con el tamaño declarado);
+  `GeneradorComandaCocinaEscPos` (mesa, artículos con cantidad y **sin precios**, corte).
 - **Integración**: descarga del PDF (200, `application/pdf`, cabecera `%PDF`), envío por correo (204),
   descarga del ticket ESC/POS (200, `application/octet-stream`, `ESC @`…corte) e impresión sin impresora
   configurada (400 `impresora.no_configurada`).

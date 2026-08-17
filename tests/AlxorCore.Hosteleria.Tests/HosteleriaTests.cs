@@ -136,6 +136,20 @@ public class ComandaTests
     }
 
     [Fact]
+    public void Enviar_a_cocina_manda_solo_lo_nuevo_y_es_idempotente()
+    {
+        var comanda = ComandaAbierta();
+        comanda.AgregarLinea(Producto, "Caña", 2m, 1.50m, "IVA10", 10m, Reloj);
+
+        comanda.EnviarACocina().Valor.Should().ContainSingle(a => a.Descripcion == "Caña" && a.Cantidad == 2m);
+        comanda.EnviarACocina().Valor.Should().BeEmpty(); // nada nuevo
+
+        // Pedir 1 más del mismo producto (se acumula en la línea): a cocina solo va la unidad nueva.
+        comanda.AgregarLinea(Producto, "Caña", 1m, 1.50m, "IVA10", 10m, Reloj);
+        comanda.EnviarACocina().Valor.Should().ContainSingle(a => a.Descripcion == "Caña" && a.Cantidad == 1m);
+    }
+
+    [Fact]
     public void Quitar_linea_recalcula_totales()
     {
         var comanda = ComandaAbierta();

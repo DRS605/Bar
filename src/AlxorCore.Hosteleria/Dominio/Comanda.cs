@@ -200,6 +200,31 @@ public sealed class Comanda : RaizAgregadoEmpresa<Guid>
         return Resultado.Ok(linea);
     }
 
+    /// <summary>
+    /// Envía a cocina/barra la parte **pendiente** de la comanda: por cada línea, la cantidad que aún no
+    /// se había enviado (así, al pedir más de un producto ya enviado, solo va lo nuevo). Devuelve los
+    /// artículos que se envían ahora (vacío si no hay nada nuevo). Solo mientras la comanda está abierta.
+    /// </summary>
+    public Resultado<IReadOnlyList<ArticuloCocina>> EnviarACocina()
+    {
+        if (Estado != EstadoComanda.Abierta)
+        {
+            return Resultado.Fallo<IReadOnlyList<ArticuloCocina>>(Error.Conflicto("comanda.no_abierta", "Solo se puede enviar a cocina una comanda abierta."));
+        }
+
+        var articulos = new List<ArticuloCocina>();
+        foreach (var linea in _lineas)
+        {
+            var nueva = linea.MarcarEnviadaCocina();
+            if (nueva > 0)
+            {
+                articulos.Add(new ArticuloCocina(linea.Descripcion, nueva));
+            }
+        }
+
+        return Resultado.Ok<IReadOnlyList<ArticuloCocina>>(articulos);
+    }
+
     /// <summary>Actualiza las notas de la comanda mientras está abierta.</summary>
     public Resultado ActualizarNotas(string? notas)
     {
