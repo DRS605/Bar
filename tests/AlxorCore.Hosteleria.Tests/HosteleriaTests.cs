@@ -215,4 +215,74 @@ public class ComandaTests
         comanda.Estado.Should().Be(EstadoComanda.Anulada);
         comanda.MarcarCobrada(Guid.NewGuid(), "T2026/000002", MetodoCobro.Efectivo, Reloj).EsFallo.Should().BeTrue();
     }
+
+    [Fact]
+    public void Cobro_parcial_valida_y_resuelve_las_lineas_del_ticket()
+    {
+        var comanda = ComandaAbierta();
+        var canas = comanda.AgregarLinea(Producto, "Caña", 3m, 1.50m, "IVA10", 10m, Reloj).Valor;
+
+        var billing = comanda.ValidarCobroParcial([new ItemCobroParcial(canas.Id, 2m)]);
+
+        billing.EsCorrecto.Should().BeTrue();
+        billing.Valor.Should().ContainSingle(l => l.Descripcion == "Caña" && l.Cantidad == 2m && l.PrecioUnitario == 1.50m);
+    }
+
+    [Fact]
+    public void Cobro_parcial_por_encima_del_pendiente_falla()
+    {
+        var comanda = ComandaAbierta();
+        var canas = comanda.AgregarLinea(Producto, "Caña", 2m, 1.50m, "IVA10", 10m, Reloj).Valor;
+
+        comanda.ValidarCobroParcial([new ItemCobroParcial(canas.Id, 3m)])
+            .Error.Codigo.Should().Be("comanda.cobro_excede_pendiente");
+    }
+
+    [Fact]
+    public void Cobro_parcial_no_cierra_la_comanda_mientras_queda_pendiente()
+    {
+        var comanda = ComandaAbierta();
+        var canas = comanda.AgregarLinea(Producto, "Caña", 3m, 1.50m, "IVA10", 10m, Reloj).Valor;
+
+        var r = comanda.AplicarCobroParcial([new ItemCobroParcial(canas.Id, 2m)], Guid.NewGuid(), "T2026/000001", MetodoCobro.Efectivo, Reloj);
+
+        r.EsCorrecto.Should().BeTrue();
+        comanda.Estado.Should().Be(EstadoComanda.Abierta);
+        comanda.TieneCobroParcial.Should().BeTrue();
+        canas.CantidadPendienteCobro.Should().Be(1m);
+        comanda.TotalPendienteCobro.Should().Be(1.65m); // 1 × 1,50 + 10% IVA
+    }
+
+    [Fact]
+    public void Cobro_parcial_que_paga_todo_lo_pendiente_cierra_la_comanda()
+    {
+        var comanda = ComandaAbierta();
+        var canas = comanda.AgregarLinea(Producto, "Caña", 2m, 1.50m, "IVA10", 10m, Reloj).Valor;
+        var tapa = comanda.AgregarLinea(Producto, "Tapa", 1m, 4.00m, "IVA10", 10m, Reloj).Valor;
+        var factura = Guid.NewGuid();
+
+        comanda.AplicarCobroParcial([new ItemCobroParcial(canas.Id, 2m)], Guid.NewGuid(), "T2026/000001", MetodoCobro.Efectivo, Reloj);
+        comanda.Estado.Should().Be(EstadoComanda.Abierta);
+
+        var r = comanda.AplicarCobroParcial([new ItemCobroParcial(tapa.Id, 1m)], factura, "T2026/000002", MetodoCobro.Tarjeta, Reloj);
+
+        r.EsCorrecto.Should().BeTrue();
+        comanda.Estado.Should().Be(EstadoComanda.Cobrada);
+        comanda.FacturaId.Should().Be(factura);
+        comanda.NumeroTicket.Should().Be("T2026/000002");
+        comanda.EstaTotalmentePagada.Should().BeTrue();
+        comanda.EventosDominio.Should().Contain(e => e is ComandaCobrada);
+    }
+
+    [Fact]
+    public void No_se_puede_quitar_ni_reducir_por_debajo_de_lo_ya_cobrado()
+    {
+        var comanda = ComandaAbierta();
+        var canas = comanda.AgregarLinea(Producto, "Caña", 3m, 1.50m, "IVA10", 10m, Reloj).Valor;
+        comanda.AplicarCobroParcial([new ItemCobroParcial(canas.Id, 2m)], Guid.NewGuid(), "T2026/000001", MetodoCobro.Efectivo, Reloj);
+
+        comanda.QuitarLinea(canas.Id, Reloj).Error.Codigo.Should().Be("comanda.linea_cobrada");
+        comanda.FijarCantidadLinea(canas.Id, 1m, Reloj).Error.Codigo.Should().Be("comanda.cantidad_menor_cobrada");
+        comanda.FijarCantidadLinea(canas.Id, 4m, Reloj).EsCorrecto.Should().BeTrue(); // subir sí se puede
+    }
 }

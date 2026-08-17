@@ -95,8 +95,13 @@ internal sealed class ConfiguracionComanda : IEntityTypeConfiguration<Comanda>
             linea.Property(l => l.Base).HasColumnName("base").HasColumnType("numeric(14,2)").IsRequired();
             linea.Property(l => l.CuotaIva).HasColumnName("cuota_iva").HasColumnType("numeric(14,2)").IsRequired();
             linea.Property(l => l.CantidadEnviadaCocina).HasColumnName("cantidad_enviada_cocina").HasColumnType("numeric(14,3)").IsRequired();
+            linea.Property(l => l.CantidadCobrada).HasColumnName("cantidad_cobrada").HasColumnType("numeric(14,3)").IsRequired();
             linea.Ignore(l => l.Total);
             linea.Ignore(l => l.CantidadPendienteCocina);
+            linea.Ignore(l => l.CantidadPendienteCobro);
+            linea.Ignore(l => l.BasePendiente);
+            linea.Ignore(l => l.CuotaIvaPendiente);
+            linea.Ignore(l => l.TotalPendiente);
             linea.HasIndex("ComandaId").HasDatabaseName("ix_linea_comanda_comanda");
         });
     }

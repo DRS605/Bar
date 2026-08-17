@@ -16,9 +16,11 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
 
     private sealed record MesaResp(Guid Id, string Nombre, string? Zona, int Capacidad, string Forma, double PosX, double PosY, bool Activa, bool Ocupada, Guid? ComandaAbiertaId, decimal TotalComandaAbierta);
 
-    private sealed record LineaResp(Guid Id, Guid ProductoId, string Descripcion, decimal Cantidad, decimal PrecioUnitario, decimal Total);
+    private sealed record LineaResp(Guid Id, Guid ProductoId, string Descripcion, decimal Cantidad, decimal PrecioUnitario, decimal Total, decimal CantidadCobrada, decimal CantidadPendienteCobro);
 
-    private sealed record ComandaResp(Guid Id, Guid MesaId, string Estado, decimal BaseImponible, decimal CuotaIva, decimal Total, string? MetodoCobro, Guid? FacturaId, string? NumeroTicket, List<LineaResp> Lineas);
+    private sealed record ComandaResp(Guid Id, Guid MesaId, string Estado, decimal BaseImponible, decimal CuotaIva, decimal Total, string? MetodoCobro, Guid? FacturaId, string? NumeroTicket, bool TieneCobroParcial, decimal TotalPendienteCobro, List<LineaResp> Lineas);
+
+    private sealed record CobroParcialResp(Guid FacturaId, string NumeroTicket, decimal Total, bool Cerrada, ComandaResp Comanda);
 
     private sealed record ComandaResumenResp(Guid Id, Guid MesaId, string MesaNombre, string Estado, int NumeroLineas, decimal Total);
 
@@ -240,6 +242,80 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
         var cierre = await cliente.GetFromJsonAsync<CierreResp>($"/informes/cierre-caja?dia={hoy}");
         cierre!.CobrosPorMetodo.Should().ContainSingle(m => m.Metodo == "Tarjeta" && m.Importe == 3.30m && m.Numero == 1);
         cierre.TotalCobrado.Should().Be(3.30m);
+    }
+
+    [Fact]
+    public async Task Reparto_por_articulos_emite_un_ticket_por_pago_y_cierra_al_pagar_lo_ultimo()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var cana = await CrearCañaAsync(cliente, stock: false); // 1,50 € IVA10
+        var tapaResp = await cliente.PostAsJsonAsync("/productos", new
+        {
+            Nombre = "Tapa", PrecioUnitario = 4.00m, Tipo = "Bien", CodigoIva = "IVA10", Unidad = "ud", ControlarStock = false,
+        });
+        var tapa = (await tapaResp.Content.ReadFromJsonAsync<ProductoResp>())!;
+        var mesa = await CrearMesaAsync(cliente);
+        var anio = DateTime.UtcNow.Year;
+
+        var comanda = (await (await cliente.PostAsJsonAsync("/comandas", new { MesaId = mesa.Id })).Content.ReadFromJsonAsync<ComandaResp>())!;
+        await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/lineas", new { ProductoId = cana.Id, Cantidad = 2m });
+        var conTapa = (await (await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/lineas", new { ProductoId = tapa.Id, Cantidad = 1m })).Content.ReadFromJsonAsync<ComandaResp>())!;
+        var lineaCana = conTapa.Lineas.Single(l => l.ProductoId == cana.Id);
+        var lineaTapa = conTapa.Lineas.Single(l => l.ProductoId == tapa.Id);
+
+        // Primer comensal paga sus 2 cañas (3,30 €): se emite un ticket y la mesa sigue abierta con lo que falta.
+        var pago1 = await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/cobrar-parcial",
+            new { Items = new[] { new { LineaId = lineaCana.Id, Cantidad = 2m } }, Metodo = "Efectivo" });
+        pago1.StatusCode.Should().Be(HttpStatusCode.OK);
+        var r1 = (await pago1.Content.ReadFromJsonAsync<CobroParcialResp>())!;
+        r1.Total.Should().Be(3.30m);
+        r1.NumeroTicket.Should().Be($"T{anio}/000001");
+        r1.Cerrada.Should().BeFalse();
+        r1.Comanda.Estado.Should().Be("Abierta");
+        r1.Comanda.TieneCobroParcial.Should().BeTrue();
+        r1.Comanda.TotalPendienteCobro.Should().Be(4.40m); // la tapa: 4,00 + 10%
+        r1.Comanda.Lineas.Single(l => l.ProductoId == cana.Id).CantidadPendienteCobro.Should().Be(0m);
+
+        // La mesa sigue ocupada mientras quede algo por cobrar.
+        var mesasMedias = await cliente.GetFromJsonAsync<List<MesaResp>>("/mesas");
+        mesasMedias!.Single(m => m.Id == mesa.Id).Ocupada.Should().BeTrue();
+
+        // Segundo comensal paga la tapa (4,40 €): el último pago cierra la comanda y libera la mesa.
+        var pago2 = await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/cobrar-parcial",
+            new { Items = new[] { new { LineaId = lineaTapa.Id, Cantidad = 1m } }, Metodo = "Tarjeta" });
+        pago2.StatusCode.Should().Be(HttpStatusCode.OK);
+        var r2 = (await pago2.Content.ReadFromJsonAsync<CobroParcialResp>())!;
+        r2.Total.Should().Be(4.40m);
+        r2.NumeroTicket.Should().Be($"T{anio}/000002");
+        r2.Cerrada.Should().BeTrue();
+        r2.Comanda.Estado.Should().Be("Cobrada");
+
+        var mesasLibres = await cliente.GetFromJsonAsync<List<MesaResp>>("/mesas");
+        mesasLibres!.Single(m => m.Id == mesa.Id).Ocupada.Should().BeFalse();
+
+        // Dos tickets (uno por comensal) y ambos cobros en el cierre de caja del día.
+        var facturas = await cliente.GetFromJsonAsync<List<FacturaResp>>("/facturas");
+        facturas!.Count(f => f.Tipo == "Simplificada").Should().BeGreaterThanOrEqualTo(2);
+        var hoy = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        var cierre = await cliente.GetFromJsonAsync<CierreResp>($"/informes/cierre-caja?dia={hoy}");
+        cierre!.TotalCobrado.Should().Be(7.70m);
+        cierre.CobrosPorMetodo.Should().Contain(m => m.Metodo == "Efectivo" && m.Importe == 3.30m);
+        cierre.CobrosPorMetodo.Should().Contain(m => m.Metodo == "Tarjeta" && m.Importe == 4.40m);
+    }
+
+    [Fact]
+    public async Task Reparto_por_encima_de_lo_pendiente_devuelve_conflicto()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var cana = await CrearCañaAsync(cliente, stock: false);
+        var mesa = await CrearMesaAsync(cliente);
+        var comanda = (await (await cliente.PostAsJsonAsync("/comandas", new { MesaId = mesa.Id })).Content.ReadFromJsonAsync<ComandaResp>())!;
+        var conLinea = (await (await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/lineas", new { ProductoId = cana.Id, Cantidad = 2m })).Content.ReadFromJsonAsync<ComandaResp>())!;
+        var linea = conLinea.Lineas.Single();
+
+        var exceso = await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/cobrar-parcial",
+            new { Items = new[] { new { LineaId = linea.Id, Cantidad = 3m } }, Metodo = "Efectivo" });
+        exceso.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
     [Fact]

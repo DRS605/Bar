@@ -487,3 +487,77 @@ public sealed class CobrarComanda
         return Resultado.Ok(ComandaDto.Desde(comanda));
     }
 }
+
+/// <summary>Datos de un cobro parcial: los artículos que se cobran ahora y la forma de cobro.</summary>
+public sealed record DatosCobroParcial(
+    IReadOnlyList<ItemCobroParcial> Items,
+    MetodoCobro Metodo = MetodoCobro.Efectivo,
+    Guid? ClienteId = null,
+    string? Serie = null);
+
+/// <summary>Resultado de un cobro parcial: el ticket emitido y el estado de la comanda tras el cobro.</summary>
+public sealed record CobroParcialDto(Guid FacturaId, string NumeroTicket, decimal Total, bool Cerrada, ComandaDto Comanda);
+
+/// <summary>
+/// Caso de uso del reparto de cuenta: cobra <b>parte</b> de una comanda emitiendo un ticket solo por
+/// los artículos indicados (con sus cantidades). Descuenta esas cantidades del pendiente de la comanda
+/// y, cuando ya no queda nada por cobrar, la cierra y libera la mesa. Permite que cada comensal pague
+/// lo suyo con su propio ticket, dejando la mesa abierta hasta el último pago.
+/// </summary>
+public sealed class CobrarComandaParcial
+{
+    private readonly IRepositorioComandas _comandas;
+    private readonly EmitirTicket _emitirTicket;
+    private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
+    private readonly IReloj _reloj;
+
+    public CobrarComandaParcial(IRepositorioComandas comandas, EmitirTicket emitirTicket, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    {
+        _comandas = comandas;
+        _emitirTicket = emitirTicket;
+        _unidadDeTrabajo = unidadDeTrabajo;
+        _reloj = reloj;
+    }
+
+    public async Task<Resultado<CobroParcialDto>> EjecutarAsync(Guid empresaId, Guid comandaId, DatosCobroParcial datos, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(datos);
+
+        var comanda = await _comandas.ObtenerPorIdAsync(comandaId, ct).ConfigureAwait(false);
+        if (comanda is null)
+        {
+            return Resultado.Fallo<CobroParcialDto>(Error.NoEncontrado("comanda.no_encontrada", "La comanda no existe."));
+        }
+
+        // 1) Validar (sin mutar) que las cantidades a cobrar caben en el pendiente y resolver sus líneas.
+        var billing = comanda.ValidarCobroParcial(datos.Items);
+        if (billing.EsFallo)
+        {
+            return Resultado.Fallo<CobroParcialDto>(billing.Error);
+        }
+
+        // El precio y el IVA van congelados desde la comanda; el ProductoId permite descontar stock.
+        var lineas = billing.Valor
+            .Select(l => new LineaComando(l.Cantidad, l.Descripcion, l.PrecioUnitario, l.CodigoIva, 0m, l.ProductoId))
+            .ToList();
+
+        // 2) Emitir el ticket de esos artículos (transacción propia de Facturación).
+        var ticket = await _emitirTicket.EjecutarAsync(empresaId, new EmitirTicketComando(lineas, datos.ClienteId, datos.Serie), ct).ConfigureAwait(false);
+        if (ticket.EsFallo)
+        {
+            return Resultado.Fallo<CobroParcialDto>(ticket.Error);
+        }
+
+        // 3) Asentar el cobro en la comanda; si con esto queda todo pagado, se cierra y libera la mesa.
+        var r = comanda.AplicarCobroParcial(datos.Items, ticket.Valor.Id, ticket.Valor.NumeroCompleto, datos.Metodo, _reloj);
+        if (r.EsFallo)
+        {
+            return Resultado.Fallo<CobroParcialDto>(r.Error);
+        }
+
+        await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+        return Resultado.Ok(new CobroParcialDto(
+            ticket.Valor.Id, ticket.Valor.NumeroCompleto, ticket.Valor.Total,
+            comanda.Estado == EstadoComanda.Cobrada, ComandaDto.Desde(comanda)));
+    }
+}

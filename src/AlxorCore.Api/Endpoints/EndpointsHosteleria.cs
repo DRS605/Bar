@@ -71,6 +71,10 @@ public static class EndpointsHosteleria
             .WithSummary("Cobra la comanda emitiendo un ticket y libera la mesa.")
             .RequierePermiso(Permisos.HosteleriaGestionar);
 
+        comandas.MapPost("/{id:guid}/cobrar-parcial", CobrarComandaParcialAsync)
+            .WithSummary("Cobra parte de la comanda (reparto por artículos): emite un ticket de los artículos indicados y cierra la mesa cuando queda todo pagado.")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
         comandas.MapPost("/{id:guid}/anular", AnularComandaAsync)
             .WithSummary("Anula la comanda sin cobrarla.")
             .RequierePermiso(Permisos.HosteleriaGestionar);
@@ -199,6 +203,35 @@ public static class EndpointsHosteleria
             {
                 registros.CreateLogger("Hosteleria.Cobro").LogWarning(
                     "Comanda {ComandaId} cobrada, pero el cobro no se registró en caja: {Codigo}.", id, cobro.Error.Codigo);
+            }
+        }
+
+        return resultado.AOk();
+    }
+
+    private static async Task<IResult> CobrarComandaParcialAsync(
+        Guid id, DatosCobroParcial datos, IContextoEmpresa contexto, CobrarComandaParcial caso,
+        RegistrarCobro registrarCobro, ILoggerFactory registros, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, id, datos, ct).ConfigureAwait(false);
+
+        // Registrar el cobro del ticket parcial en caja (para el cierre del día). El ticket ya está
+        // emitido en su propia transacción; si el registro fallara, se avisa sin deshacer el cobro.
+        if (resultado.EsCorrecto)
+        {
+            var cobro = await registrarCobro.EjecutarAsync(
+                contexto.EmpresaId.Value,
+                new RegistrarCobroComando(resultado.Valor.FacturaId, resultado.Valor.Total, Metodo: datos.Metodo.ToString()),
+                ct).ConfigureAwait(false);
+            if (cobro.EsFallo)
+            {
+                registros.CreateLogger("Hosteleria.Cobro").LogWarning(
+                    "Cobro parcial de la comanda {ComandaId} emitido, pero no se registró en caja: {Codigo}.", id, cobro.Error.Codigo);
             }
         }
 

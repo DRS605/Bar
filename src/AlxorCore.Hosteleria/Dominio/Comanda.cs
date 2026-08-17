@@ -37,6 +37,12 @@ public sealed record ComandaAbierta(Guid ComandaId, Guid EmpresaId, Guid MesaId,
 /// <summary>Se ha cobrado una comanda (con el ticket generado).</summary>
 public sealed record ComandaCobrada(Guid ComandaId, Guid EmpresaId, Guid MesaId, Guid FacturaId, decimal Total, DateTimeOffset OcurridoEn) : IEventoDominio;
 
+/// <summary>Artículo (y cantidad) que se cobra en un ticket parcial al repartir la cuenta.</summary>
+public sealed record ItemCobroParcial(Guid LineaId, decimal Cantidad);
+
+/// <summary>Línea resuelta para emitir el ticket de un cobro parcial (precio e IVA congelados de la comanda).</summary>
+public sealed record LineaCobroTicket(Guid ProductoId, string Descripcion, decimal Cantidad, decimal PrecioUnitario, string CodigoIva, decimal PorcentajeIva);
+
 /// <summary>
 /// Comanda (cuenta abierta) de una mesa. Es el agregado central del módulo Hostelería: acumula las
 /// líneas de lo consumido mientras está <see cref="EstadoComanda.Abierta"/> y, al cobrarse, se
@@ -166,6 +172,11 @@ public sealed class Comanda : RaizAgregadoEmpresa<Guid>
             return Resultado.Fallo(Error.NoEncontrado("comanda.linea_no_encontrada", "La línea no existe en la comanda."));
         }
 
+        if (linea.CantidadCobrada > 0)
+        {
+            return Resultado.Fallo(Error.Conflicto("comanda.linea_cobrada", "No se puede quitar una línea que ya se ha cobrado en parte."));
+        }
+
         _lineas.Remove(linea);
         Recalcular(reloj);
         return Resultado.Ok();
@@ -193,6 +204,11 @@ public sealed class Comanda : RaizAgregadoEmpresa<Guid>
         if (cantidad <= 0)
         {
             return Resultado.Fallo<LineaComanda>(Error.Validacion("comanda.cantidad_invalida", "La cantidad debe ser mayor que cero; para eliminar la línea, quítala."));
+        }
+
+        if (cantidad < linea.CantidadCobrada)
+        {
+            return Resultado.Fallo<LineaComanda>(Error.Conflicto("comanda.cantidad_menor_cobrada", "No se puede dejar la cantidad por debajo de lo ya cobrado en esta línea."));
         }
 
         linea.FijarCantidad(cantidad);
@@ -261,6 +277,92 @@ public sealed class Comanda : RaizAgregadoEmpresa<Guid>
         MetodoCobro = metodo;
         CerradaEn = reloj.AhoraUtc;
         RegistrarEvento(new ComandaCobrada(Id, EmpresaId, MesaId, facturaId, Total, reloj.AhoraUtc));
+        return Resultado.Ok();
+    }
+
+    /// <summary>¿Se ha cobrado ya alguna parte de la comanda (hay un reparto de cuenta en curso)?</summary>
+    public bool TieneCobroParcial => _lineas.Any(l => l.CantidadCobrada > 0);
+
+    /// <summary>Importe todavía pendiente de cobro (con IVA) sumando la parte no cobrada de cada línea.</summary>
+    public decimal TotalPendienteCobro => Redondeo.Dos(_lineas.Sum(l => l.TotalPendiente));
+
+    /// <summary>¿Está toda la comanda cobrada (ninguna línea con cantidad pendiente)?</summary>
+    public bool EstaTotalmentePagada => _lineas.Count > 0 && _lineas.All(l => l.CantidadPendienteCobro == 0);
+
+    /// <summary>
+    /// Valida (sin mutar) que se pueden cobrar los artículos indicados y devuelve las líneas resueltas
+    /// para emitir el ticket parcial. Cada ítem debe referirse a una línea existente y no superar su
+    /// cantidad pendiente de cobro. Es el primer paso del reparto de cuenta por artículos.
+    /// </summary>
+    public Resultado<IReadOnlyList<LineaCobroTicket>> ValidarCobroParcial(IReadOnlyList<ItemCobroParcial> items)
+    {
+        if (Estado != EstadoComanda.Abierta)
+        {
+            return Resultado.Fallo<IReadOnlyList<LineaCobroTicket>>(Error.Conflicto("comanda.no_abierta", "Solo se puede cobrar una comanda abierta."));
+        }
+
+        if (items is null || items.Count == 0)
+        {
+            return Resultado.Fallo<IReadOnlyList<LineaCobroTicket>>(Error.Validacion("comanda.cobro_parcial_vacio", "Indica al menos un artículo que cobrar."));
+        }
+
+        var billing = new List<LineaCobroTicket>();
+        foreach (var grupo in items.GroupBy(i => i.LineaId))
+        {
+            var linea = _lineas.SingleOrDefault(l => l.Id == grupo.Key);
+            if (linea is null)
+            {
+                return Resultado.Fallo<IReadOnlyList<LineaCobroTicket>>(Error.NoEncontrado("comanda.linea_no_encontrada", "La línea no existe en la comanda."));
+            }
+
+            var cantidad = grupo.Sum(i => i.Cantidad);
+            if (cantidad <= 0)
+            {
+                return Resultado.Fallo<IReadOnlyList<LineaCobroTicket>>(Error.Validacion("comanda.cantidad_invalida", "La cantidad a cobrar debe ser mayor que cero."));
+            }
+
+            if (cantidad > linea.CantidadPendienteCobro)
+            {
+                return Resultado.Fallo<IReadOnlyList<LineaCobroTicket>>(Error.Conflicto("comanda.cobro_excede_pendiente", $"«{linea.Descripcion}» no tiene tantas unidades pendientes de cobro."));
+            }
+
+            billing.Add(new LineaCobroTicket(linea.ProductoId, linea.Descripcion, cantidad, linea.PrecioUnitario, linea.CodigoIva, linea.PorcentajeIva));
+        }
+
+        return Resultado.Ok<IReadOnlyList<LineaCobroTicket>>(billing);
+    }
+
+    /// <summary>
+    /// Aplica un cobro parcial ya facturado: descuenta las cantidades cobradas de cada línea y, si con
+    /// esto queda toda la comanda pagada, la cierra (congela el último ticket y libera la mesa). Segundo
+    /// paso del reparto de cuenta, tras haber emitido el ticket de los artículos validados.
+    /// </summary>
+    public Resultado AplicarCobroParcial(IReadOnlyList<ItemCobroParcial> items, Guid facturaId, string numeroTicket, MetodoCobro metodo, IReloj reloj)
+    {
+        ArgumentNullException.ThrowIfNull(reloj);
+
+        var validacion = ValidarCobroParcial(items);
+        if (validacion.EsFallo)
+        {
+            return Resultado.Fallo(validacion.Error);
+        }
+
+        foreach (var grupo in items.GroupBy(i => i.LineaId))
+        {
+            var linea = _lineas.Single(l => l.Id == grupo.Key);
+            linea.RegistrarCobrado(grupo.Sum(i => i.Cantidad));
+        }
+
+        if (EstaTotalmentePagada)
+        {
+            Estado = EstadoComanda.Cobrada;
+            FacturaId = facturaId;
+            NumeroTicket = numeroTicket;
+            MetodoCobro = metodo;
+            CerradaEn = reloj.AhoraUtc;
+            RegistrarEvento(new ComandaCobrada(Id, EmpresaId, MesaId, facturaId, Total, reloj.AhoraUtc));
+        }
+
         return Resultado.Ok();
     }
 

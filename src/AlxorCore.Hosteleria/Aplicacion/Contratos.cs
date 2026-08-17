@@ -32,10 +32,12 @@ public sealed record LineaComandaDto(
     decimal PorcentajeIva,
     decimal Base,
     decimal CuotaIva,
-    decimal Total)
+    decimal Total,
+    decimal CantidadCobrada,
+    decimal CantidadPendienteCobro)
 {
     public static LineaComandaDto Desde(LineaComanda l) =>
-        new(l.Id, l.ProductoId, l.Descripcion, l.Cantidad, l.PrecioUnitario, l.CodigoIva, l.PorcentajeIva, l.Base, l.CuotaIva, l.Total);
+        new(l.Id, l.ProductoId, l.Descripcion, l.Cantidad, l.PrecioUnitario, l.CodigoIva, l.PorcentajeIva, l.Base, l.CuotaIva, l.Total, l.CantidadCobrada, l.CantidadPendienteCobro);
 }
 
 /// <summary>Vista completa de una comanda con sus líneas.</summary>
@@ -52,11 +54,14 @@ public sealed record ComandaDto(
     string? MetodoCobro,
     Guid? FacturaId,
     string? NumeroTicket,
+    bool TieneCobroParcial,
+    decimal TotalPendienteCobro,
     IReadOnlyList<LineaComandaDto> Lineas)
 {
     public static ComandaDto Desde(Comanda c) => new(
         c.Id, c.MesaId, c.Estado.ToString(), c.AbiertaEn, c.CerradaEn, c.Notas,
         c.BaseImponible, c.CuotaIva, c.Total, c.MetodoCobro?.ToString(), c.FacturaId, c.NumeroTicket,
+        c.TieneCobroParcial, c.TotalPendienteCobro,
         c.Lineas.Select(LineaComandaDto.Desde).ToList());
 }
 

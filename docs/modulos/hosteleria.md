@@ -34,7 +34,12 @@ Ciclo de vida:
    recalculan en cada cambio.
 3. **Cobrar**: emite un **ticket** (factura simplificada, serie `T`) con las líneas congeladas y elige
    la forma de cobro (Efectivo/Tarjeta/Otro). La comanda queda **Cobrada** e inmutable y la mesa libre.
-4. **Anular**: cierra una comanda abierta sin cobrarla (la mesa se libera). No se puede anular una ya
+4. **Repartir la cuenta por artículos** (cobro parcial): cobra **parte** de la comanda emitiendo un
+   ticket solo por los artículos y cantidades indicados. Cada línea lleva la cuenta de lo ya cobrado
+   (`CantidadCobrada`), así que la mesa **sigue abierta** con lo que falta hasta que el último pago la
+   salda —momento en el que se cierra y libera igual que un cobro normal—. No se puede quitar ni bajar
+   la cantidad de una línea por debajo de lo ya cobrado.
+5. **Anular**: cierra una comanda abierta sin cobrarla (la mesa se libera). No se puede anular una ya
    cobrada.
 
 ## Cobro = ticket (integración con Facturación y Catálogo)
@@ -49,6 +54,12 @@ Al cobrar, el caso de uso reutiliza `EmitirTicket` de **Facturación**, que:
 Así una consumición de barra acaba en la contabilidad exactamente igual que un ticket normal, sin
 duplicar la lógica fiscal. La comanda solo guarda la referencia al ticket generado (`FacturaId`,
 `NumeroTicket`) y la forma de cobro.
+
+El **reparto por artículos** usa el mismo `EmitirTicket` en dos pasos por seguridad: primero
+`ValidarCobroParcial` comprueba (sin mutar) que las cantidades caben en lo pendiente y resuelve las
+líneas; luego, con el ticket ya emitido, `AplicarCobroParcial` descuenta esas cantidades y cierra la
+comanda si no queda nada por cobrar. Cada ticket parcial se registra en Tesorería por su forma de pago,
+de modo que **cada comensal aparece con su propio cobro** en el cierre de caja.
 
 Además, al cobrar se **registra el cobro en Tesorería** (`RegistrarCobro`) con la **forma de pago**, de
 modo que la venta de barra figura en el **cierre de caja del día** (`GET /informes/cierre-caja`) junto
@@ -88,6 +99,7 @@ marca lo enviado). En el editor de comanda, el botón **«🍳 Cocina»** lo dis
 | `DELETE` | `/comandas/{id}/lineas/{lineaId}` | permiso `hosteleria.gestionar` | Quita una línea. |
 | `POST` | `/comandas/{id}/cocina` | permiso `hosteleria.gestionar` | Envía a cocina los artículos nuevos (marca e imprime). |
 | `POST` | `/comandas/{id}/cobrar` | permiso `hosteleria.gestionar` | Cobra emitiendo el ticket. |
+| `POST` | `/comandas/{id}/cobrar-parcial` | permiso `hosteleria.gestionar` | Reparte la cuenta: cobra los artículos indicados con su ticket; cierra la mesa al saldar lo último. |
 | `POST` | `/comandas/{id}/anular` | permiso `hosteleria.gestionar` | Anula la comanda. **204** |
 
 El permiso **`hosteleria.gestionar`** lo tienen los roles *Propietario* y *Usuario*.
@@ -105,8 +117,10 @@ una **rejilla de productos** (un toque = pedir, con búsqueda/escáner y **filtr
 los artículos la tienen —«Cervezas», «Tapas»…— más «Otros» para los que no) y la **comanda en vivo** con
 selectores **+/−** por línea y total al instante. Los toques se reflejan de inmediato (optimista) y se
 sincronizan en una cola (una operación a la vez, para no chocar); la respuesta del servidor manda. Desde
-ahí se anula o se cobra eligiendo la forma de pago, con opción de **imprimir el ticket** en la impresora
-térmica (ver módulo Documentos).
+ahí se anula o se **cobra**: forma de pago con botones grandes, **teclado numérico** que calcula el
+**cambio a devolver** en efectivo, **dividir a escote** (importe por comensal) y **«Repartir»** la
+cuenta **por artículos** —elegir lo que paga cada uno y emitir su ticket, dejando la mesa abierta hasta
+el último pago—, con opción de **imprimir el ticket** en la impresora térmica (ver módulo Documentos).
 
 Sección **«Plano del local»**: lienzo donde se **dibujan y arrastran** las mesas (por forma y estado)
 sobre las zonas (Salón, Terraza, Barra), se toca una mesa para abrir/ver su comanda y se **descarga el
@@ -118,9 +132,13 @@ dibujo** del plano en SVG para imprimirlo.
   ciclo de vida de `Comanda` (abrir, recalcular totales con IVA al añadir/quitar líneas, **acumular el
   mismo producto en una línea** y **abrir línea nueva a distinto precio**, **enviar a cocina solo lo
   nuevo** de forma incremental e idempotente, no cobrar vacía, congelar el ticket al cobrar, no
-  modificar tras cobrar, anular).
+  modificar tras cobrar, anular; y el **reparto por artículos**: validar/resolver las líneas del ticket
+  parcial, rechazar cobrar más de lo pendiente, no cerrar mientras quede pendiente, **cerrar al saldar
+  lo último**, y no poder quitar ni bajar una línea por debajo de lo ya cobrado).
 - **Integración**: flujo completo abrir → pedir → cobrar (genera ticket, libera la mesa y descuenta
   stock), crear barra con forma y recolocarla en el plano, una sola comanda por mesa, listado de
   abiertas, acumular el mismo producto en una línea, fijar la cantidad de una línea (y rechazar cero),
   quitar línea, **enviar a cocina los artículos nuevos sin repetirlos**, cobro que figura en el cierre
-  de caja, no cobrar vacía, anular y exigencia de empresa activa.
+  de caja, **reparto por artículos** (un ticket por comensal, la mesa sigue abierta hasta el último pago
+  y cada cobro figura en caja; y rechazo del cobro por encima de lo pendiente), no cobrar vacía, anular
+  y exigencia de empresa activa.

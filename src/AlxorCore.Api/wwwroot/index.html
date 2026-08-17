@@ -239,6 +239,11 @@
     .cambio-box.ok { background:#e7f6ee; color:var(--pos); }
     .cambio-box.falta { background:#fdf2e3; color:var(--warn); }
     .cambio-box .big { font-size:28px; font-weight:850; display:block; margin-top:2px; }
+    .rep-list { max-height:38vh; overflow:auto; margin:0 -2px; border:1px solid var(--line); border-radius:12px; }
+    .rep-row { display:flex; align-items:center; gap:10px; padding:11px 12px; border-bottom:1px solid var(--line); }
+    .rep-row:last-child { border-bottom:none; }
+    .rep-row strong { font-size:14.5px; }
+    .rep-row.sel { background:var(--accent-soft); }
     .cart-line { display:flex; align-items:center; gap:8px; padding:9px 0; border-bottom:1px solid var(--line); }
     .cart-line .cl-n { flex:1; font-size:13.5px; }
     .cart-line .cl-n small { color:var(--muted); }
@@ -880,6 +885,7 @@
           <button class="btn small ghost" onclick="vHosteleria()">← Volver</button>
           <button class="btn small secondary" onclick="hosEnviarCocina('${c.id}')">🍳 Cocina</button>
           <button class="btn small secondary" onclick="hosAnular('${c.id}')">Anular</button>
+          <button class="btn small secondary" id="hosRepartirBtn" onclick="hosRepartir('${c.id}')">Repartir</button>
           <button class="btn small" id="hosCobrarBtn" onclick="hosCobrar('${c.id}')">Cobrar</button>
         </div></div></div>`;
       view(`<div class="tpv">${izq}${der}</div>`);
@@ -916,7 +922,7 @@
       const cont=document.getElementById("hosCart"), tot=document.getElementById("hosTotal"); if(!cont||!hosComanda)return;
       const ls=hosComanda.lineas;
       cont.innerHTML=ls.length?ls.map(l=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)">
-        <div style="flex:1;min-width:0"><strong style="font-size:14px">${l.descripcion}</strong><br><small class="muted">${eur(l.precioUnitario)}</small></div>
+        <div style="flex:1;min-width:0"><strong style="font-size:14px">${l.descripcion}</strong><br><small class="muted">${eur(l.precioUnitario)}${Number(l.cantidadCobrada)>0?` · <span style="color:var(--pos)">${numCant(l.cantidadCobrada)} cobrada${Number(l.cantidadCobrada)===1?"":"s"}</span>`:""}</small></div>
         <div class="hos-step">
           <button onclick="hosMenos('${l.id}')" aria-label="Quitar uno">−</button>
           <span>${numCant(l.cantidad)}</span>
@@ -1011,6 +1017,48 @@
       if(cobroCent===0){ cont.innerHTML=""; return; }
       if(cobroCent>=totC){ cont.innerHTML=`<div class="cambio-box ok">Cambio a devolver<span class="big">${eur((cobroCent-totC)/100)}</span></div>`; }
       else { cont.innerHTML=`<div class="cambio-box falta">Faltan<span class="big">${eur((totC-cobroCent)/100)}</span></div>`; }
+    }
+
+    /* ===== Reparto de la cuenta por artículos: cada comensal paga lo suyo con su ticket ===== */
+    let repartoComanda=null, repartoSel={}, repartoMetodo="Efectivo";
+    const cent2=n=>Math.round(n*100);
+    async function hosRepartir(id){
+      try{ await hosCola; }catch{}
+      let c; try{ c=await api("/comandas/"+id); }catch(e){ return toast(e.message,"err"); }
+      repartoComanda=c; repartoSel={}; repartoMetodo="Efectivo";
+      const pend=c.lineas.filter(l=>Number(l.cantidadPendienteCobro)>0);
+      if(!pend.length){ toast("No queda nada por cobrar en esta mesa.","ok"); return; }
+      const filas=pend.map(l=>{ const max=Number(l.cantidadPendienteCobro);
+        return `<div class="rep-row" id="reprow_${l.id}"><div style="flex:1;min-width:0"><strong>${l.descripcion}</strong><br><small class="muted">${eur(l.precioUnitario)} · quedan ${numCant(max)}</small></div>
+          <div class="split-step"><button onclick="repMenos('${l.id}')" aria-label="Menos">−</button><span class="n" id="rep_${l.id}">0</span><button onclick="repMas('${l.id}',${max})" aria-label="Más">+</button></div></div>`;
+      }).join("");
+      const seg=m=>`<button class="${repartoMetodo===m?"on":""}" onclick="repSetMetodo('${m}')">${m==="Efectivo"?"💶 Efectivo":m==="Tarjeta"?"💳 Tarjeta":"Otro"}</button>`;
+      abrir("Repartir la cuenta",
+        `<p class="muted" style="margin:0 0 12px;font-size:13px">Elige lo que paga este comensal: se emite su ticket y la mesa sigue abierta hasta el último pago.</p>
+         <div class="rep-list">${filas}</div>
+         <div class="cobro-tot" style="margin-top:14px"><div class="lbl">Este ticket</div><div class="val" id="repTotal">${eur(0)}</div></div>
+         <div class="pay-seg">${seg("Efectivo")}${seg("Tarjeta")}${seg("Otro")}</div>
+         <label style="display:flex;align-items:center;gap:8px;margin-top:6px;font-weight:500;cursor:pointer"><input id="rep_print" type="checkbox" style="width:auto" checked/> 🖨️ Imprimir ticket</label>`,
+        async()=>{
+          const items=Object.entries(repartoSel).filter(([,q])=>q>0).map(([lineaId,cantidad])=>({lineaId,cantidad}));
+          if(!items.length){ throw new Error("Selecciona al menos un artículo para cobrar."); }
+          const imprimir=document.getElementById("rep_print").checked;
+          const r=await api("/comandas/"+id+"/cobrar-parcial",{method:"POST",body:JSON.stringify({items,metodo:repartoMetodo})});
+          if(imprimir && r.facturaId){ try{ await api("/facturas/"+r.facturaId+"/imprimir",{method:"POST"}); }catch(e){ toast(e.message,"err"); } }
+          if(r.cerrada){ toast("Cuenta saldada · ticket "+(r.numeroTicket||""),"ok"); vHosteleria(); }
+          else { hosComanda=r.comanda; toast("Ticket "+(r.numeroTicket||"")+" · quedan "+eur(r.comanda.totalPendienteCobro),"ok"); hosRepartir(id); }
+        });
+      const ok=document.getElementById("modalOk"); if(ok) ok.textContent="Cobrar selección";
+    }
+    function repMas(id,max){ const q=repartoSel[id]||0; if(q>=max)return; repartoSel[id]=q+1; repActualizar(id); }
+    function repMenos(id){ const q=repartoSel[id]||0; if(q<=0)return; repartoSel[id]=q-1; repActualizar(id); }
+    function repSetMetodo(m){ repartoMetodo=m; document.querySelectorAll(".pay-seg button").forEach(b=>b.classList.toggle("on", b.textContent.includes(m==="Efectivo"?"Efectivo":m==="Tarjeta"?"Tarjeta":"Otro"))); }
+    function repActualizar(id){
+      const n=document.getElementById("rep_"+id); if(n) n.textContent=numCant(repartoSel[id]||0);
+      const row=document.getElementById("reprow_"+id); if(row) row.classList.toggle("sel",(repartoSel[id]||0)>0);
+      let cent=0;
+      for(const l of repartoComanda.lineas){ const q=repartoSel[l.id]||0; if(q>0){ const base=Math.round(q*Number(l.precioUnitario)*100)/100; const iva=Math.round(base*Number(l.porcentajeIva))/100; cent+=cent2(base+iva); } }
+      const t=document.getElementById("repTotal"); if(t) t.textContent=eur(cent/100);
     }
 
     /* ===== Plano del local: dibuja y coloca mesas, barra y terraza ===== */

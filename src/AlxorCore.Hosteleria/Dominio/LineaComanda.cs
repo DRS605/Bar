@@ -69,6 +69,24 @@ public sealed class LineaComanda : EntidadBase<Guid>
     /// <summary>Cantidad pendiente de enviar a cocina (lo pedido menos lo ya enviado).</summary>
     public decimal CantidadPendienteCocina => Cantidad > CantidadEnviadaCocina ? Cantidad - CantidadEnviadaCocina : 0m;
 
+    /// <summary>Cantidad de esta línea ya cobrada en tickets parciales (reparto de la cuenta por artículos).</summary>
+    public decimal CantidadCobrada { get; private set; }
+
+    /// <summary>Cantidad todavía pendiente de cobro (lo pedido menos lo ya cobrado).</summary>
+    public decimal CantidadPendienteCobro => Cantidad > CantidadCobrada ? Cantidad - CantidadCobrada : 0m;
+
+    /// <summary>Base imponible de la parte pendiente de cobro.</summary>
+    public decimal BasePendiente => Redondeo.Dos(CantidadPendienteCobro * PrecioUnitario);
+
+    /// <summary>Cuota de IVA de la parte pendiente de cobro.</summary>
+    public decimal CuotaIvaPendiente => Redondeo.Dos(BasePendiente * PorcentajeIva / 100m);
+
+    /// <summary>Importe total (con IVA) de la parte pendiente de cobro.</summary>
+    public decimal TotalPendiente => Redondeo.Dos(BasePendiente + CuotaIvaPendiente);
+
+    /// <summary>Suma cantidad a la parte ya cobrada de la línea (al emitir un ticket parcial).</summary>
+    internal void RegistrarCobrado(decimal cantidad) => CantidadCobrada += cantidad;
+
     /// <summary>Marca como enviada la cantidad pendiente y devuelve cuánto se envía ahora (0 si nada).</summary>
     internal decimal MarcarEnviadaCocina()
     {
