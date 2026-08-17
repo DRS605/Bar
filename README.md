@@ -107,6 +107,17 @@ Python en macOS/Linux). Crean la cuenta `demo@alxorcore.es` (contraseña `Demo12
 sembrar** si la empresa ya tiene facturas. Pensados para bases de datos de desarrollo/demo, no para
 producción.
 
+**Demo de bar** — para ver Comandia como un bar en marcha (carta por categorías, mesas por zonas,
+turnos con aforo, reservas de hoy y una comanda abierta):
+
+```bash
+python3 scripts/datos-demo-bar.py                       # contra http://localhost:3400
+python3 scripts/datos-demo-bar.py http://localhost:8080 # otra URL base
+```
+
+Crea la cuenta `bar@comandia.es` (contraseña `Demo1234!`) con el «Bar Sol de Levante» y es
+**idempotente** (no re-siembra si el bar ya tiene mesas).
+
 ## Puesta en marcha (desarrollo con SDK)
 
 Requisitos: **.NET 8 SDK** y **PostgreSQL** (local o vía Docker).
