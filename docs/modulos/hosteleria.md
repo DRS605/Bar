@@ -50,6 +50,12 @@ Así una consumición de barra acaba en la contabilidad exactamente igual que un
 duplicar la lógica fiscal. La comanda solo guarda la referencia al ticket generado (`FacturaId`,
 `NumeroTicket`) y la forma de cobro.
 
+Además, al cobrar se **registra el cobro en Tesorería** (`RegistrarCobro`) con la **forma de pago**, de
+modo que la venta de barra figura en el **cierre de caja del día** (`GET /informes/cierre-caja`) junto
+al resto de cobros. Es *mejor esfuerzo*: la comanda ya queda cobrada en su propia transacción; si el
+registro del cobro fallara, se avisa en el log sin deshacer el cobro. La sección **«Barra / Salón»**
+incluye el botón **«🧾 Cierre de caja»**.
+
 > Al tratarse de facturas simplificadas, una comanda que supere el tope legal del ticket
 > (3.000 €, art. 4 RD 1619/2012) se rechaza al cobrar; en ese caso debe emitirse factura ordinaria.
 

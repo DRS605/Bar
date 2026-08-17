@@ -3,6 +3,7 @@ using AlxorCore.Hosteleria.Aplicacion;
 using AlxorCore.Nucleo.Autorizacion;
 using AlxorCore.Nucleo.Multiempresa;
 using AlxorCore.Nucleo.Resultados;
+using AlxorCore.Tesoreria.Aplicacion;
 
 namespace AlxorCore.Api.Endpoints;
 
@@ -135,14 +136,33 @@ public static class EndpointsHosteleria
     private static async Task<IResult> QuitarLineaAsync(Guid id, Guid lineaId, QuitarLineaComanda caso, CancellationToken ct) =>
         (await caso.EjecutarAsync(id, lineaId, ct).ConfigureAwait(false)).AOk();
 
-    private static async Task<IResult> CobrarComandaAsync(Guid id, DatosCobro datos, IContextoEmpresa contexto, CobrarComanda caso, CancellationToken ct)
+    private static async Task<IResult> CobrarComandaAsync(
+        Guid id, DatosCobro datos, IContextoEmpresa contexto, CobrarComanda caso,
+        RegistrarCobro registrarCobro, ILoggerFactory registros, CancellationToken ct)
     {
         if (contexto.EmpresaId is null)
         {
             return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
         }
 
-        return (await caso.EjecutarAsync(contexto.EmpresaId.Value, id, datos, ct).ConfigureAwait(false)).AOk();
+        var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, id, datos, ct).ConfigureAwait(false);
+
+        // Registrar el cobro del ticket para que la venta figure en el cierre de caja del día. La comanda
+        // ya está cobrada (transacción propia); si el registro del cobro fallara, se avisa sin deshacerla.
+        if (resultado.EsCorrecto && resultado.Valor.FacturaId is { } facturaId)
+        {
+            var cobro = await registrarCobro.EjecutarAsync(
+                contexto.EmpresaId.Value,
+                new RegistrarCobroComando(facturaId, resultado.Valor.Total, Metodo: datos.Metodo.ToString()),
+                ct).ConfigureAwait(false);
+            if (cobro.EsFallo)
+            {
+                registros.CreateLogger("Hosteleria.Cobro").LogWarning(
+                    "Comanda {ComandaId} cobrada, pero el cobro no se registró en caja: {Codigo}.", id, cobro.Error.Codigo);
+            }
+        }
+
+        return resultado.AOk();
     }
 
     private static async Task<IResult> AnularComandaAsync(Guid id, AnularComanda caso, CancellationToken ct) =>

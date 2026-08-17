@@ -783,8 +783,8 @@
       view('<div class="muted">Cargando…</div>');
       const [mesas,prods]=await Promise.all([api("/mesas"),api("/productos").catch(()=>[])]);
       hosProductos=prods;
-      const nueva=`<button class="btn small" onclick="hosNuevaMesa()">+ Nueva mesa</button>`;
-      if(!mesas.length){ view(panel("",vacio("hosteleria","Sin mesas todavía","Crea las mesas y la barra de tu local para empezar a tomar comandas.",nueva))); return; }
+      const nueva=`<div style="display:flex;gap:8px"><button class="btn small ghost" onclick="modalCierreCaja()">🧾 Cierre de caja</button><button class="btn small" onclick="hosNuevaMesa()">+ Nueva mesa</button></div>`;
+      if(!mesas.length){ view(panel("",vacio("hosteleria","Sin mesas todavía","Crea las mesas y la barra de tu local para empezar a tomar comandas.",`<button class="btn small" onclick="hosNuevaMesa()">+ Nueva mesa</button>`))); return; }
       const card=m=>{
         const libre=!m.ocupada;
         const estado=libre?'<span class="pill ok">Libre</span>':`<span class="pill wait">Ocupada · ${eur(m.totalComandaAbierta)}</span>`;

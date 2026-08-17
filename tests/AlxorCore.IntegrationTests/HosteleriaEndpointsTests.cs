@@ -24,6 +24,9 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
 
     private sealed record FacturaResp(Guid Id, string NumeroCompleto, decimal Total, string Tipo);
 
+    private sealed record CierreMetodoResp(string Metodo, decimal Importe, int Numero);
+    private sealed record CierreResp(decimal TotalCobrado, List<CierreMetodoResp> CobrosPorMetodo);
+
     private static async Task<ProductoResp> CrearCañaAsync(HttpClient cliente, decimal precio = 1.50m, bool stock = true, decimal stockInicial = 100m)
     {
         var resp = await cliente.PostAsJsonAsync("/productos", new
@@ -215,6 +218,25 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
         // Cantidad cero se rechaza (para eliminar se usa el borrado de la línea).
         var cero = await cliente.PutAsJsonAsync($"/comandas/{comanda.Id}/lineas/{lineaId}", new { Cantidad = 0m });
         cero.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Cobrar_una_comanda_registra_el_cobro_en_el_cierre_de_caja()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var producto = await CrearCañaAsync(cliente, stock: false); // 1,50 € IVA10
+        var mesa = await CrearMesaAsync(cliente);
+        var comanda = (await (await cliente.PostAsJsonAsync("/comandas", new { MesaId = mesa.Id })).Content.ReadFromJsonAsync<ComandaResp>())!;
+        await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/lineas", new { ProductoId = producto.Id, Cantidad = 2m }); // total 3,30 €
+
+        var cobrar = await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/cobrar", new { Metodo = "Tarjeta" });
+        cobrar.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // La venta del bar aparece en el cierre de caja del día, por su forma de pago.
+        var hoy = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        var cierre = await cliente.GetFromJsonAsync<CierreResp>($"/informes/cierre-caja?dia={hoy}");
+        cierre!.CobrosPorMetodo.Should().ContainSingle(m => m.Metodo == "Tarjeta" && m.Importe == 3.30m && m.Numero == 1);
+        cierre.TotalCobrado.Should().Be(3.30m);
     }
 
     [Fact]
