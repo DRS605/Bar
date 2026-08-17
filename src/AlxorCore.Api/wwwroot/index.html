@@ -215,6 +215,13 @@
     .cobro-tot { text-align:center; background:var(--accent-soft); border-radius:14px; padding:14px; margin-bottom:14px; }
     .cobro-tot .lbl { font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); }
     .cobro-tot .val { font-size:34px; font-weight:800; letter-spacing:-.02em; color:var(--ink); line-height:1.1; }
+    .cobro-tot .pp { font-size:14px; font-weight:700; color:var(--accent); margin-top:6px; }
+    .cobro-split { display:flex; align-items:center; justify-content:space-between; gap:10px; border:1px solid var(--line); border-radius:12px; padding:8px 12px; margin-bottom:12px; }
+    .cobro-split .lb { font-size:13.5px; font-weight:650; color:var(--muted); }
+    .split-step { display:flex; align-items:center; gap:12px; }
+    .split-step button { width:34px; height:34px; border-radius:9px; border:1px solid var(--line); background:var(--surface); font-size:20px; font-weight:800; line-height:1; color:var(--ink); cursor:pointer; }
+    .split-step button:active { background:var(--accent-soft); }
+    .split-step .n { min-width:1.4em; text-align:center; font-size:17px; font-weight:800; }
     .pay-seg { display:flex; gap:8px; margin-bottom:12px; }
     .pay-seg button { flex:1; padding:14px 0; border:1.5px solid var(--line); background:var(--surface); border-radius:12px; font-size:15px; font-weight:700; color:var(--muted); cursor:pointer; transition:all .12s; }
     .pay-seg button.on { border-color:var(--accent); background:var(--accent); color:#fff; box-shadow:0 4px 12px rgba(31,122,90,.28); }
@@ -951,12 +958,13 @@
     async function hosEnviarCocina(id){ try{ await hosCola; const r=await api("/comandas/"+id+"/cocina",{method:"POST"});
         const n=(r.articulos||[]).reduce((s,a)=>s+Number(a.cantidad),0);
         toast(n>0?("🍳 Enviado a cocina · "+numCant(n)+" artículo(s)"):"Nada nuevo que enviar a cocina","ok"); }catch(e){ toast(e.message,"err"); } }
-    let cobroMetodo="Efectivo", cobroCent=0, cobroTotal=0;
+    let cobroMetodo="Efectivo", cobroCent=0, cobroTotal=0, cobroPersonas=1;
     function hosCobrar(id){
-      cobroMetodo="Efectivo"; cobroCent=0; cobroTotal=Number(hosComanda?.total||0);
+      cobroMetodo="Efectivo"; cobroCent=0; cobroTotal=Number(hosComanda?.total||0); cobroPersonas=1;
       const seg=m=>`<button class="${cobroMetodo===m?"on":""}" onclick="cobroSetMetodo('${m}')">${m==="Efectivo"?"💶 Efectivo":m==="Tarjeta"?"💳 Tarjeta":"Otro"}</button>`;
       abrir("Cobrar comanda",
-        `<div class="cobro-tot"><div class="lbl">Total a cobrar</div><div class="val">${eur(cobroTotal)}</div></div>
+        `<div class="cobro-tot"><div class="lbl">Total a cobrar</div><div class="val">${eur(cobroTotal)}</div><div class="pp" id="cobroPP" style="display:none"></div></div>
+         <div class="cobro-split"><span class="lb">Dividir a escote</span><div class="split-step"><button onclick="cobroDiv(-1)" aria-label="Menos personas">−</button><span class="n" id="cobroPers">1</span><button onclick="cobroDiv(1)" aria-label="Más personas">+</button></div></div>
          <div class="pay-seg">${seg("Efectivo")}${seg("Tarjeta")}${seg("Otro")}</div>
          <div id="cobroEfectivo"></div>
          <label style="display:flex;align-items:center;gap:8px;margin-top:6px;font-weight:500;cursor:pointer"><input id="hos_print" type="checkbox" style="width:auto" checked/> 🖨️ Imprimir ticket en la impresora</label>
@@ -987,6 +995,10 @@
       </div><div id="cobroCambio"></div>`;
       cobroPintarCambio();
     }
+    function cobroDiv(delta){ cobroPersonas=Math.max(1,Math.min(20,cobroPersonas+delta));
+      const n=document.getElementById("cobroPers"); if(n) n.textContent=cobroPersonas;
+      const pp=document.getElementById("cobroPP"); if(pp){ if(cobroPersonas>1){ pp.style.display=""; pp.textContent=`÷ ${cobroPersonas} = ${eur(cobroPorPersona()/100)} por persona`; } else pp.style.display="none"; } }
+    function cobroPorPersona(){ return Math.ceil(Math.round(cobroTotal*100)/cobroPersonas); } // céntimos, redondeo al alza
     function cobroKey(d){ if(cobroCent>=9999999)return; cobroCent=cobroCent*10+Number(d); cobroActualizar(); }
     function cobroBorrar(){ cobroCent=Math.floor(cobroCent/10); cobroActualizar(); }
     function cobroCero(){ cobroCent=0; cobroActualizar(); }
