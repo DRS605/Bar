@@ -112,6 +112,13 @@
     .lgreet h1 { font-family: var(--display); font-weight:600; font-size: clamp(26px,3.6vw,34px); letter-spacing:-.01em; margin:0 0 4px; }
     .lgreet p { color: var(--muted); margin:0; font-size:14.5px; }
     .catlabel { font-size: 11px; text-transform:uppercase; letter-spacing:.1em; color: var(--muted); font-weight:700; margin: 26px 2px 12px; }
+    .onb { margin: 2px 0 6px; border-color:#f0e0cf; box-shadow: 0 10px 30px rgba(184,105,43,.10); }
+    .onb .eyebrow { display:inline-flex; align-items:center; font-size:11.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+    .onb-step { display:flex; align-items:center; gap:14px; padding:14px 0; border-top:1px solid var(--line); }
+    .onb-step:first-of-type { border-top:none; }
+    .onb-step strong { font-size:15px; letter-spacing:-.01em; }
+    .onb-check { width:26px; height:26px; flex:none; border-radius:50%; display:grid; place-items:center; font-size:14px; font-weight:800; color:#fff; background: var(--pos); box-shadow: 0 3px 8px rgba(31,157,99,.30); }
+    .onb-step:not(.done) .onb-check { background: var(--bg); border:2px dashed #d8c3ab; box-shadow:none; }
     .tiles { display:grid; grid-template-columns: repeat(auto-fill, minmax(228px,1fr)); gap: 14px; }
     .tile { display:flex; align-items:center; gap:14px; text-align:left; background: var(--surface); border:1px solid var(--line); border-radius:16px; padding:18px; cursor:pointer; transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease; box-shadow: var(--shadow); }
     .tile:hover { transform: translateY(-3px); box-shadow: 0 12px 26px rgba(20,60,45,.12); border-color:#d5e3db; }
@@ -485,19 +492,29 @@
 
     async function vInicio() {
       view('<div class="muted">Cargando…</div>');
-      const [d,mesas,reservas]=await Promise.all([api("/informes/dashboard"),api("/mesas").catch(()=>[]),api("/reservas").catch(()=>[])]);
+      const [d,mesas,reservas,prods]=await Promise.all([api("/informes/dashboard"),api("/mesas").catch(()=>[]),api("/reservas").catch(()=>[]),api("/productos").catch(()=>[])]);
       const fecha=new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"});
       const hora=new Date().getHours(); const saludo=hora<13?"Buenos días":hora<20?"Buenas tardes":"Buenas noches";
       const nombre=(usuario?.nombre||"").split(" ")[0];
       const ocup=mesas.filter(m=>m.ocupada).length;
       const hoy=new Date().toISOString().slice(0,10);
       const resHoy=reservas.filter(r=>String(r.fechaHora).slice(0,10)===hoy && (r.estado==="Pendiente"||r.estado==="Confirmada")).length;
+      const sinCarta=!prods.length, sinMesas=!mesas.length, onboarding=sinCarta||sinMesas;
       const greet=`<div class="lgreet"><span class="eyebrow"><span class="dot"></span>${fecha.charAt(0).toUpperCase()+fecha.slice(1)}</span><h1>${saludo}, ${nombre}</h1><p>Este es el pulso de <strong>${empresa.razonSocial}</strong>. Elige por dónde empezar.</p></div>`;
       const kpis=`<div class="kpis">
         <div class="kpi"><div class="top"><div class="chipico">${kIcon.fact}</div></div><div class="lbl">Ventas este mes</div><div class="val">${eur(d.facturadoMes)}</div></div>
         <div class="kpi"><div class="top"><div class="chipico">${kIcon.gasto}</div></div><div class="lbl">Gastos este mes</div><div class="val">${eur(d.gastadoMes)}</div></div>
         <div class="kpi pos"><div class="top"><div class="chipico">${ICON.hosteleria}</div></div><div class="lbl">Mesas ocupadas</div><div class="val">${ocup}<span style="font-size:15px;color:var(--muted)"> / ${mesas.length}</span></div></div>
         <div class="kpi"><div class="top"><div class="chipico">${ICON.reservas}</div></div><div class="lbl">Reservas hoy</div><div class="val">${resHoy}</div></div></div>`;
+      const paso=(hecho,titulo,desc,accion)=>`<div class="onb-step${hecho?" done":""}"><span class="onb-check">${hecho?"✓":""}</span><div style="flex:1;min-width:0"><strong>${titulo}</strong><br><small class="muted">${desc}</small></div>${hecho?'<span class="pill ok">Hecho</span>':accion}</div>`;
+      const onb=`<div class="panel onb"><div style="padding:20px 22px">
+        <span class="eyebrow" style="color:var(--copper)">Primeros pasos</span>
+        <h1 style="font-family:var(--display);font-weight:600;font-size:26px;margin:4px 0 4px">Pon tu bar en marcha</h1>
+        <p class="muted" style="margin:0 0 16px;font-size:14px">Dos pasos y ya puedes tomar comandas. ¿Con prisa? <a href="#" onclick="onbCargarEjemplo();return false" style="color:var(--accent);font-weight:650">⚡ Carga una carta y mesas de ejemplo →</a></p>
+        ${paso(true,"Crea tu local",`Ya tienes «${empresa.razonSocial}».`,"")}
+        ${paso(!sinCarta,"Añade tu carta","Tus productos, agrupados por categoría (cervezas, tapas…).",'<button class="btn small" onclick="modalProducto()">Añadir artículo</button>')}
+        ${paso(!sinMesas,"Coloca tus mesas","Mesas y barra por zonas (salón, terraza…).",'<button class="btn small" onclick="hosNuevaMesa()">Añadir mesa</button>')}
+      </div></div>`;
       const tile=(k,titulo,hint,feat)=>`<button class="tile ${feat?'feat':''}" onclick="ir('${k}')"><span class="tileic">${ICON[k]}</span><span class="tiletx"><b>${titulo}</b><small>${hint}</small></span></button>`;
       const grupo=(label,html)=>`<div class="catlabel">${label}</div><div class="tiles">${html}</div>`;
       const menu=
@@ -505,7 +522,17 @@
         grupo("Ventas", tile("tpv","TPV · Tickets","Cobrar en la barra",true)+tile("clientes","Clientes","Habituales y datos"))+
         grupo("Compras", tile("gastos","Gastos","Compras y tickets de proveedor")+tile("proveedores","Proveedores","Tu agenda")+tile("pagos","Pagos","Pagos a proveedores"))+
         grupo("Catálogo y datos", tile("productos","Artículos","Carta y stock")+tile("informes","Informes","Ventas y libros")+tile("ajustes","Ajustes","Empresa y usuarios"));
-      view(greet+kpis+menu);
+      view(greet+(onboarding?onb:kpis)+menu);
+    }
+    async function onbCargarEjemplo(){
+      try{ toast("Cargando ejemplo…","ok");
+        const [prods,mesas]=await Promise.all([api("/productos").catch(()=>[]),api("/mesas").catch(()=>[])]);
+        if(!prods.length){ for(const [n,p,c] of [["Caña",1.50,"Cervezas"],["Doble",2.20,"Cervezas"],["Vino tinto",2.20,"Vinos"],["Agua",1.20,"Refrescos"],["Café",1.30,"Cafés"],["Tortilla",4.50,"Tapas"],["Croquetas",5.00,"Tapas"]])
+          await api("/productos",{method:"POST",body:JSON.stringify({nombre:n,precioUnitario:p,codigoIva:"IVA10",tipo:"Bien",unidad:"ud",categoria:c,controlarStock:false})}); }
+        if(!mesas.length){ for(const [n,z,f] of [["Mesa 1","Salón","Cuadrada"],["Mesa 2","Salón","Cuadrada"],["Terraza 1","Terraza","Redonda"],["Barra","Barra","Rectangular"]])
+          await api("/mesas",{method:"POST",body:JSON.stringify({nombre:n,zona:z,capacidad:4,forma:f})}); }
+        toast("¡Listo! Tu bar ya tiene carta y mesas.","ok"); vInicio();
+      }catch(e){ toast(e.message,"err"); }
     }
 
     async function vFacturas() {
