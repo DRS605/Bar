@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text;
 using AlxorCore.Documentos.Aplicacion;
 using AlxorCore.Facturacion.Aplicacion;
+using AlxorCore.Facturacion.Dominio;
 using AlxorCore.Organizacion.Aplicacion.Modelos;
 
 namespace AlxorCore.Documentos.Infraestructura.Impresion;
@@ -73,6 +74,19 @@ internal sealed class GeneradorTicketEscPos : IGeneradorTicketEscPos
         Bytes(NegritaOn); Bytes(TamanoDoble);
         Linea(IzqDer("TOTAL", Eur(factura.Total), Ancho / 2));
         Bytes(TamanoNormal); Bytes(NegritaOff);
+
+        // VeriFactu: leyenda + QR de cotejo de la AEAT (obligatorio en el ticket cuando hay registro).
+        if (!string.IsNullOrEmpty(factura.Huella))
+        {
+            Linea();
+            Bytes(AlinearCentro);
+            Bytes(NegritaOn); Linea("VERI*FACTU"); Bytes(NegritaOff);
+            Linea("Factura verificable en la sede de la AEAT");
+            var url = Verifactu.UrlCotejo(emisor.Nif, factura.NumeroCompleto, factura.FechaEmision, factura.Total);
+            Bytes(QrEscPos.Raster(url));
+            Linea();
+            Linea($"Huella: {factura.Huella[..Math.Min(16, factura.Huella.Length)]}...");
+        }
 
         // Pie.
         Linea();

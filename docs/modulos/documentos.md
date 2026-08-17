@@ -25,6 +25,11 @@ térmicas de barra (papel de 80 mm ≈ 48 columnas): cabecera del local, líneas
 destacado, pie y corte de papel. El texto usa la página de códigos **858** (Europa occidental, con «€»)
 y así se lo indica a la impresora (`ESC t 19`).
 
+Cuando la factura tiene **huella VeriFactu**, el ticket imprime además la leyenda **«VERI\*FACTU»**, el
+**QR de cotejo** de la AEAT (misma URL que el PDF) y el inicio de la huella —requisito del ticket que se
+entrega al cliente—. El QR se **rasteriza** con `QrEscPos` a una imagen `GS v 0`, compatible con
+cualquier térmica (no depende del soporte nativo de QR de la impresora).
+
 - `GET /facturas/{id}/ticket.escpos` descarga los bytes ESC/POS (para enviarlos a mano a una impresora
   de red o por USB).
 - `POST /facturas/{id}/imprimir` los envía a la **impresora configurada**. Con host en la sección
@@ -54,8 +59,9 @@ Desde el TPV de mesa, la casilla **«Imprimir ticket»** del cobro envía el tic
 
 - **Unitarios**: `ConstructorMensajeSmtp` (remitente/destinatario/asunto, cuerpo HTML, presencia y
   tipo de contenido del adjunto según su extensión, y el caso sin adjunto); `GeneradorTicketEscPos`
-  (inicialización `ESC @`, selección de página de códigos, corte final, y presencia de local, número,
-  líneas, «TOTAL» y «€»).
+  (inicialización `ESC @`, selección de página de códigos, corte final, presencia de local, número,
+  líneas, «TOTAL» y «€»; y el bloque **VeriFactu** —leyenda, QR `GS v 0` y huella— presente con huella y
+  ausente sin ella); `QrEscPos` (bloque ráster `GS v 0` con el tamaño declarado).
 - **Integración**: descarga del PDF (200, `application/pdf`, cabecera `%PDF`), envío por correo (204),
   descarga del ticket ESC/POS (200, `application/octet-stream`, `ESC @`…corte) e impresión sin impresora
   configurada (400 `impresora.no_configurada`).
