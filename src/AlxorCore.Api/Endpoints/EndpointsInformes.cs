@@ -44,7 +44,24 @@ public static class EndpointsInformes
             .WithSummary("Cierre de caja (arqueo) de un día: cobrado por método, pagado y neto.")
             .RequierePermiso(Permisos.InformeLeer);
 
+        informes.MapGet("/ventas", VentasAsync)
+            .WithSummary("Informe comercial de ventas: tickets, ticket medio, ventas por día de la semana y más vendidos por unidades.")
+            .RequierePermiso(Permisos.InformeLeer);
+
         return rutas;
+    }
+
+    private static async Task<IResult> VentasAsync(
+        IContextoEmpresa contexto, GenerarInformeVentas caso, CancellationToken ct,
+        DateOnly? desde = null, DateOnly? hasta = null)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var (d, h) = RangoPorDefecto(desde, hasta);
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, d, h, ct).ConfigureAwait(false));
     }
 
     private static async Task<IResult> DashboardAsync(IContextoEmpresa contexto, ObtenerDashboard caso, CancellationToken ct)

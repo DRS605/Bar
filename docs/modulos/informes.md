@@ -79,6 +79,16 @@ de Tesorería: **total cobrado** desglosado por **método de pago** (efectivo, t
 pagado (salidas) y **neto**. Pensado para cuadrar la caja de una tienda al cerrar; accesible desde el
 botón *Cierre de caja* del TPV.
 
+## Ventas del bar (informe comercial)
+
+`GET /informes/ventas?desde=&hasta=` devuelve el **informe comercial de ventas** del periodo, calculado
+sobre las facturas emitidas (tickets incluidos): **número de tickets**, **venta total** y **ticket
+medio**; el reparto de la venta **por día de la semana** (para ver los días fuertes, con la fecha de
+emisión —sin ambigüedad de zona horaria—); y los artículos **más vendidos por unidades** (con su
+importe y margen). Es distinto del *beneficio* (que ordena por margen): responde a «¿qué se vende, qué
+días y cuánto deja cada ticket?». En la interfaz es el panel **«Ventas del bar»** con KPIs, un gráfico
+de barras por día y el ranking por unidades.
+
 ## API
 
 | Método | Ruta | Auth | Descripción |
@@ -90,11 +100,15 @@ botón *Cierre de caja* del TPV.
 | `GET` | `/informes/declaracion-anual` | permiso `informe.leer` | Declaraciones anuales 390 (IVA) y 347 (terceros). |
 | `GET` | `/informes/beneficio` | permiso `informe.leer` | Beneficio del periodo (margen bruto y neto). |
 | `GET` | `/informes/cierre-caja?dia=` | permiso `informe.leer` | Cierre de caja de un día (cobrado por método, pagado, neto). |
+| `GET` | `/informes/ventas` | permiso `informe.leer` | Informe comercial: tickets, ticket medio, ventas por día de la semana y más vendidos por unidades. |
 
 ## Tests
 
 - **Unitarios**: exportador CSV (cabecera, asientos, totales, escapado); resúmenes fiscales (303
   repercutido − soportado por trimestre; 130 acumulado con el 20 %, retenciones, pagos anteriores y
-  suelo en 0; exclusión de facturas anuladas/rectificadas; trimestre fuera de rango).
+  suelo en 0; exclusión de facturas anuladas/rectificadas; trimestre fuera de rango); **informe de
+  ventas** (tickets/venta/ticket medio ignorando anuladas y fuera de rango, reparto L..D siempre
+  completo, y top de productos ordenado por unidades).
 - **Integración**: dashboard (facturado/gastado/pendientes y su actualización tras un cobro), libro
-  de IVA repercutido, exportación CSV y resumen trimestral (303 y 130).
+  de IVA repercutido, exportación CSV, resumen trimestral (303 y 130), beneficio y **informe de ventas**
+  (tickets, ticket medio, más vendidos por unidades y reparto por día de la semana).

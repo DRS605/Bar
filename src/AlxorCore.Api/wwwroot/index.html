@@ -1277,20 +1277,42 @@
     async function vInformes() {
       view('<div class="muted">Cargando…</div>');
       const anio=new Date().getFullYear();
-      const [libro,resumen,benef,anual,facturas,gastos]=await Promise.all([
+      const [libro,resumen,benef,anual,facturas,gastos,ventas]=await Promise.all([
         api(`/informes/libro-iva?tipo=Repercutido&desde=${anio}-01-01&hasta=${anio}-12-31`),
         api(`/informes/resumen-trimestral?anio=${anio}&trimestre=${trimSel}`).catch(()=>null),
         api(`/informes/beneficio?desde=${anio}-01-01&hasta=${anio}-12-31`).catch(()=>null),
         api(`/informes/declaracion-anual?anio=${anio}`).catch(()=>null),
         api("/facturas").catch(()=>[]),
         api("/gastos").catch(()=>[]),
+        api(`/informes/ventas?desde=${anio}-01-01&hasta=${anio}-12-31`).catch(()=>null),
       ]);
       const panelGraficos=graficosHtml(facturas,gastos,anio);
       const filas=libro.asientos.map(a=>`<tr><td class="muted">${fdate(a.fecha)}</td><td><strong>${a.documento}</strong></td><td>${a.tercero}</td><td class="num">${eur(a.base)}</td><td class="num">${eur(a.cuota)}</td></tr>`).join("");
       const total=`<tr><td colspan="3" class="right"><strong>Totales</strong></td><td class="num"><strong>${eur(libro.totalBase)}</strong></td><td class="num"><strong>${eur(libro.totalCuota)}</strong></td></tr>`;
       const cuerpo=libro.asientos.length?`<table><thead><tr><th>Fecha</th><th>Documento</th><th>Cliente</th><th class="num">Base</th><th class="num">Cuota IVA</th></tr></thead><tbody>${filas}${total}</tbody></table>`:vacio("informes","Sin movimientos en el periodo","Emite facturas para ver aquí tu libro de IVA repercutido.");
       const panelLibro=panel(`Libro de IVA repercutido · ${anio}`,cuerpo,`<button class="btn small ghost" onclick="descargarCsv()">↓ Exportar CSV (gestoría)</button>`);
-      view(panelGraficos+(benef?panelBeneficio(benef,anio):"")+(benef&&benef.porProducto.length?panelRanking(benef,anio):"")+(resumen?panelResumen(resumen,anio):"")+(anual?panelAnual(anual,anio):"")+panelLibro);
+      view(panelGraficos+(ventas&&ventas.tickets?panelVentas(ventas,anio):"")+(benef?panelBeneficio(benef,anio):"")+(benef&&benef.porProducto.length?panelRanking(benef,anio):"")+(resumen?panelResumen(resumen,anio):"")+(anual?panelAnual(anual,anio):"")+panelLibro);
+    }
+    function panelVentas(v,anio){
+      const kpi=(l,val)=>`<div class="kpi"><div class="lbl">${l}</div><div class="val">${val}</div></div>`;
+      const kpis=`<div class="kpis" style="margin:0 0 18px">${kpi("Tickets",v.tickets)}${kpi("Venta total",eur(v.ventaTotal))}${kpi("Ticket medio",eur(v.ticketMedio))}</div>`;
+      // Barras por día de la semana (SVG puro).
+      const dias=v.porDiaSemana, maxD=Math.max(1,...dias.map(d=>d.importe));
+      const W=560,H=180,pl=8,pb=26,gw=(W-pl*2)/7;
+      const barras=dias.map((d,i)=>{ const bh=(H-pb)*(d.importe/maxD); const x=pl+i*gw, y=H-pb-bh;
+        const hot=d.importe===maxD&&maxD>0;
+        return `<g><rect x="${(x+6).toFixed(1)}" y="${y.toFixed(1)}" width="${(gw-12).toFixed(1)}" height="${Math.max(0,bh).toFixed(1)}" rx="5" fill="${hot?'var(--accent)':'#cfe0d8'}"></rect>
+          <text x="${(x+gw/2).toFixed(1)}" y="${(H-pb+16).toFixed(1)}" text-anchor="middle" font-size="12" fill="var(--muted)">${d.nombre.slice(0,3)}</text>
+          ${d.importe>0?`<text x="${(x+gw/2).toFixed(1)}" y="${(y-5).toFixed(1)}" text-anchor="middle" font-size="10.5" font-weight="700" fill="var(--ink)">${eur(d.importe).replace(' €','')}</text>`:""}</g>`;
+      }).join("");
+      const grafico=`<h4 style="margin:0 0 10px">Ventas por día de la semana</h4><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">${barras}</svg>`;
+      // Top productos por unidades.
+      const tp=v.topProductos;
+      const maxU=Math.max(1,...tp.map(p=>Number(p.unidades)));
+      const filas=tp.map((p,i)=>`<tr><td class="muted">${i+1}</td><td><strong>${p.descripcion}</strong><br><div style="height:6px;border-radius:4px;background:var(--accent-soft);margin-top:4px;max-width:220px"><div style="height:100%;border-radius:4px;background:var(--accent);width:${(Number(p.unidades)/maxU*100).toFixed(0)}%"></div></div></td><td class="num"><strong>${numCant(p.unidades)}</strong><br><small class="muted">${eur(p.importe)}</small></td></tr>`).join("");
+      const tabla=tp.length?`<h4 style="margin:18px 0 8px">🍺 Más vendidos por unidades</h4><table><thead><tr><th></th><th></th><th class="num">Uds · importe</th></tr></thead><tbody>${filas}</tbody></table>`:"";
+      const cuerpo=kpis+grafico+tabla+`<p class="muted" style="font-size:12px;margin:14px 0 0">Ventas de ${anio}. El día con más venta se resalta; «más vendidos» va por unidades (los tickets del bar cuentan aquí).</p>`;
+      return panel("Ventas del bar",cuerpo);
     }
     // Gráficos de Informes (SVG puro, sin dependencias): barras de facturación vs gasto por mes + donut de gastos.
     function graficosHtml(facturas,gastos,anio){

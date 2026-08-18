@@ -16,6 +16,7 @@ public static class RegistroServicios
         servicios.AddScoped<GenerarDeclaracionAnual>();
         servicios.AddScoped<GenerarBeneficio>();
         servicios.AddScoped<GenerarCierreCaja>();
+        servicios.AddScoped<GenerarInformeVentas>();
 
         return servicios;
     }

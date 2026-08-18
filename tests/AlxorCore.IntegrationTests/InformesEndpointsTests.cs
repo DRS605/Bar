@@ -25,6 +25,9 @@ public sealed class InformesEndpointsTests : IClassFixture<FabricaApiPruebas>
     private sealed record BeneficioResp(decimal Ingresos, decimal Coste, decimal MargenBruto, decimal Gastos, decimal BeneficioNeto, List<BeneficioProductoResp> PorProducto);
     private sealed record CierreMetodoResp(string Metodo, decimal Importe, int Numero);
     private sealed record CierreResp(decimal TotalCobrado, decimal TotalPagado, decimal Neto, List<CierreMetodoResp> CobrosPorMetodo);
+    private sealed record VentaProductoResp(string Descripcion, decimal Unidades, decimal Importe, decimal Margen);
+    private sealed record VentaDiaResp(int DiaSemana, string Nombre, decimal Importe, int Tickets);
+    private sealed record VentasResp(int Tickets, decimal VentaTotal, decimal TicketMedio, List<VentaProductoResp> TopProductos, List<VentaDiaResp> PorDiaSemana);
 
     private static async Task<FacturaResp> EmitirFacturaAsync(HttpClient cliente)
     {
@@ -183,5 +186,30 @@ public sealed class InformesEndpointsTests : IClassFixture<FabricaApiPruebas>
         b.Gastos.Should().Be(50m);
         b.BeneficioNeto.Should().Be(70m);  // 120 - 50
         b.PorProducto.Should().ContainSingle(p => p.Margen == 120m);
+    }
+
+    [Fact]
+    public async Task Informe_de_ventas_da_tickets_medio_top_por_unidades_y_por_dia()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var clienteId = (await (await cliente.PostAsJsonAsync("/clientes", new { Nombre = "Contado", NifFiscal = "B12345674" })).Content.ReadFromJsonAsync<ClienteResp>())!.Id;
+        var cana = (await (await cliente.PostAsJsonAsync("/productos", new { Nombre = "Caña", PrecioUnitario = 1.50m, PrecioCompra = 0.50m, CodigoIva = "IVA10" })).Content.ReadFromJsonAsync<ProductoResp>())!;
+        var tapa = (await (await cliente.PostAsJsonAsync("/productos", new { Nombre = "Tapa", PrecioUnitario = 4.00m, PrecioCompra = 1.50m, CodigoIva = "IVA10" })).Content.ReadFromJsonAsync<ProductoResp>())!;
+
+        // Dos tickets: uno con 10 cañas y otro con 2 cañas + 1 tapa.
+        await cliente.PostAsJsonAsync("/facturas", new { ClienteId = clienteId, Lineas = new[] { new { ProductoId = cana.Id, Cantidad = 10m } } });
+        await cliente.PostAsJsonAsync("/facturas", new { ClienteId = clienteId, Lineas = new object[] { new { ProductoId = cana.Id, Cantidad = 2m }, new { ProductoId = tapa.Id, Cantidad = 1m } } });
+
+        var hoy = DateTime.UtcNow;
+        var v = await cliente.GetFromJsonAsync<VentasResp>($"/informes/ventas?desde={hoy.Year}-01-01&hasta={hoy.Year}-12-31");
+
+        v!.Tickets.Should().Be(2);
+        v.VentaTotal.Should().Be(24.20m);             // ticket1 16,50 (15,00+10%) + ticket2 7,70 (7,00+10%)
+        v.TicketMedio.Should().Be(12.10m);            // 24,20 / 2
+        v.TopProductos[0].Descripcion.Should().Be("Caña"); // 12 uds, por encima de la tapa (1)
+        v.TopProductos[0].Unidades.Should().Be(12m);
+        v.PorDiaSemana.Should().HaveCount(7);
+        v.PorDiaSemana.Sum(d => d.Tickets).Should().Be(2);
+        v.PorDiaSemana.Sum(d => d.Importe).Should().Be(24.20m);
     }
 }
