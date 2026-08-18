@@ -130,7 +130,9 @@ los artículos la tienen —«Cervezas», «Tapas»…— más «Otros» para lo
 selectores **+/−** por línea y total al instante. Los toques se reflejan de inmediato (optimista) y se
 sincronizan en una cola (una operación a la vez, para no chocar); la respuesta del servidor manda. Desde
 ahí se anula o se **cobra**: forma de pago con botones grandes, **teclado numérico** que calcula el
-**cambio a devolver** en efectivo, **dividir a escote** (importe por comensal) y **«Repartir»** la
+**cambio a devolver** en efectivo, **propina** (5 %, 10 % o redondear al alza; se suma a lo que se cobra
+y al cálculo del cambio, pero **no va en el ticket**), **dividir a escote** (importe por comensal) y
+**«Repartir»** la
 cuenta **por artículos** —elegir lo que paga cada uno y emitir su ticket, dejando la mesa abierta hasta
 el último pago—, con opción de **imprimir el ticket** en la impresora térmica (ver módulo Documentos).
 El botón **«🧾 Cuenta»** imprime la **cuenta previa** (pre-ticket, sin valor fiscal) para que el cliente
