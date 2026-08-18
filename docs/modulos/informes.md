@@ -89,6 +89,14 @@ importe y margen). Es distinto del *beneficio* (que ordena por margen): responde
 días y cuánto deja cada ticket?». En la interfaz es el panel **«Ventas del bar»** con KPIs, un gráfico
 de barras por día y el ranking por unidades.
 
+A partir de estos datos, la interfaz añade un **simulador de precios y rentabilidad** («💡 Precios y
+rentabilidad», solo cliente): con las **unidades vendidas** y el **margen por producto** (del beneficio)
+y el **PVP e IVA** del catálogo, da **consejos** (tu producto estrella, dónde una subida pequeña renta,
+qué apenas deja margen) y **simula** subir/bajar el precio de un artículo mostrando el nuevo margen, el
+**impacto anual** con la misma demanda y el **punto de equilibrio** (cuánto puede caer —o cuánto debe
+subir— la venta para que el cambio compense). Es una estimación (no hay datos de elasticidad), por eso
+se apoya en el punto de equilibrio como cifra honesta.
+
 ## API
 
 | Método | Ruta | Auth | Descripción |

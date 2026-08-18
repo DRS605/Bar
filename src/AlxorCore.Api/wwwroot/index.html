@@ -225,6 +225,8 @@
     .prop-quick { display:flex; gap:6px; flex-wrap:wrap; }
     .prop-quick button { padding:7px 12px; border:1px solid var(--line); background:var(--surface); border-radius:10px; font-size:13px; font-weight:700; color:var(--ink); cursor:pointer; }
     .prop-quick button.on { border-color:var(--accent); background:var(--accent); color:#fff; }
+    .tips { display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
+    .tip { background:var(--accent-soft); border-left:3px solid var(--accent); border-radius:10px; padding:11px 14px; font-size:14px; line-height:1.5; }
     .pay-seg { display:flex; gap:8px; margin-bottom:12px; }
     .pay-seg button { flex:1; padding:14px 0; border:1.5px solid var(--line); background:var(--surface); border-radius:12px; font-size:15px; font-weight:700; color:var(--muted); cursor:pointer; transition:all .12s; }
     .pay-seg button.on { border-color:var(--accent); background:var(--accent); color:#fff; box-shadow:0 4px 12px rgba(31,122,90,.28); }
@@ -1277,7 +1279,7 @@
     async function vInformes() {
       view('<div class="muted">Cargando…</div>');
       const anio=new Date().getFullYear();
-      const [libro,resumen,benef,anual,facturas,gastos,ventas]=await Promise.all([
+      const [libro,resumen,benef,anual,facturas,gastos,ventas,productos]=await Promise.all([
         api(`/informes/libro-iva?tipo=Repercutido&desde=${anio}-01-01&hasta=${anio}-12-31`),
         api(`/informes/resumen-trimestral?anio=${anio}&trimestre=${trimSel}`).catch(()=>null),
         api(`/informes/beneficio?desde=${anio}-01-01&hasta=${anio}-12-31`).catch(()=>null),
@@ -1285,13 +1287,65 @@
         api("/facturas").catch(()=>[]),
         api("/gastos").catch(()=>[]),
         api(`/informes/ventas?desde=${anio}-01-01&hasta=${anio}-12-31`).catch(()=>null),
+        api("/productos").catch(()=>[]),
       ]);
       const panelGraficos=graficosHtml(facturas,gastos,anio);
       const filas=libro.asientos.map(a=>`<tr><td class="muted">${fdate(a.fecha)}</td><td><strong>${a.documento}</strong></td><td>${a.tercero}</td><td class="num">${eur(a.base)}</td><td class="num">${eur(a.cuota)}</td></tr>`).join("");
       const total=`<tr><td colspan="3" class="right"><strong>Totales</strong></td><td class="num"><strong>${eur(libro.totalBase)}</strong></td><td class="num"><strong>${eur(libro.totalCuota)}</strong></td></tr>`;
       const cuerpo=libro.asientos.length?`<table><thead><tr><th>Fecha</th><th>Documento</th><th>Cliente</th><th class="num">Base</th><th class="num">Cuota IVA</th></tr></thead><tbody>${filas}${total}</tbody></table>`:vacio("informes","Sin movimientos en el periodo","Emite facturas para ver aquí tu libro de IVA repercutido.");
       const panelLibro=panel(`Libro de IVA repercutido · ${anio}`,cuerpo,`<button class="btn small ghost" onclick="descargarCsv()">↓ Exportar CSV (gestoría)</button>`);
-      view(panelGraficos+(ventas&&ventas.tickets?panelVentas(ventas,anio):"")+(benef?panelBeneficio(benef,anio):"")+(benef&&benef.porProducto.length?panelRanking(benef,anio):"")+(resumen?panelResumen(resumen,anio):"")+(anual?panelAnual(anual,anio):"")+panelLibro);
+      view(panelGraficos+(ventas&&ventas.tickets?panelVentas(ventas,anio):"")+(benef?panelSimulador(productos,benef,anio):"")+(benef?panelBeneficio(benef,anio):"")+(benef&&benef.porProducto.length?panelRanking(benef,anio):"")+(resumen?panelResumen(resumen,anio):"")+(anual?panelAnual(anual,anio):"")+panelLibro);
+    }
+    // Simulador de precios: usa unidades/coste/margen del beneficio y el PVP real del catálogo.
+    let simItems=[], simProdId=null, simPct=5;
+    function panelSimulador(productos,benef,anio){
+      const ventas={}; (benef?.porProducto||[]).forEach(p=>{ if(p.productoId) ventas[p.productoId]=p; });
+      simItems=(productos||[]).filter(p=>ventas[p.id] && Number(ventas[p.id].cantidad)>0).map(p=>{
+        const v=ventas[p.id]; const iva=(IVAPCT[p.codigoIva]||0); const pvp=Number(p.precioUnitario||0);
+        const neto=pvp/(1+iva/100); const coste=Number(p.precioCompra||0);
+        return {id:p.id,nombre:p.nombre,pvp,iva,neto,coste,units:Number(v.cantidad),margenUnit:neto-coste,margenTotal:Number(v.margen)};
+      }).sort((a,b)=>b.margenTotal-a.margenTotal);
+      if(!simItems.length) return "";
+      // Consejos automáticos.
+      const estrella=simItems[0];
+      const porUds=[...simItems].sort((a,b)=>b.units-a.units);
+      const subible=porUds.find(x=>x.margenUnit>0)||porUds[0];
+      const extra5=subible?subible.neto*0.05*subible.units:0;
+      const flojos=simItems.filter(x=>x.margenUnit<=0 || (x.neto>0 && x.margenUnit/x.neto<0.12));
+      const tips=[];
+      tips.push(`🌟 <strong>${estrella.nombre}</strong> es lo que más margen te deja (<strong>${eur(estrella.margenTotal)}</strong> al año). Protégelo: ni lo encarezcas a lo loco ni lo quites de la carta.`);
+      if(subible) tips.push(`📈 <strong>${subible.nombre}</strong> es de lo que más vendes (${numCant(subible.units)} uds/año). Subirlo un <strong>5%</strong> ≈ <strong>${eur(extra5)}</strong> más al año si mantienes las ventas — una subida que casi no se nota.`);
+      if(flojos.length) tips.push(`⚠️ ${flojos.slice(0,3).map(x=>`<strong>${x.nombre}</strong>`).join(", ")} ${flojos.length>1?"dejan":"deja"} muy poco margen (o pierdes dinero). Sube el precio, renegocia con el proveedor o replantéalo.`);
+      const consejos=`<div class="tips">${tips.map(t=>`<div class="tip">${t}</div>`).join("")}</div>`;
+      if(!simProdId || !simItems.find(x=>x.id===simProdId)) simProdId=simItems[0].id;
+      const opciones=simItems.map(x=>`<option value="${x.id}">${x.nombre}</option>`).join("");
+      const selector=`<div style="margin-top:6px"><label>Simula un cambio de precio en</label><select id="simProd" onchange="simSetProd(this.value)">${opciones}</select></div>`;
+      const cuerpo=`<p class="muted" style="margin:0 0 14px">Consejos a partir de lo que vendes este año. La rentabilidad manda: no es lo que más facturas, es lo que más te deja.</p>${consejos}${selector}<div id="simOut">${simRenderHtml()}</div>`;
+      return panel("💡 Precios y rentabilidad",cuerpo);
+    }
+    function simSetProd(id){ simProdId=id; const o=document.getElementById("simOut"); if(o) o.innerHTML=simRenderHtml(); }
+    function simSetPct(p){ simPct=p; const o=document.getElementById("simOut"); if(o) o.innerHTML=simRenderHtml(); }
+    function simRenderHtml(){
+      const it=simItems.find(x=>x.id===simProdId); if(!it) return "";
+      const pct=simPct/100;
+      const pvpNuevo=it.pvp*(1+pct), netoNuevo=it.neto*(1+pct), margenUnitNuevo=netoNuevo-it.coste;
+      const deltaAnual=(netoNuevo-it.neto)*it.units;
+      const btns=`<div class="prop-quick" style="margin:2px 0 14px">${[-10,-5,5,10].map(p=>`<button class="${simPct===p?"on":""}" onclick="simSetPct(${p})">${p>0?"+":""}${p}%</button>`).join("")}</div>`;
+      const fila=(l,a,b,cls)=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line)"><span class="muted">${l}</span><span><span class="muted" style="text-decoration:line-through;margin-right:8px">${a}</span><strong class="${cls||''}">${b}</strong></span></div>`;
+      let be="";
+      if(margenUnitNuevo<=0){ be=`<div class="cambio-box falta" style="margin-top:12px">Venderías por debajo del coste. No bajes tanto.</div>`; }
+      else if(it.margenUnit<=0 && pct>0){ be=`<div class="cambio-box ok" style="margin-top:12px">Ahora pierdes dinero con cada unidad; con esta subida<span class="big">pasas a ganar</span></div>`; }
+      else if(pct!==0 && it.margenUnit>0){ const pctU=(it.margenUnit/margenUnitNuevo-1)*100; // unidades de equilibrio vs ahora
+        if(pct>0) be=`<div class="cambio-box ok" style="margin-top:12px">Puedes permitirte vender hasta<span class="big">${Math.abs(pctU).toFixed(0)}% menos</span>y seguir ganando lo mismo</div>`;
+        else be=`<div class="cambio-box falta" style="margin-top:12px">Tendrías que vender un<span class="big">${pctU.toFixed(0)}% más</span>para no perder margen</div>`;
+      }
+      const impCls=deltaAnual>0?"pos":(deltaAnual<0?"neg":"");
+      const impacto=`<div class="cobro-tot" style="margin-top:12px"><div class="lbl">Impacto al año (misma demanda)</div><div class="val ${impCls}" style="color:${deltaAnual>0?'var(--pos)':deltaAnual<0?'var(--neg)':'var(--ink)'}">${deltaAnual>=0?"+":""}${eur(deltaAnual)}</div></div>`;
+      return btns
+        +fila("Precio (con IVA)",eur(it.pvp),eur(pvpNuevo))
+        +fila("Margen por unidad",eur(it.margenUnit),eur(margenUnitNuevo),margenUnitNuevo<0?"neg":"")
+        +impacto+be
+        +`<p class="muted" style="font-size:12px;margin:12px 0 0">Estimación: el impacto anual asume que vendes las mismas unidades. El punto de equilibrio te dice cuánto puede caer (o cuánto debe subir) la venta para que el cambio te compense.</p>`;
     }
     function panelVentas(v,anio){
       const kpi=(l,val)=>`<div class="kpi"><div class="lbl">${l}</div><div class="val">${val}</div></div>`;
