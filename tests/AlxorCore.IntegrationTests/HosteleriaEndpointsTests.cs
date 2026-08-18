@@ -319,6 +319,77 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
     }
 
     [Fact]
+    public async Task Mover_una_comanda_libera_la_mesa_origen_y_ocupa_la_destino()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var cana = await CrearCañaAsync(cliente, stock: false);
+        var mesa1 = await CrearMesaAsync(cliente, "Mesa 1");
+        var mesa2 = await CrearMesaAsync(cliente, "Terraza 1");
+        var comanda = (await (await cliente.PostAsJsonAsync("/comandas", new { MesaId = mesa1.Id })).Content.ReadFromJsonAsync<ComandaResp>())!;
+        await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/lineas", new { ProductoId = cana.Id, Cantidad = 2m });
+
+        var mover = await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/mover", new { MesaId = mesa2.Id });
+        mover.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await mover.Content.ReadFromJsonAsync<ComandaResp>())!.MesaId.Should().Be(mesa2.Id);
+
+        var mesas = await cliente.GetFromJsonAsync<List<MesaResp>>("/mesas");
+        mesas!.Single(m => m.Id == mesa1.Id).Ocupada.Should().BeFalse();
+        var destino = mesas!.Single(m => m.Id == mesa2.Id);
+        destino.Ocupada.Should().BeTrue();
+        destino.ComandaAbiertaId.Should().Be(comanda.Id);
+    }
+
+    [Fact]
+    public async Task No_se_puede_mover_a_una_mesa_ocupada()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var cana = await CrearCañaAsync(cliente, stock: false);
+        var mesa1 = await CrearMesaAsync(cliente, "Mesa 1");
+        var mesa2 = await CrearMesaAsync(cliente, "Mesa 2");
+        var comanda1 = (await (await cliente.PostAsJsonAsync("/comandas", new { MesaId = mesa1.Id })).Content.ReadFromJsonAsync<ComandaResp>())!;
+        await cliente.PostAsJsonAsync($"/comandas/{comanda1.Id}/lineas", new { ProductoId = cana.Id, Cantidad = 1m });
+        await cliente.PostAsJsonAsync("/comandas", new { MesaId = mesa2.Id }); // mesa2 ocupada
+
+        var mover = await cliente.PostAsJsonAsync($"/comandas/{comanda1.Id}/mover", new { MesaId = mesa2.Id });
+        mover.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task Juntar_dos_comandas_funde_las_cuentas_y_libera_la_mesa_de_origen()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var cana = await CrearCañaAsync(cliente, stock: false); // 1,50 € IVA10
+        var tapaResp = await cliente.PostAsJsonAsync("/productos", new
+        {
+            Nombre = "Tapa", PrecioUnitario = 4.00m, Tipo = "Bien", CodigoIva = "IVA10", Unidad = "ud", ControlarStock = false,
+        });
+        var tapa = (await tapaResp.Content.ReadFromJsonAsync<ProductoResp>())!;
+        var mesa1 = await CrearMesaAsync(cliente, "Mesa 1");
+        var mesa2 = await CrearMesaAsync(cliente, "Mesa 2");
+
+        var destino = (await (await cliente.PostAsJsonAsync("/comandas", new { MesaId = mesa1.Id })).Content.ReadFromJsonAsync<ComandaResp>())!;
+        await cliente.PostAsJsonAsync($"/comandas/{destino.Id}/lineas", new { ProductoId = cana.Id, Cantidad = 2m });
+        var origen = (await (await cliente.PostAsJsonAsync("/comandas", new { MesaId = mesa2.Id })).Content.ReadFromJsonAsync<ComandaResp>())!;
+        await cliente.PostAsJsonAsync($"/comandas/{origen.Id}/lineas", new { ProductoId = cana.Id, Cantidad = 1m });
+        await cliente.PostAsJsonAsync($"/comandas/{origen.Id}/lineas", new { ProductoId = tapa.Id, Cantidad = 1m });
+
+        var juntar = await cliente.PostAsJsonAsync($"/comandas/{destino.Id}/juntar", new { OrigenId = origen.Id });
+        juntar.StatusCode.Should().Be(HttpStatusCode.OK);
+        var fundida = (await juntar.Content.ReadFromJsonAsync<ComandaResp>())!;
+        // 3 cañas (2+1 acumuladas) + 1 tapa = 8,50 + 10% IVA = 9,35 €
+        fundida.Lineas.Single(l => l.ProductoId == cana.Id).Cantidad.Should().Be(3m);
+        fundida.Total.Should().Be(9.35m);
+
+        // La mesa de origen queda libre; solo queda una comanda abierta.
+        var mesas = await cliente.GetFromJsonAsync<List<MesaResp>>("/mesas");
+        mesas!.Single(m => m.Id == mesa2.Id).Ocupada.Should().BeFalse();
+        mesas!.Single(m => m.Id == mesa1.Id).Ocupada.Should().BeTrue();
+        var abiertas = await cliente.GetFromJsonAsync<List<ComandaResumenResp>>("/comandas");
+        abiertas!.Count(c => c.Id == origen.Id).Should().Be(0);
+        abiertas!.Should().ContainSingle(c => c.Id == destino.Id);
+    }
+
+    [Fact]
     public async Task La_cuenta_previa_se_descarga_en_escpos_y_no_es_fiscal()
     {
         var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);

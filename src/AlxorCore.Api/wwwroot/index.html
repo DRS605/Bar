@@ -885,7 +885,7 @@
           <button class="btn small ghost" onclick="vHosteleria()">← Volver</button>
           <button class="btn small secondary" onclick="hosEnviarCocina('${c.id}')">🍳 Cocina</button>
           <button class="btn small secondary" onclick="hosCuenta('${c.id}')">🧾 Cuenta</button>
-          <button class="btn small secondary" onclick="hosAnular('${c.id}')">Anular</button>
+          <button class="btn small secondary" onclick="hosMesaMenu('${c.id}')">Mesa ▾</button>
           <button class="btn small secondary" id="hosRepartirBtn" onclick="hosRepartir('${c.id}')">Repartir</button>
           <button class="btn small" id="hosCobrarBtn" onclick="hosCobrar('${c.id}')">Cobrar</button>
         </div></div></div>`;
@@ -963,6 +963,28 @@
     }
     async function hosAnular(id){ try{ await api("/comandas/"+id+"/anular",{method:"POST"}); toast("Comanda anulada","ok"); vHosteleria();}catch(e){toast(e.message,"err");} }
     async function hosCuenta(id){ try{ await hosCola; await api("/comandas/"+id+"/cuenta/imprimir",{method:"POST"}); toast("🧾 Cuenta impresa para la mesa","ok"); }catch(e){ toast(e.message,"err"); } }
+    function hosMesaMenu(id){
+      abrir("Gestionar mesa",
+        `<button class="btn small secondary" style="width:100%;margin-bottom:8px" onclick="hosModalMover('${id}')">↔ Mover a otra mesa</button>
+         <button class="btn small secondary" style="width:100%;margin-bottom:8px" onclick="hosModalJuntar('${id}')">⇄ Juntar otra mesa aquí</button>
+         <button class="btn small" style="width:100%;background:var(--neg)" onclick="hosAnular('${id}')">Anular comanda</button>`, null);
+    }
+    async function hosModalMover(id){
+      const mesas=await api("/mesas").catch(()=>[]);
+      const libres=mesas.filter(m=>!m.ocupada && m.activa);
+      if(!libres.length){ toast("No hay ninguna mesa libre a la que mover.","err"); return; }
+      const botones=libres.map(m=>`<button class="btn small secondary" style="margin:4px" onclick="hosMover('${id}','${m.id}')">${m.nombre}${m.zona?` · ${m.zona}`:""}</button>`).join("");
+      abrir("Mover a otra mesa",`<p class="muted" style="margin:0 0 12px;font-size:13px">Elige la mesa libre a la que se cambian los clientes.</p><div style="display:flex;flex-wrap:wrap">${botones}</div>`, null);
+    }
+    async function hosMover(id,mesaId){ try{ const c=await api("/comandas/"+id+"/mover",{method:"POST",body:JSON.stringify({mesaId})}); cerrarModal(); toast("Comanda movida de mesa","ok"); hosVerComanda(c.id); }catch(e){ toast(e.message,"err"); } }
+    async function hosModalJuntar(id){
+      const abiertas=await api("/comandas").catch(()=>[]);
+      const otras=abiertas.filter(c=>c.id!==id);
+      if(!otras.length){ toast("No hay otra cuenta abierta que juntar.","err"); return; }
+      const botones=otras.map(c=>`<button class="btn small secondary" style="margin:4px" onclick="hosJuntar('${id}','${c.id}')">${c.mesaNombre} · ${eur(c.total)}</button>`).join("");
+      abrir("Juntar otra mesa aquí",`<p class="muted" style="margin:0 0 12px;font-size:13px">Elige la cuenta que se funde en esta mesa; la otra mesa quedará libre.</p><div style="display:flex;flex-wrap:wrap">${botones}</div>`, null);
+    }
+    async function hosJuntar(id,origenId){ try{ const c=await api("/comandas/"+id+"/juntar",{method:"POST",body:JSON.stringify({origenId})}); cerrarModal(); toast("Cuentas juntadas en esta mesa","ok"); hosVerComanda(c.id); }catch(e){ toast(e.message,"err"); } }
     async function hosEnviarCocina(id){ try{ await hosCola; const r=await api("/comandas/"+id+"/cocina",{method:"POST"});
         const n=(r.articulos||[]).reduce((s,a)=>s+Number(a.cantidad),0);
         toast(n>0?("🍳 Enviado a cocina · "+numCant(n)+" artículo(s)"):"Nada nuevo que enviar a cocina","ok"); }catch(e){ toast(e.message,"err"); } }
@@ -1528,7 +1550,7 @@
 
     /* modales */
     let modalSave=null;
-    function abrir(t,b,f){ document.getElementById("modalTitle").textContent=t; document.getElementById("modalBody").innerHTML=b; modalSave=f; const ok=document.getElementById("modalOk"); if(ok) ok.textContent="Guardar"; document.getElementById("modalBg").style.display="grid"; }
+    function abrir(t,b,f){ document.getElementById("modalTitle").textContent=t; document.getElementById("modalBody").innerHTML=b; modalSave=f; const ok=document.getElementById("modalOk"); if(ok){ ok.textContent="Guardar"; ok.style.display=f===null?"none":""; } document.getElementById("modalBg").style.display="grid"; }
     function cerrarModal(){ document.getElementById("modalBg").style.display="none"; modalSave=null; }
     async function guardarModal(){ if(modalSave){ try{ await modalSave(); cerrarModal(); }catch(e){ alert(e.message); } } }
     const val=id=>document.getElementById(id).value;

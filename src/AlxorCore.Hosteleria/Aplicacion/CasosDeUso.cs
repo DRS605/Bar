@@ -425,6 +425,120 @@ public sealed class AnularComanda
     }
 }
 
+/// <summary>Datos para mover una comanda a otra mesa.</summary>
+public sealed record DatosMoverComanda(Guid MesaId);
+
+/// <summary>Caso de uso: mover una comanda abierta a otra mesa libre (los clientes se cambian de sitio).</summary>
+public sealed class MoverComanda
+{
+    private readonly IRepositorioComandas _comandas;
+    private readonly IConsultaMesas _mesas;
+    private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
+    private readonly IReloj _reloj;
+
+    public MoverComanda(IRepositorioComandas comandas, IConsultaMesas mesas, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    {
+        _comandas = comandas;
+        _mesas = mesas;
+        _unidadDeTrabajo = unidadDeTrabajo;
+        _reloj = reloj;
+    }
+
+    public async Task<Resultado<ComandaDto>> EjecutarAsync(Guid comandaId, DatosMoverComanda datos, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(datos);
+
+        var comanda = await _comandas.ObtenerPorIdAsync(comandaId, ct).ConfigureAwait(false);
+        if (comanda is null)
+        {
+            return Resultado.Fallo<ComandaDto>(Error.NoEncontrado("comanda.no_encontrada", "La comanda no existe."));
+        }
+
+        var mesa = await _mesas.ObtenerAsync(datos.MesaId, ct).ConfigureAwait(false);
+        if (mesa is null)
+        {
+            return Resultado.Fallo<ComandaDto>(Error.NoEncontrado("mesa.no_encontrada", "La mesa destino no existe."));
+        }
+
+        if (!mesa.Activa)
+        {
+            return Resultado.Fallo<ComandaDto>(Error.Conflicto("mesa.inactiva", "La mesa destino está retirada."));
+        }
+
+        if (mesa.Ocupada)
+        {
+            return Resultado.Fallo<ComandaDto>(Error.Conflicto("mesa.ocupada", "La mesa destino ya tiene una comanda abierta."));
+        }
+
+        var r = comanda.CambiarMesa(datos.MesaId, _reloj);
+        if (r.EsFallo)
+        {
+            return Resultado.Fallo<ComandaDto>(r.Error);
+        }
+
+        await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+        return Resultado.Ok(ComandaDto.Desde(comanda));
+    }
+}
+
+/// <summary>Datos para juntar dos comandas: la de origen (que se funde en la actual).</summary>
+public sealed record DatosJuntarComandas(Guid OrigenId);
+
+/// <summary>
+/// Caso de uso: juntar dos cuentas abiertas en una. Traslada las líneas de la comanda de origen a la de
+/// destino (acumulando repetidos) y cierra la de origen como <b>Juntada</b>, liberando su mesa.
+/// </summary>
+public sealed class JuntarComandas
+{
+    private readonly IRepositorioComandas _comandas;
+    private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
+    private readonly IReloj _reloj;
+
+    public JuntarComandas(IRepositorioComandas comandas, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    {
+        _comandas = comandas;
+        _unidadDeTrabajo = unidadDeTrabajo;
+        _reloj = reloj;
+    }
+
+    public async Task<Resultado<ComandaDto>> EjecutarAsync(Guid destinoId, DatosJuntarComandas datos, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(datos);
+
+        if (destinoId == datos.OrigenId)
+        {
+            return Resultado.Fallo<ComandaDto>(Error.Validacion("comanda.juntar_misma", "No se puede juntar una comanda consigo misma."));
+        }
+
+        var destino = await _comandas.ObtenerPorIdAsync(destinoId, ct).ConfigureAwait(false);
+        if (destino is null)
+        {
+            return Resultado.Fallo<ComandaDto>(Error.NoEncontrado("comanda.no_encontrada", "La comanda destino no existe."));
+        }
+
+        var origen = await _comandas.ObtenerPorIdAsync(datos.OrigenId, ct).ConfigureAwait(false);
+        if (origen is null)
+        {
+            return Resultado.Fallo<ComandaDto>(Error.NoEncontrado("comanda.no_encontrada", "La comanda de origen no existe."));
+        }
+
+        var absorber = destino.AbsorberDe(origen, _reloj);
+        if (absorber.EsFallo)
+        {
+            return Resultado.Fallo<ComandaDto>(absorber.Error);
+        }
+
+        var cerrar = origen.MarcarJuntada(destino.Id, _reloj);
+        if (cerrar.EsFallo)
+        {
+            return Resultado.Fallo<ComandaDto>(cerrar.Error);
+        }
+
+        await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+        return Resultado.Ok(ComandaDto.Desde(destino));
+    }
+}
+
 /// <summary>
 /// Caso de uso: cobrar una comanda. Emite un ticket (factura simplificada) con las líneas
 /// «congeladas» de la comanda —lo que asigna número correlativo, deja el registro VeriFactu y

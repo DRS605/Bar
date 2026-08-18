@@ -85,6 +85,14 @@ public static class EndpointsHosteleria
             .WithSummary("Imprime la cuenta previa (pre-ticket) de la comanda en la impresora térmica.")
             .RequierePermiso(Permisos.HosteleriaGestionar);
 
+        comandas.MapPost("/{id:guid}/mover", MoverComandaAsync)
+            .WithSummary("Mueve la comanda a otra mesa libre (los clientes se cambian de sitio).")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
+        comandas.MapPost("/{id:guid}/juntar", JuntarComandasAsync)
+            .WithSummary("Junta otra comanda en esta (funde las dos cuentas y libera la mesa de origen).")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
         comandas.MapPost("/{id:guid}/anular", AnularComandaAsync)
             .WithSummary("Anula la comanda sin cobrarla.")
             .RequierePermiso(Permisos.HosteleriaGestionar);
@@ -330,6 +338,26 @@ public static class EndpointsHosteleria
         }
 
         return Results.NoContent();
+    }
+
+    private static async Task<IResult> MoverComandaAsync(Guid id, DatosMoverComanda datos, IContextoEmpresa contexto, MoverComanda caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return (await caso.EjecutarAsync(id, datos, ct).ConfigureAwait(false)).AOk();
+    }
+
+    private static async Task<IResult> JuntarComandasAsync(Guid id, DatosJuntarComandas datos, IContextoEmpresa contexto, JuntarComandas caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return (await caso.EjecutarAsync(id, datos, ct).ConfigureAwait(false)).AOk();
     }
 
     private static async Task<IResult> AnularComandaAsync(Guid id, AnularComanda caso, CancellationToken ct) =>

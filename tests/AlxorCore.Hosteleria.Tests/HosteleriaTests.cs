@@ -285,4 +285,50 @@ public class ComandaTests
         comanda.FijarCantidadLinea(canas.Id, 1m, Reloj).Error.Codigo.Should().Be("comanda.cantidad_menor_cobrada");
         comanda.FijarCantidadLinea(canas.Id, 4m, Reloj).EsCorrecto.Should().BeTrue(); // subir sí se puede
     }
+
+    [Fact]
+    public void Mover_cambia_de_mesa_y_rechaza_la_misma_o_una_comanda_no_abierta()
+    {
+        var comanda = ComandaAbierta();
+        comanda.AgregarLinea(Producto, "Caña", 1m, 1.50m, "IVA10", 10m, Reloj);
+        var otraMesa = Guid.NewGuid();
+
+        comanda.CambiarMesa(otraMesa, Reloj).EsCorrecto.Should().BeTrue();
+        comanda.MesaId.Should().Be(otraMesa);
+        comanda.EventosDominio.Should().Contain(e => e is ComandaMovida);
+        comanda.CambiarMesa(otraMesa, Reloj).Error.Codigo.Should().Be("comanda.misma_mesa");
+    }
+
+    [Fact]
+    public void Juntar_traslada_las_lineas_acumulando_y_cierra_la_de_origen()
+    {
+        var destino = ComandaAbierta();
+        destino.AgregarLinea(Producto, "Caña", 2m, 1.50m, "IVA10", 10m, Reloj);
+        var origen = Comanda.Abrir(Empresa, Guid.NewGuid(), null, Reloj);
+        origen.AgregarLinea(Producto, "Caña", 1m, 1.50m, "IVA10", 10m, Reloj); // mismo producto/precio: acumula
+        var tapaProducto = Guid.NewGuid();
+        origen.AgregarLinea(tapaProducto, "Tapa", 1m, 4.00m, "IVA10", 10m, Reloj);
+
+        destino.AbsorberDe(origen, Reloj).EsCorrecto.Should().BeTrue();
+        origen.MarcarJuntada(destino.Id, Reloj).EsCorrecto.Should().BeTrue();
+
+        destino.Lineas.Single(l => l.Descripcion == "Caña").Cantidad.Should().Be(3m); // 2 + 1 acumuladas
+        destino.Lineas.Should().Contain(l => l.Descripcion == "Tapa" && l.Cantidad == 1m);
+        destino.Total.Should().Be(9.35m); // (3×1,50 + 4,00) = 8,50 + 10% IVA
+        origen.Estado.Should().Be(EstadoComanda.Juntada);
+        origen.CerradaEn.Should().NotBeNull();
+        origen.EventosDominio.Should().Contain(e => e is ComandaJuntada);
+    }
+
+    [Fact]
+    public void No_se_puede_juntar_una_cuenta_con_cobro_parcial_en_curso()
+    {
+        var destino = ComandaAbierta();
+        destino.AgregarLinea(Producto, "Caña", 1m, 1.50m, "IVA10", 10m, Reloj);
+        var origen = Comanda.Abrir(Empresa, Guid.NewGuid(), null, Reloj);
+        var linea = origen.AgregarLinea(Producto, "Caña", 2m, 1.50m, "IVA10", 10m, Reloj).Valor;
+        origen.AplicarCobroParcial([new ItemCobroParcial(linea.Id, 1m)], Guid.NewGuid(), "T2026/000001", MetodoCobro.Efectivo, Reloj);
+
+        destino.AbsorberDe(origen, Reloj).Error.Codigo.Should().Be("comanda.juntar_con_cobro_parcial");
+    }
 }

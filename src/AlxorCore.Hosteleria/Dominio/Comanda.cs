@@ -16,6 +16,9 @@ public enum EstadoComanda
 
     /// <summary>Anulada: la comanda se cerró sin cobrar (error, mesa que se marcha sin consumir…).</summary>
     Anulada = 3,
+
+    /// <summary>Juntada: se fundió en otra comanda (sus líneas pasaron a ella); libera su mesa sin ticket propio.</summary>
+    Juntada = 4,
 }
 
 /// <summary>Forma de cobro de una comanda.</summary>
@@ -36,6 +39,12 @@ public sealed record ComandaAbierta(Guid ComandaId, Guid EmpresaId, Guid MesaId,
 
 /// <summary>Se ha cobrado una comanda (con el ticket generado).</summary>
 public sealed record ComandaCobrada(Guid ComandaId, Guid EmpresaId, Guid MesaId, Guid FacturaId, decimal Total, DateTimeOffset OcurridoEn) : IEventoDominio;
+
+/// <summary>Una comanda se ha movido a otra mesa.</summary>
+public sealed record ComandaMovida(Guid ComandaId, Guid EmpresaId, Guid MesaAnteriorId, Guid MesaNuevaId, DateTimeOffset OcurridoEn) : IEventoDominio;
+
+/// <summary>Una comanda se ha juntado en otra (sus líneas pasaron a la comanda destino).</summary>
+public sealed record ComandaJuntada(Guid ComandaId, Guid EmpresaId, Guid MesaId, Guid ComandaDestinoId, DateTimeOffset OcurridoEn) : IEventoDominio;
 
 /// <summary>Artículo (y cantidad) que se cobra en un ticket parcial al repartir la cuenta.</summary>
 public sealed record ItemCobroParcial(Guid LineaId, decimal Cantidad);
@@ -363,6 +372,83 @@ public sealed class Comanda : RaizAgregadoEmpresa<Guid>
             RegistrarEvento(new ComandaCobrada(Id, EmpresaId, MesaId, facturaId, Total, reloj.AhoraUtc));
         }
 
+        return Resultado.Ok();
+    }
+
+    /// <summary>
+    /// Mueve la comanda a otra mesa (los clientes se cambian de sitio). Solo mientras está abierta; el
+    /// caso de uso comprueba antes que la mesa destino exista, esté activa y libre.
+    /// </summary>
+    public Resultado CambiarMesa(Guid nuevaMesaId, IReloj reloj)
+    {
+        ArgumentNullException.ThrowIfNull(reloj);
+
+        if (Estado != EstadoComanda.Abierta)
+        {
+            return Resultado.Fallo(Error.Conflicto("comanda.no_abierta", "Solo se puede mover una comanda abierta."));
+        }
+
+        if (nuevaMesaId == MesaId)
+        {
+            return Resultado.Fallo(Error.Validacion("comanda.misma_mesa", "La comanda ya está en esa mesa."));
+        }
+
+        var anterior = MesaId;
+        MesaId = nuevaMesaId;
+        RegistrarEvento(new ComandaMovida(Id, EmpresaId, anterior, nuevaMesaId, reloj.AhoraUtc));
+        return Resultado.Ok();
+    }
+
+    /// <summary>
+    /// Absorbe las líneas de <paramref name="otra"/> comanda en esta (juntar dos cuentas en una). Ambas
+    /// deben estar abiertas y ninguna puede tener un cobro parcial en curso. Las consumiciones repetidas
+    /// se acumulan como al pedir. No cierra la otra comanda: eso lo hace <see cref="MarcarJuntada"/>.
+    /// </summary>
+    public Resultado AbsorberDe(Comanda otra, IReloj reloj)
+    {
+        ArgumentNullException.ThrowIfNull(otra);
+        ArgumentNullException.ThrowIfNull(reloj);
+
+        if (otra.Id == Id)
+        {
+            return Resultado.Fallo(Error.Validacion("comanda.juntar_misma", "No se puede juntar una comanda consigo misma."));
+        }
+
+        if (Estado != EstadoComanda.Abierta || otra.Estado != EstadoComanda.Abierta)
+        {
+            return Resultado.Fallo(Error.Conflicto("comanda.no_abierta", "Solo se pueden juntar comandas abiertas."));
+        }
+
+        if (TieneCobroParcial || otra.TieneCobroParcial)
+        {
+            return Resultado.Fallo(Error.Conflicto("comanda.juntar_con_cobro_parcial", "No se pueden juntar cuentas con un cobro parcial en curso."));
+        }
+
+        foreach (var linea in otra._lineas)
+        {
+            var r = AgregarLinea(linea.ProductoId, linea.Descripcion, linea.Cantidad, linea.PrecioUnitario, linea.CodigoIva, linea.PorcentajeIva, reloj);
+            if (r.EsFallo)
+            {
+                return Resultado.Fallo(r.Error);
+            }
+        }
+
+        return Resultado.Ok();
+    }
+
+    /// <summary>Cierra esta comanda porque se juntó en la comanda <paramref name="destinoId"/> (libera su mesa).</summary>
+    public Resultado MarcarJuntada(Guid destinoId, IReloj reloj)
+    {
+        ArgumentNullException.ThrowIfNull(reloj);
+
+        if (Estado != EstadoComanda.Abierta)
+        {
+            return Resultado.Fallo(Error.Conflicto("comanda.no_abierta", "Solo se puede juntar una comanda abierta."));
+        }
+
+        Estado = EstadoComanda.Juntada;
+        CerradaEn = reloj.AhoraUtc;
+        RegistrarEvento(new ComandaJuntada(Id, EmpresaId, MesaId, destinoId, reloj.AhoraUtc));
         return Resultado.Ok();
     }
 

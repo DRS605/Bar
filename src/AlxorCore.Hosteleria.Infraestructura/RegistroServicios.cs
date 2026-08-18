@@ -50,6 +50,8 @@ public static class RegistroServicios
         servicios.AddScoped<AnularComanda>();
         servicios.AddScoped<CobrarComanda>();
         servicios.AddScoped<CobrarComandaParcial>();
+        servicios.AddScoped<MoverComanda>();
+        servicios.AddScoped<JuntarComandas>();
 
         return servicios;
     }
