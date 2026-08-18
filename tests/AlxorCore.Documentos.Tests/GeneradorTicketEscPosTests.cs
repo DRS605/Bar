@@ -59,7 +59,7 @@ public class GeneradorTicketEscPosTests
         texto.Should().Contain("Caña").And.Contain("Croquetas");
         texto.Should().Contain("TOTAL");
         texto.Should().Contain("7,70 €");   // símbolo del euro correcto en CP858
-        texto.Should().Contain("Comandia");
+        texto.Should().Contain("Bar Query");
     }
 
     [Fact]

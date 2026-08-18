@@ -92,7 +92,7 @@ internal sealed class GeneradorTicketEscPos : IGeneradorTicketEscPos
         Linea();
         Bytes(AlinearCentro);
         Linea("Gracias por su visita");
-        Linea("Enviado con Comandia");
+        Linea("Enviado con Bar Query");
         Linea(); Linea(); Linea();
 
         Bytes(CortarPapel);

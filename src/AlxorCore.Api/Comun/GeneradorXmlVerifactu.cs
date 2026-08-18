@@ -127,12 +127,12 @@ public static class GeneradorXmlVerifactu
 
         w.WriteEndElement();
 
-        // Sistema informático (Comandia). Los datos de registro definitivos del SIF se fijan en la
+        // Sistema informático (Bar Query). Los datos de registro definitivos del SIF se fijan en la
         // certificación; aquí van los identificativos del producto.
         w.WriteStartElement("sum1", "SistemaInformatico", NsInfo);
-        Info("NombreRazon", "Comandia");
+        Info("NombreRazon", "Bar Query");
         Info("NIF", emisor.Nif);
-        Info("NombreSistemaInformatico", "Comandia");
+        Info("NombreSistemaInformatico", "Bar Query");
         Info("IdSistemaInformatico", "01");
         Info("Version", "1.0");
         Info("NumeroInstalacion", "1");

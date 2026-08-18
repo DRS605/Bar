@@ -1,4 +1,4 @@
-# Comandia
+# Bar Query
 
 **Software de gestión para bares y restaurantes.** Toma de comandas en mesa con un **TPV rápido**,
 reservas con recordatorio, control de compras/stock y **tickets** — con la facturación en regla
@@ -60,7 +60,7 @@ docs/
 
 ## Interfaz web
 
-Comandia sirve su **interfaz web** (SPA) en la raíz (`/`), en el mismo origen que la API. Con
+Bar Query sirve su **interfaz web** (SPA) en la raíz (`/`), en el mismo origen que la API. Con
 `docker compose up` la tienes en `http://localhost:8080`: acceso, panel con KPIs, **barra/salón**
 (mesas y comandas), **reservas** con calendario iCal, artículos, compras/gastos, facturas e informes.
 Diseño limpio, táctil y con pocos clics.
@@ -107,7 +107,7 @@ Python en macOS/Linux). Crean la cuenta `demo@alxorcore.es` (contraseña `Demo12
 sembrar** si la empresa ya tiene facturas. Pensados para bases de datos de desarrollo/demo, no para
 producción.
 
-**Demo de bar** — para ver Comandia como un bar en marcha (carta por categorías, mesas por zonas,
+**Demo de bar** — para ver Bar Query como un bar en marcha (carta por categorías, mesas por zonas,
 turnos con aforo, reservas de hoy y una comanda abierta):
 
 ```bash
@@ -115,7 +115,7 @@ python3 scripts/datos-demo-bar.py                       # contra http://localhos
 python3 scripts/datos-demo-bar.py http://localhost:8080 # otra URL base
 ```
 
-Crea la cuenta `bar@comandia.es` (contraseña `Demo1234!`) con el «Bar Sol de Levante» y es
+Crea la cuenta `bar@barquery.es` (contraseña `Demo1234!`) con el «Bar Sol de Levante» y es
 **idempotente** (no re-siembra si el bar ya tiene mesas).
 
 ## Puesta en marcha (desarrollo con SDK)

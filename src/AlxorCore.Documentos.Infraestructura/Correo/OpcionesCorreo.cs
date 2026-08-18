@@ -24,7 +24,7 @@ public sealed class OpcionesCorreo
     /// <summary>Dirección del remitente (p. ej. no-responder@tudominio.com).</summary>
     public string Remitente { get; set; } = "no-responder@alxor.local";
 
-    public string RemitenteNombre { get; set; } = "Comandia";
+    public string RemitenteNombre { get; set; } = "Bar Query";
 
     /// <summary>¿Hay un servidor SMTP configurado?</summary>
     public bool Configurado => !string.IsNullOrWhiteSpace(Host);

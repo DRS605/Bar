@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Datos de demostración de BAR para Comandia.
+Datos de demostración de BAR para Bar Query.
 
 Rellena una instancia recién arrancada como si fuera un bar en marcha: carta por
 categorías (cervezas, vinos, refrescos, cafés, tapas), mesas por zonas (salón,
@@ -22,7 +22,7 @@ from datetime import date
 
 BASE = (sys.argv[1] if len(sys.argv) > 1 else "http://localhost:3400").rstrip("/")
 
-EMAIL = "bar@comandia.es"
+EMAIL = "bar@barquery.es"
 NOMBRE = "Dueño del bar"
 PASS = "Demo1234!"
 DIAS_TODOS = 127  # DiasSemana.Todos (L..D)
@@ -57,7 +57,7 @@ def credenciales():
 
 def main():
     global _token
-    print(f"Comandia · sembrando datos de bar en {BASE}\n")
+    print(f"Bar Query · sembrando datos de bar en {BASE}\n")
 
     try:
         llamar("GET", "/salud", auth=False)

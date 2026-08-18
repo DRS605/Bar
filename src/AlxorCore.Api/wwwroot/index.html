@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Comandia · Hostelería</title>
+  <title>Bar Query · Hostelería</title>
   <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="%2314563e"/><path fill="%23fff" d="M6.7 3.3h10.6a1.4 1.4 0 0 1 1.4 1.4V20l-1.7-1.1-1.6 1.1-1.6-1.1-1.6 1.1-1.6-1.1-1.6 1.1L5.3 20V4.7A1.4 1.4 0 0 1 6.7 3.3z"/><path stroke="%23c67b3a" stroke-width="1.5" stroke-linecap="round" d="M8.6 8.1h6.8M8.6 11.1h6.8"/><path fill="none" stroke="%231f8f5f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M8.7 14.5l1.6 1.6 3.7-3.7"/></svg>'>
 
   <style>
     :root {
-      /* Comandia — «Verde bistró» plano: verde sólido + acento cobre, barra lateral oscura, display serif. */
+      /* Bar Query — «Verde bistró» plano: verde sólido + acento cobre, barra lateral oscura, display serif. */
       --ink: #17251e; --muted: #5f7168; --line: #e6ede9; --bg: #f4f6f4; --surface: #ffffff;
       --brand1: #22795a; --brand2: #14563e; --accent: #1f7a5a; --accent-soft: #e7f1ec;
       --navy: #14211c;
@@ -27,7 +27,7 @@
     button, input, select { font-family: inherit; }
     button { cursor: pointer; }
 
-    /* Isotipo Comandia — una comanda/ticket con el check (pedido servido). */
+    /* Isotipo Bar Query — una comanda/ticket con el check (pedido servido). */
     .mark { width: 36px; height: 36px; border-radius: 12px; background: var(--grad); flex: none; color:#fff;
       display:inline-flex; align-items:center; justify-content:center; box-shadow: 0 5px 14px rgba(20,86,62,.42); }
     .mark svg { width: 21px; height: 21px; }
@@ -227,6 +227,9 @@
     .prop-quick button.on { border-color:var(--accent); background:var(--accent); color:#fff; }
     .tips { display:flex; flex-direction:column; gap:10px; margin-bottom:16px; }
     .tip { background:var(--accent-soft); border-left:3px solid var(--accent); border-radius:10px; padding:11px 14px; font-size:14px; line-height:1.5; }
+    .insight { border-radius:14px; padding:14px 18px; margin:0 0 18px; font-size:15px; line-height:1.5; border:1px solid var(--line); }
+    .insight.up { background:#e7f6ee; border-color:#bfe6d0; color:#14563e; }
+    .insight.down { background:#fdf2e3; border-color:#f2ddba; color:#7a5a12; }
     .pay-seg { display:flex; gap:8px; margin-bottom:12px; }
     .pay-seg button { flex:1; padding:14px 0; border:1.5px solid var(--line); background:var(--surface); border-radius:12px; font-size:15px; font-weight:700; color:var(--muted); cursor:pointer; transition:all .12s; }
     .pay-seg button.on { border-color:var(--accent); background:var(--accent); color:#fff; box-shadow:0 4px 12px rgba(31,122,90,.28); }
@@ -308,7 +311,7 @@
   <!-- LOGIN -->
   <div id="login" class="login">
     <div class="promo">
-      <div class="wordmark"><span class="mark"><svg viewBox="0 0 24 24"><path fill="#fff" d="M6.7 3.3h10.6a1.4 1.4 0 0 1 1.4 1.4V20l-1.7-1.1-1.6 1.1-1.6-1.1-1.6 1.1-1.6-1.1-1.6 1.1L5.3 20V4.7A1.4 1.4 0 0 1 6.7 3.3z"/><path stroke="#c67b3a" stroke-width="1.5" stroke-linecap="round" d="M8.6 8.1h6.8M8.6 11.1h6.8"/><path fill="none" stroke="#1f8f5f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M8.7 14.5l1.6 1.6 3.7-3.7"/></svg></span> Comandia <span class="tag">Hostelería</span></div>
+      <div class="wordmark"><span class="mark"><svg viewBox="0 0 24 24"><path fill="#fff" d="M6.7 3.3h10.6a1.4 1.4 0 0 1 1.4 1.4V20l-1.7-1.1-1.6 1.1-1.6-1.1-1.6 1.1-1.6-1.1-1.6 1.1L5.3 20V4.7A1.4 1.4 0 0 1 6.7 3.3z"/><path stroke="#c67b3a" stroke-width="1.5" stroke-linecap="round" d="M8.6 8.1h6.8M8.6 11.1h6.8"/><path fill="none" stroke="#1f8f5f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M8.7 14.5l1.6 1.6 3.7-3.7"/></svg></span> Bar Query <span class="tag">Hostelería</span></div>
       <h2>Tu bar, bajo control. Sin manual.</h2>
       <p class="lead">Mesas, comandas, reservas y facturación. Todo en un sitio, en menos clics.</p>
       <ul>
@@ -317,7 +320,7 @@
     </div>
     <div class="panel">
       <div class="login-card">
-        <div class="wordmark" style="margin-bottom:26px"><span class="mark"><svg viewBox="0 0 24 24"><path fill="#fff" d="M6.7 3.3h10.6a1.4 1.4 0 0 1 1.4 1.4V20l-1.7-1.1-1.6 1.1-1.6-1.1-1.6 1.1-1.6-1.1-1.6 1.1L5.3 20V4.7A1.4 1.4 0 0 1 6.7 3.3z"/><path stroke="#c67b3a" stroke-width="1.5" stroke-linecap="round" d="M8.6 8.1h6.8M8.6 11.1h6.8"/><path fill="none" stroke="#1f8f5f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M8.7 14.5l1.6 1.6 3.7-3.7"/></svg></span> Comandia <span class="tag">Hostelería</span></div>
+        <div class="wordmark" style="margin-bottom:26px"><span class="mark"><svg viewBox="0 0 24 24"><path fill="#fff" d="M6.7 3.3h10.6a1.4 1.4 0 0 1 1.4 1.4V20l-1.7-1.1-1.6 1.1-1.6-1.1-1.6 1.1-1.6-1.1-1.6 1.1L5.3 20V4.7A1.4 1.4 0 0 1 6.7 3.3z"/><path stroke="#c67b3a" stroke-width="1.5" stroke-linecap="round" d="M8.6 8.1h6.8M8.6 11.1h6.8"/><path fill="none" stroke="#1f8f5f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M8.7 14.5l1.6 1.6 3.7-3.7"/></svg></span> Bar Query <span class="tag">Hostelería</span></div>
         <h1>Bienvenido de nuevo</h1>
         <p class="sub">Entra para gestionar tu empresa.</p>
         <label>Correo electrónico</label>
@@ -344,7 +347,7 @@
       <div class="tb-left">
         <button class="brandbtn" onclick="ir('inicio')" aria-label="Inicio">
           <span class="mark"><svg viewBox="0 0 24 24"><path fill="#fff" d="M6.7 3.3h10.6a1.4 1.4 0 0 1 1.4 1.4V20l-1.7-1.1-1.6 1.1-1.6-1.1-1.6 1.1-1.6-1.1-1.6 1.1L5.3 20V4.7A1.4 1.4 0 0 1 6.7 3.3z"/><path stroke="#c67b3a" stroke-width="1.5" stroke-linecap="round" d="M8.6 8.1h6.8M8.6 11.1h6.8"/><path fill="none" stroke="#1f8f5f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M8.7 14.5l1.6 1.6 3.7-3.7"/></svg></span>
-          <span class="brandtxt">Comandia</span>
+          <span class="brandtxt">Bar Query</span>
         </button>
         <button class="back" id="backBtn" onclick="ir('inicio')" style="display:none">‹ Inicio</button>
         <div class="title" id="viewTitle"></div>
@@ -486,7 +489,7 @@
 
     /* Alta de cuenta: registra, entra automáticamente y guía a crear la primera empresa. */
     function mostrarRegistro(){
-      abrir("Crea tu cuenta",`<p class="muted" style="margin:0 0 12px">Regístrate para empezar a gestionar tu bar con Comandia.</p>
+      abrir("Crea tu cuenta",`<p class="muted" style="margin:0 0 12px">Regístrate para empezar a gestionar tu bar con Bar Query.</p>
         <label>Nombre</label><input id="reg_nombre" placeholder="Tu nombre"/>
         <label>Correo electrónico</label><input id="reg_email" type="email" autocomplete="username" placeholder="tu@correo.com"/>
         <label>Contraseña</label><input id="reg_pass" type="password" autocomplete="new-password" placeholder="Mínimo 8 caracteres"/>`,
@@ -527,9 +530,24 @@
     const vacio = (ico,titulo,texto,accion="") => `<div class="empty"><div class="big">${ICON[ico]}</div><h3>${titulo}</h3><p>${texto}</p><div style="margin-top:16px">${accion}</div></div>`;
     const kIcon = { fact:'<svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6z"/><path d="M9 13h6M9 17h6"/></svg>', cobro:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9 12h6"/></svg>', gasto:'<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>', pago:'<svg viewBox="0 0 24 24"><path d="M4 7h16v10H4z"/><path d="M4 11h16"/></svg>' };
 
+    function bannerMes(v1,v2){
+      if(!v1||!v2) return "";
+      const a=Number(v1.ventaTotal||0), b=Number(v2.ventaTotal||0);
+      if(a===0 && b===0) return "";
+      if(b===0) return `<div class="insight up">🚀 Este mes llevas <strong>${eur(a)}</strong>. El mes pasado, a estas alturas, aún no había ventas — buen arranque.</div>`;
+      const pct=(a-b)/b*100, up=pct>=0;
+      const emo=up?(pct>=10?"🔥":"👍"):(pct<=-10?"⚠️":"📉");
+      const txt=up?`un <strong>${pct.toFixed(0)}% más</strong>`:`un <strong>${Math.abs(pct).toFixed(0)}% menos</strong>`;
+      const cola=up?(pct>=10?" ¡Gran mes!":" Vas bien."):(pct<=-10?" Aún hay margen para remontar.":" Muy parejo al mes pasado.");
+      return `<div class="insight ${up?'up':'down'}">${emo} Este mes llevas <strong>${eur(a)}</strong> — ${txt} que el mes pasado a estas alturas (${eur(b)}).${cola}</div>`;
+    }
     async function vInicio() {
       view('<div class="muted">Cargando…</div>');
-      const [d,mesas,reservas,prods]=await Promise.all([api("/informes/dashboard"),api("/mesas").catch(()=>[]),api("/reservas").catch(()=>[]),api("/productos").catch(()=>[])]);
+      const pad=n=>String(n).padStart(2,"0"), ymd=(yy,mm,dd)=>`${yy}-${pad(mm+1)}-${pad(dd)}`;
+      const now=new Date(), y=now.getFullYear(), m=now.getMonth(), dnum=now.getDate();
+      const lm=new Date(y,m-1,1), ly=lm.getFullYear(), lmo=lm.getMonth(), finPrev=new Date(ly,lmo+1,0).getDate();
+      const rMes=`desde=${ymd(y,m,1)}&hasta=${ymd(y,m,dnum)}`, rPrev=`desde=${ymd(ly,lmo,1)}&hasta=${ymd(ly,lmo,Math.min(dnum,finPrev))}`;
+      const [d,mesas,reservas,prods,vMes,vPrev]=await Promise.all([api("/informes/dashboard"),api("/mesas").catch(()=>[]),api("/reservas").catch(()=>[]),api("/productos").catch(()=>[]),api(`/informes/ventas?${rMes}`).catch(()=>null),api(`/informes/ventas?${rPrev}`).catch(()=>null)]);
       const fecha=new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"});
       const hora=new Date().getHours(); const saludo=hora<13?"Buenos días":hora<20?"Buenas tardes":"Buenas noches";
       const nombre=(usuario?.nombre||"").split(" ")[0];
@@ -559,7 +577,7 @@
         grupo("Ventas", tile("tpv","TPV · Tickets","Cobrar en la barra",true)+tile("clientes","Clientes","Habituales y datos"))+
         grupo("Compras", tile("gastos","Gastos","Compras y tickets de proveedor")+tile("proveedores","Proveedores","Tu agenda")+tile("pagos","Pagos","Pagos a proveedores"))+
         grupo("Catálogo y datos", tile("productos","Artículos","Carta y stock")+tile("informes","Informes","Ventas y libros")+tile("ajustes","Ajustes","Empresa y usuarios"));
-      view(greet+(onboarding?onb:kpis)+menu);
+      view(greet+(onboarding?onb:kpis+bannerMes(vMes,vPrev))+menu);
     }
     async function onbCargarEjemplo(){
       try{ toast("Cargando ejemplo…","ok");
@@ -590,7 +608,7 @@
       const filas=rs.map(r=>`<tr><td><strong>${r.nombre}</strong></td><td>${r.clienteNombre}</td><td class="muted">${r.periodicidad}</td><td class="muted">${fdate(r.proximaEmision)}</td><td class="num"><strong>${eur(r.total)}</strong></td><td class="right">${badge(r.activa)}</td><td class="right"><button class="btn small secondary" onclick="toggleRecurrente('${r.id}',${!r.activa})">${r.activa?'Pausar':'Reanudar'}</button></td></tr>`).join("");
       const acciones=`<div style="display:flex;gap:10px;align-items:center"><button class="btn small ghost" onclick="procesarRecurrentes()">↻ Emitir vencidas</button><button class="btn small" onclick="modalRecurrente()">+ Nueva periódica</button></div>`;
       const cuerpo=rs.length?`<table><thead><tr><th>Concepto</th><th>Cliente</th><th>Cada</th><th>Próxima</th><th class="num">Importe</th><th class="right">Estado</th><th></th></tr></thead><tbody>${filas}</tbody></table>`
-        :vacio("recurrentes","Sin facturación periódica todavía","Crea una suscripción o cuota y Comandia emitirá la factura solo cuando toque.",`<button class="btn small" onclick="modalRecurrente()">+ Nueva periódica</button>`);
+        :vacio("recurrentes","Sin facturación periódica todavía","Crea una suscripción o cuota y Bar Query emitirá la factura solo cuando toque.",`<button class="btn small" onclick="modalRecurrente()">+ Nueva periódica</button>`);
       view(panel("Facturación periódica",cuerpo,acciones));
     }
     async function toggleRecurrente(id,activa){ try{ await api(`/facturas-recurrentes/${id}/estado`,{method:"POST",body:JSON.stringify({activa})}); vRecurrentes(); }catch(e){ alert(e.message);} }
@@ -1508,7 +1526,7 @@
       view(panelSeries+panelCobroHtml()+panelUsuarios+panelDemoHtml()+panelDatosHtml()+panelAudit);
     }
     function panelDemoHtml(){
-      const cuerpo=`<p class="muted" style="margin:0 0 14px">Monta en un clic un <strong>bar de ejemplo</strong> —carta por categorías, mesas por zonas, turnos, reservas de hoy y una comanda abierta— en una <strong>empresa aparte</strong> («Bar de ejemplo»), sin tocar tus datos. Ideal para <strong>enseñar Comandia en vivo</strong>; cuando termines, bórrala desde «Tus empresas».</p>
+      const cuerpo=`<p class="muted" style="margin:0 0 14px">Monta en un clic un <strong>bar de ejemplo</strong> —carta por categorías, mesas por zonas, turnos, reservas de hoy y una comanda abierta— en una <strong>empresa aparte</strong> («Bar de ejemplo»), sin tocar tus datos. Ideal para <strong>enseñar Bar Query en vivo</strong>; cuando termines, bórrala desde «Tus empresas».</p>
         <button class="btn small" id="btnDemo" onclick="demoMontarBar()">✨ Montar un bar de ejemplo</button>`;
       return panel("Demostración",cuerpo);
     }

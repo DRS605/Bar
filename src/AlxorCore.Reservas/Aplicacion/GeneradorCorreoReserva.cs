@@ -97,7 +97,7 @@ public static class GeneradorCorreoReserva
                 <tr><td style="padding:20px 30px 26px;border-top:1px solid #e6ede9;color:{Suave};font-size:12px">
                   <strong style="color:{Tinta}">{local}</strong><br>
                   Recibes este correo por tu reserva.
-                  <span style="color:#9fb0be">· Enviado con Comandia</span>
+                  <span style="color:#9fb0be">· Enviado con Bar Query</span>
                 </td></tr>
               </table>
             </div>

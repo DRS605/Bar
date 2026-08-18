@@ -1,6 +1,6 @@
-# Instalar Comandia en tu ordenador (localhost)
+# Instalar Bar Query en tu ordenador (localhost)
 
-Guía para levantar **Comandia** en tu propio PC (Windows, macOS o Linux). Hay dos caminos: con
+Guía para levantar **Bar Query** en tu propio PC (Windows, macOS o Linux). Hay dos caminos: con
 **Docker** (lo más sencillo, un solo comando) o con el **SDK de .NET** si ya lo tienes instalado.
 
 > Al arrancar en modo desarrollo, la aplicación **crea y actualiza la base de datos sola** (aplica las
@@ -18,7 +18,7 @@ PostgreSQL: solo Docker.
   instálalo (en Windows, acepta el backend WSL 2 que te propone).
 - **Linux**: instala `docker` y el complemento `docker compose` desde el gestor de paquetes.
 
-### 2. Arranca Comandia
+### 2. Arranca Bar Query
 Abre una terminal en la carpeta del proyecto (donde está `docker-compose.yml`) y ejecuta:
 
 ```bash
@@ -73,7 +73,7 @@ otros datos, cámbiala ahí o pásala por variable de entorno `ConnectionStrings
 
 1. En la pantalla de acceso, pulsa **«¿Primera vez? Crea tu cuenta →»** e introduce nombre, correo y
    contraseña. Entrarás automáticamente.
-2. Te pedirá **crear tu local** (razón social y NIF). Ese es tu negocio dentro de Comandia.
+2. Te pedirá **crear tu local** (razón social y NIF). Ese es tu negocio dentro de Bar Query.
 3. Ya puedes usar todo: **mesas y comandas**, **reservas y turnos**, **compras/gastos**, **facturación**
    e **informes**.
 
@@ -95,18 +95,18 @@ sección `Correo`. Con Docker, añade estas variables al servicio `api` de `dock
       Correo__Usuario: "tu-usuario"
       Correo__Clave: "tu-contraseña"
       Correo__Remitente: "no-responder@tudominio.com"
-      Correo__RemitenteNombre: "Comandia"
+      Correo__RemitenteNombre: "Bar Query"
 ```
 
 Sin SDK, con `dotnet run`, edita esos mismos valores en `appsettings.json`. En cuanto `Host` tenga
-valor, Comandia envía por SMTP real sin ningún otro cambio. Sirven proveedores como Brevo, Amazon SES,
+valor, Bar Query envía por SMTP real sin ningún otro cambio. Sirven proveedores como Brevo, Amazon SES,
 Mailgun o el correo de tu propio dominio.
 
 ---
 
 ## Impresora de tickets (opcional)
 
-Comandia imprime el ticket en impresoras térmicas por **red** (RAW/JetDirect, puerto **9100**), que es
+Bar Query imprime el ticket en impresoras térmicas por **red** (RAW/JetDirect, puerto **9100**), que es
 como funcionan la mayoría de las de barra. Basta indicar su **IP** en la sección `Impresora`. Con Docker,
 en `docker-compose.override.yml`:
 

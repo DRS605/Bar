@@ -97,6 +97,10 @@ qué apenas deja margen) y **simula** subir/bajar el precio de un artículo most
 subir— la venta para que el cambio compense). Es una estimación (no hay datos de elasticidad), por eso
 se apoya en el punto de equilibrio como cifra honesta.
 
+En el **inicio** se muestra además un **aviso comparativo**: la venta del mes en curso frente al **mismo
+tramo del mes pasado** (de día 1 a hoy, para que la comparación sea justa a mitad de mes), con el
+porcentaje y un mensaje según se vaya por encima o por debajo. Usa `/informes/ventas` para ambos tramos.
+
 ## API
 
 | Método | Ruta | Auth | Descripción |

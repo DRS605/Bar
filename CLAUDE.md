@@ -1,12 +1,12 @@
 # Guía para agentes (CLAUDE.md)
 
-**Comandia** — software de gestión para **bares y restaurantes** (TPV de comandas, reservas y
+**Bar Query** — software de gestión para **bares y restaurantes** (TPV de comandas, reservas y
 tickets), construido sobre el núcleo **ALXOR Core** en **.NET 8 + PostgreSQL**. Lee primero
 `README.md` (estructura y qué incluye), `INSTALACION.md` (arranque en local) y la documentación de
 hostelería en `docs/modulos/` (`hosteleria.md`, `reservas.md`).
 
 > El código conserva el espacio de nombres `AlxorCore.*` y la base técnica de ALXOR Core (es su
-> núcleo). Comandia es el **producto de hostelería** construido encima; el ERP genérico vive en otro
+> núcleo). Bar Query es el **producto de hostelería** construido encima; el ERP genérico vive en otro
 > repositorio.
 
 ## Reglas del proyecto
