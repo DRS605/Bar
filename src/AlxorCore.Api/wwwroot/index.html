@@ -400,6 +400,7 @@
     ICON.plano = '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 10h7V3M14 21v-7h7"/></svg>';
     ICON.reservas = '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M8 14h4"/></svg>';
     ICON.sala = '<svg viewBox="0 0 24 24"><path d="M6 3v7a2 2 0 0 0 2 2v9M6 3v4M9 3v4M17.5 3C16 3 15 5 15 8s1 4 2.5 4v9"/></svg>';
+    ICON.cartaqr = '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 14v7M14 18v3M18 21h3"/></svg>';
 
     // Menú centrado en el bar: Sala, Ventas (tickets), Compras y Artículos.
     const NAV = [
@@ -411,7 +412,7 @@
       { t:"item", k:"informes", l:"Informes" },
       { t:"item", k:"ajustes", l:"Ajustes" },
     ];
-    const TITULOS = { inicio:"Inicio", presupuestos:"Presupuestos", facturas:"Facturas", tpv:"TPV · Tickets", recurrentes:"Facturación periódica", clientes:"Clientes", cobros:"Cobros", remesas:"Remesas SEPA", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", conciliacion:"Conciliación bancaria", productos:"Artículos", hosteleria:"Barra / Salón", plano:"Plano del local", reservas:"Reservas", informes:"Informes", ajustes:"Ajustes" };
+    const TITULOS = { inicio:"Inicio", presupuestos:"Presupuestos", facturas:"Facturas", tpv:"TPV · Tickets", recurrentes:"Facturación periódica", clientes:"Clientes", cobros:"Cobros", remesas:"Remesas SEPA", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", conciliacion:"Conciliación bancaria", productos:"Artículos", hosteleria:"Barra / Salón", plano:"Plano del local", reservas:"Reservas", cartaqr:"Carta con QR", informes:"Informes", ajustes:"Ajustes" };
     function renderNav() {
       return NAV.map(n => {
         if (n.t === "item") return `<a class="navitem" data-k="${n.k}" onclick="ir('${n.k}')">${ICON[n.k]}<span>${n.l}</span></a>`;
@@ -523,7 +524,7 @@
       if(k==="inicio"){ if(back)back.style.display="none"; if(title)title.textContent=""; }
       else { if(back)back.style.display=""; if(title)title.textContent=TITULOS[k]||k; }
       window.scrollTo(0,0);
-      ({inicio:vInicio,presupuestos:vPresupuestos,facturas:vFacturas,tpv:vTpv,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,hosteleria:vHosteleria,plano:vPlano,reservas:vReservas,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,remesas:vRemesa,pagos:vPagos,conciliacion:vConciliacion,informes:vInformes,ajustes:vAjustes}[k])();
+      ({inicio:vInicio,presupuestos:vPresupuestos,facturas:vFacturas,tpv:vTpv,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,hosteleria:vHosteleria,plano:vPlano,reservas:vReservas,cartaqr:vCartaQr,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,remesas:vRemesa,pagos:vPagos,conciliacion:vConciliacion,informes:vInformes,ajustes:vAjustes}[k])();
     }
     const view = h => document.getElementById("view").innerHTML=h;
     const panel = (t,c,a="") => `<div class="panel">${(t||a)?`<div class="panel-head">${t?`<h2>${t}</h2>`:'<span></span>'}${a}</div>`:''}${c}</div>`;
@@ -573,7 +574,7 @@
       const tile=(k,titulo,hint,feat)=>`<button class="tile ${feat?'feat':''}" onclick="ir('${k}')"><span class="tileic">${ICON[k]}</span><span class="tiletx"><b>${titulo}</b><small>${hint}</small></span></button>`;
       const grupo=(label,html)=>`<div class="catlabel">${label}</div><div class="tiles">${html}</div>`;
       const menu=
-        grupo("Sala", tile("hosteleria","Barra / Salón",`${ocup} de ${mesas.length} mesas ocupadas`)+tile("plano","Plano del local","Croquis y zonas")+tile("reservas","Reservas",`${resHoy} para hoy`))+
+        grupo("Sala", tile("hosteleria","Barra / Salón",`${ocup} de ${mesas.length} mesas ocupadas`)+tile("plano","Plano del local","Croquis y zonas")+tile("reservas","Reservas",`${resHoy} para hoy`)+tile("cartaqr","Carta con QR","Menú para los clientes"))+
         grupo("Ventas", tile("tpv","TPV · Tickets","Cobrar en la barra",true)+tile("clientes","Clientes","Habituales y datos"))+
         grupo("Compras", tile("gastos","Gastos","Compras y tickets de proveedor")+tile("proveedores","Proveedores","Tu agenda")+tile("pagos","Pagos","Pagos a proveedores"))+
         grupo("Catálogo y datos", tile("productos","Artículos","Carta y stock")+tile("informes","Informes","Ventas y libros")+tile("ajustes","Ajustes","Empresa y usuarios"));
@@ -588,6 +589,31 @@
           await api("/mesas",{method:"POST",body:JSON.stringify({nombre:n,zona:z,capacidad:4,forma:f})}); }
         toast("¡Listo! Tu bar ya tiene carta y mesas.","ok"); vInicio();
       }catch(e){ toast(e.message,"err"); }
+    }
+
+    function cartaUrlPublica(){ return `${location.origin}/carta.html?e=${empresa.id}`; }
+    function vCartaQr(){
+      const url=cartaUrlPublica(), qr=`/carta/${empresa.id}/qr.svg`;
+      const cuerpo=`<div style="display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start">
+        <div style="text-align:center">
+          <div style="background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;display:inline-block"><img src="${qr}" alt="QR de la carta" style="width:200px;height:200px;display:block"/></div>
+          <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn small" onclick="cartaCartel()">🖨️ Imprimir cartel</button><a class="btn small ghost" href="${url}" target="_blank">Ver carta</a></div>
+        </div>
+        <div style="flex:1;min-width:250px">
+          <p class="muted" style="margin:0 0 12px">Tus clientes escanean este QR y ven tu carta en el móvil —artículos y precios por categorías—. Se <strong>actualiza sola</strong> cuando cambias los productos: no hay que reimprimir nada.</p>
+          <label>Enlace de la carta</label>
+          <div style="display:flex;gap:8px"><input id="cartaUrl" value="${url}" readonly style="flex:1"/><button class="btn small secondary" onclick="cartaCopiar()">Copiar</button></div>
+          <p class="muted" style="font-size:12px;margin-top:14px">Imprime el cartel y ponlo en las mesas o en la barra. Nota: el QR abre esta misma instalación; para que los clientes lo abran con sus datos móviles hará falta una dirección pública (te ayudo cuando llegue el momento).</p>
+        </div></div>`;
+      view(panel("Carta con QR",cuerpo));
+    }
+    function cartaCopiar(){ const i=document.getElementById("cartaUrl"); if(!i)return; i.select(); try{ document.execCommand("copy"); toast("Enlace copiado","ok"); }catch{ toast("Copia el enlace a mano","err"); } }
+    function cartaCartel(){
+      const url=cartaUrlPublica(), qr=`${location.origin}/carta/${empresa.id}/qr.svg`;
+      const nom=(empresa.razonSocial||"").replace(/&/g,"&amp;").replace(/</g,"&lt;");
+      const w=window.open("","_blank"); if(!w){ toast("Permite las ventanas emergentes para imprimir","err"); return; }
+      w.document.write(`<!doctype html><meta charset=utf-8><title>Carta · ${nom}</title><style>body{font-family:Georgia,'Times New Roman',serif;text-align:center;margin:0;padding:52px 24px;color:#17251e}h1{font-size:36px;margin:0 0 6px}.s{color:#5f7168;font-size:17px;margin-bottom:30px;font-family:sans-serif}img{width:340px;height:340px}.c{font-size:23px;font-weight:700;margin-top:24px;font-family:sans-serif}.u{color:#5f7168;font-size:12px;margin-top:8px;word-break:break-all;font-family:sans-serif}</style><h1>${nom}</h1><div class="s">Nuestra carta</div><img src="${qr}"><div class="c">📷 Escanea y mira la carta</div><div class="u">${url}</div>`);
+      w.document.close(); setTimeout(()=>{ try{ w.focus(); w.print(); }catch{} },500);
     }
 
     async function vFacturas() {

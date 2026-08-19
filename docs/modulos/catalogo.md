@@ -54,9 +54,22 @@ CreadoEn } (RLS por empresa, histórico inmutable).
 | `PUT` | `/productos/{id}` | permiso `producto.gestionar` | Actualiza un producto. |
 | `GET` | `/productos/{id}/stock` | JWT + empresa | Histórico de movimientos de stock. |
 | `POST` | `/productos/{id}/stock` | permiso `producto.gestionar` | Registra un movimiento de stock. |
+| `GET` | `/carta/{empresaId}/datos` | **anónimo** | Carta pública del local: categorías, artículos y precios. |
+| `GET` | `/carta/{empresaId}/qr.svg` | **anónimo** | Código QR (SVG) que enlaza a la carta pública. |
 
 La importación CSV admite una columna opcional de **precio de compra** (`precio compra`, `coste`,
 `compra`).
+
+## Carta pública (menú con QR)
+
+El bar puede publicar su **carta** para que el cliente la vea en el móvil escaneando un **QR**. La página
+pública `carta.html?e={empresaId}` (sin cuenta) pinta los productos activos con precio, agrupados por
+categoría, a partir de `GET /carta/{empresaId}/datos`. Es un endpoint **anónimo** que acota la lectura al
+local indicado (fija el contexto de empresa, con lo que el filtro global y la RLS solo dejan ver ese
+local) y **solo expone lo público**: nombre, categoría y precio —nunca coste, stock ni datos internos—.
+El **QR** (`/carta/{empresaId}/qr.svg`, SVG con QRCoder) se genera apuntando a esa página. En la interfaz,
+la sección **«Carta con QR»** muestra el enlace, el QR y un **cartel imprimible** para las mesas; la carta
+se **actualiza sola** al cambiar los productos (no hay que reimprimir el QR).
 
 ## Persistencia
 
@@ -70,4 +83,5 @@ El repositorio ofrece escritura (`IRepositorioProductos`, `IRepositorioHistorico
 - **Unitarios**: catálogo de IVA y validaciones de `Producto` (nombre, precio, precio de compra, IVA) y
   normalización/edición de la **categoría**.
 - **Integración**: listar impuestos, CRUD de productos, **categoría** (alta y reasignación), histórico
-  de precios (alta + cambios) y aislamiento por empresa.
+  de precios (alta + cambios), aislamiento por empresa y **carta pública** (acceso anónimo con
+  categorías y precios, QR en SVG y 404 si el local no existe).

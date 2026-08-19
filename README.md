@@ -12,6 +12,8 @@ reservas con recordatorio, control de compras/stock y **tickets** — con la fac
 
 - **TPV de barra/salón** — mesas y comandas con **rejilla táctil por categorías** (un toque = pedir),
   cobro y **ticket** con impresión térmica **ESC/POS**.
+- **Carta con QR** — menú público que el cliente ve en el móvil escaneando un **QR** (con cartel
+  imprimible); se actualiza sola al cambiar los productos.
 - **Reservas** — agenda con **recordatorio por correo**, **turnos y aforo**, y **calendario iCal**
   (se suscribe en Google/Apple/Outlook).
 - **Compras y almacén** — artículos con categorías, control de **stock**, proveedores y gastos.
