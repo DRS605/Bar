@@ -22,11 +22,14 @@ public sealed record DatosLineaComanda(Guid ProductoId, decimal Cantidad = 1m);
 /// <summary>Datos para fijar la cantidad de una línea existente.</summary>
 public sealed record DatosCantidadLinea(decimal Cantidad);
 
+/// <summary>Nuevo precio unitario de una línea (hacer precio a mano; 0 para invitar).</summary>
+public sealed record DatosPrecioLinea(decimal Precio);
+
 /// <summary>Datos para abrir una comanda en una mesa.</summary>
 public sealed record DatosAbrirComanda(Guid MesaId, string? Notas = null);
 
 /// <summary>Datos para cobrar una comanda.</summary>
-public sealed record DatosCobro(MetodoCobro Metodo = MetodoCobro.Efectivo, Guid? ClienteId = null, string? Serie = null);
+public sealed record DatosCobro(MetodoCobro Metodo = MetodoCobro.Efectivo, Guid? ClienteId = null, string? Serie = null, decimal DescuentoPorcentaje = 0m);
 
 /// <summary>Caso de uso: crear una mesa.</summary>
 public sealed class CrearMesa
@@ -282,6 +285,41 @@ public sealed class FijarCantidadLineaComanda
         }
 
         var r = comanda.FijarCantidadLinea(lineaId, datos.Cantidad, _reloj);
+        if (r.EsFallo)
+        {
+            return Resultado.Fallo<ComandaDto>(r.Error);
+        }
+
+        await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+        return Resultado.Ok(ComandaDto.Desde(comanda));
+    }
+}
+
+/// <summary>Caso de uso: cambia el precio de una línea de la comanda (hacer precio a mano o invitar).</summary>
+public sealed class CambiarPrecioLineaComanda
+{
+    private readonly IRepositorioComandas _comandas;
+    private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
+    private readonly IReloj _reloj;
+
+    public CambiarPrecioLineaComanda(IRepositorioComandas comandas, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    {
+        _comandas = comandas;
+        _unidadDeTrabajo = unidadDeTrabajo;
+        _reloj = reloj;
+    }
+
+    public async Task<Resultado<ComandaDto>> EjecutarAsync(Guid comandaId, Guid lineaId, DatosPrecioLinea datos, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(datos);
+
+        var comanda = await _comandas.ObtenerPorIdAsync(comandaId, ct).ConfigureAwait(false);
+        if (comanda is null)
+        {
+            return Resultado.Fallo<ComandaDto>(Error.NoEncontrado("comanda.no_encontrada", "La comanda no existe."));
+        }
+
+        var r = comanda.CambiarPrecioLinea(lineaId, datos.Precio, _reloj);
         if (r.EsFallo)
         {
             return Resultado.Fallo<ComandaDto>(r.Error);
@@ -579,10 +617,21 @@ public sealed class CobrarComanda
             return Resultado.Fallo<ComandaDto>(Error.Validacion("comanda.sin_lineas", "No se puede cobrar una comanda vacía."));
         }
 
+        // Descuento global de la cuenta (si se indica al cobrar): queda asentado en la comanda y va al
+        // ticket como descuento por línea, de modo que la factura simplificada cuadra con el cobro.
+        if (datos.DescuentoPorcentaje > 0m)
+        {
+            var descuento = comanda.AplicarDescuento(datos.DescuentoPorcentaje, _reloj);
+            if (descuento.EsFallo)
+            {
+                return Resultado.Fallo<ComandaDto>(descuento.Error);
+            }
+        }
+
         // El precio y el IVA se congelaron al pedir cada línea: se pasan explícitos al ticket para
         // que no dependa de la tarifa actual del catálogo. El ProductoId permite descontar stock.
         var lineas = comanda.Lineas
-            .Select(l => new LineaComando(l.Cantidad, l.Descripcion, l.PrecioUnitario, l.CodigoIva, 0m, l.ProductoId))
+            .Select(l => new LineaComando(l.Cantidad, l.Descripcion, l.PrecioUnitario, l.CodigoIva, comanda.DescuentoPorcentaje, l.ProductoId))
             .ToList();
 
         var ticket = await _emitirTicket.EjecutarAsync(empresaId, new EmitirTicketComando(lineas, datos.ClienteId, datos.Serie), ct).ConfigureAwait(false);
@@ -652,7 +701,7 @@ public sealed class CobrarComandaParcial
 
         // El precio y el IVA van congelados desde la comanda; el ProductoId permite descontar stock.
         var lineas = billing.Valor
-            .Select(l => new LineaComando(l.Cantidad, l.Descripcion, l.PrecioUnitario, l.CodigoIva, 0m, l.ProductoId))
+            .Select(l => new LineaComando(l.Cantidad, l.Descripcion, l.PrecioUnitario, l.CodigoIva, comanda.DescuentoPorcentaje, l.ProductoId))
             .ToList();
 
         // 2) Emitir el ticket de esos artículos (transacción propia de Facturación).

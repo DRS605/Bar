@@ -61,6 +61,10 @@ public static class EndpointsHosteleria
             .WithSummary("Fija la cantidad de una línea (botones +/− del TPV).")
             .RequierePermiso(Permisos.HosteleriaGestionar);
 
+        comandas.MapPut("/{id:guid}/lineas/{lineaId:guid}/precio", CambiarPrecioLineaAsync)
+            .WithSummary("Cambia el precio de una línea (hacer precio a mano o invitar con 0).")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
         comandas.MapDelete("/{id:guid}/lineas/{lineaId:guid}", QuitarLineaAsync)
             .WithSummary("Quita una línea de la comanda.")
             .RequierePermiso(Permisos.HosteleriaGestionar);
@@ -158,6 +162,9 @@ public static class EndpointsHosteleria
         (await caso.EjecutarAsync(id, datos, ct).ConfigureAwait(false)).AOk();
 
     private static async Task<IResult> FijarCantidadLineaAsync(Guid id, Guid lineaId, DatosCantidadLinea datos, FijarCantidadLineaComanda caso, CancellationToken ct) =>
+        (await caso.EjecutarAsync(id, lineaId, datos, ct).ConfigureAwait(false)).AOk();
+
+    private static async Task<IResult> CambiarPrecioLineaAsync(Guid id, Guid lineaId, DatosPrecioLinea datos, CambiarPrecioLineaComanda caso, CancellationToken ct) =>
         (await caso.EjecutarAsync(id, lineaId, datos, ct).ConfigureAwait(false)).AOk();
 
     private static async Task<IResult> QuitarLineaAsync(Guid id, Guid lineaId, QuitarLineaComanda caso, CancellationToken ct) =>

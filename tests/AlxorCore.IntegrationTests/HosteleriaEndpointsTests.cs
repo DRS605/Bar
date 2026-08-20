@@ -226,6 +226,45 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
     }
 
     [Fact]
+    public async Task Cambiar_el_precio_de_una_linea_recalcula_el_total()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var producto = await CrearCañaAsync(cliente, stock: false); // 1,50 IVA10
+        var mesa = await CrearMesaAsync(cliente);
+        var comanda = (await (await cliente.PostAsJsonAsync("/comandas", new { MesaId = mesa.Id })).Content.ReadFromJsonAsync<ComandaResp>())!;
+        var conLinea = (await (await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/lineas", new { ProductoId = producto.Id, Cantidad = 2m })).Content.ReadFromJsonAsync<ComandaResp>())!;
+        var lineaId = conLinea.Lineas.Single().Id;
+
+        var precio = await cliente.PutAsJsonAsync($"/comandas/{comanda.Id}/lineas/{lineaId}/precio", new { Precio = 1.00m });
+        precio.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await precio.Content.ReadFromJsonAsync<ComandaResp>())!.Total.Should().Be(2.20m); // 2×1,00 + 10% IVA
+    }
+
+    [Fact]
+    public async Task Cobrar_con_descuento_aplica_el_descuento_al_ticket_y_a_la_caja()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var producto = await CrearCañaAsync(cliente, stock: false); // 1,50 IVA10
+        var mesa = await CrearMesaAsync(cliente);
+        var comanda = (await (await cliente.PostAsJsonAsync("/comandas", new { MesaId = mesa.Id })).Content.ReadFromJsonAsync<ComandaResp>())!;
+        await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/lineas", new { ProductoId = producto.Id, Cantidad = 2m }); // total 3,30
+
+        var cobrar = await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/cobrar", new { Metodo = "Efectivo", DescuentoPorcentaje = 10m });
+        cobrar.StatusCode.Should().Be(HttpStatusCode.OK);
+        var cobrada = (await cobrar.Content.ReadFromJsonAsync<ComandaResp>())!;
+        cobrada.Total.Should().Be(2.97m); // 3,30 − 10%
+
+        // El ticket emitido lleva el importe con descuento.
+        var facturas = await cliente.GetFromJsonAsync<List<FacturaResp>>("/facturas");
+        facturas.Should().Contain(f => f.Id == cobrada.FacturaId && f.Total == 2.97m);
+
+        // Y la caja del día cuadra con lo cobrado (con descuento).
+        var hoy = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        var cierre = await cliente.GetFromJsonAsync<CierreResp>($"/informes/cierre-caja?dia={hoy}");
+        cierre!.CobrosPorMetodo.Should().ContainSingle(m => m.Metodo == "Efectivo" && m.Importe == 2.97m);
+    }
+
+    [Fact]
     public async Task Cobrar_una_comanda_registra_el_cobro_en_el_cierre_de_caja()
     {
         var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);

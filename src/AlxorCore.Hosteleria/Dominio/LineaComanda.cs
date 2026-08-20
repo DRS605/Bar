@@ -112,4 +112,12 @@ public sealed class LineaComanda : EntidadBase<Guid>
         Base = Redondeo.Dos(Cantidad * PrecioUnitario);
         CuotaIva = Redondeo.Dos(Base * PorcentajeIva / 100m);
     }
+
+    /// <summary>Fija el precio unitario de la línea (hacer precio o invitar con 0) y recalcula base e IVA.</summary>
+    internal void FijarPrecio(decimal precioUnitario)
+    {
+        PrecioUnitario = precioUnitario;
+        Base = Redondeo.Dos(Cantidad * PrecioUnitario);
+        CuotaIva = Redondeo.Dos(Base * PorcentajeIva / 100m);
+    }
 }

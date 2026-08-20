@@ -71,6 +71,7 @@ internal sealed class ConfiguracionComanda : IEntityTypeConfiguration<Comanda>
         builder.Property(c => c.BaseImponible).HasColumnName("base_imponible").HasColumnType("numeric(14,2)").IsRequired();
         builder.Property(c => c.CuotaIva).HasColumnName("cuota_iva").HasColumnType("numeric(14,2)").IsRequired();
         builder.Property(c => c.Total).HasColumnName("total").HasColumnType("numeric(14,2)").IsRequired();
+        builder.Property(c => c.DescuentoPorcentaje).HasColumnName("descuento_porcentaje").HasColumnType("numeric(5,2)").IsRequired();
         builder.Property(c => c.MetodoCobro).HasColumnName("metodo_cobro").HasMaxLength(20).HasConversion<string>();
         builder.Property(c => c.FacturaId).HasColumnName("factura_id");
         builder.Property(c => c.NumeroTicket).HasColumnName("numero_ticket").HasMaxLength(30);

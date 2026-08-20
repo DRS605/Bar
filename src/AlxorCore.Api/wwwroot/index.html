@@ -971,15 +971,22 @@
     function hosPintarCart(){
       const cont=document.getElementById("hosCart"), tot=document.getElementById("hosTotal"); if(!cont||!hosComanda)return;
       const ls=hosComanda.lineas;
-      cont.innerHTML=ls.length?ls.map(l=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)">
-        <div style="flex:1;min-width:0"><strong style="font-size:14px">${l.descripcion}</strong><br><small class="muted">${eur(l.precioUnitario)}${Number(l.cantidadCobrada)>0?` · <span style="color:var(--pos)">${numCant(l.cantidadCobrada)} cobrada${Number(l.cantidadCobrada)===1?"":"s"}</span>`:""}</small></div>
+      cont.innerHTML=ls.length?ls.map(l=>{
+        const editable=!String(l.id).startsWith("tmp-") && !(Number(l.cantidadCobrada)>0);
+        const invitado=Number(l.precioUnitario)===0;
+        const precioHtml=editable
+          ? `<button onclick="hosPrecio('${l.id}',${l.precioUnitario})" title="Cambiar precio" style="background:none;border:0;padding:0;font:inherit;cursor:pointer;color:${invitado?'var(--copper)':'var(--muted)'};text-decoration:underline dotted">${invitado?'Invitación':eur(l.precioUnitario)} ✎</button>`
+          : `<span class="muted">${eur(l.precioUnitario)}</span>`;
+        const cobradaHtml=Number(l.cantidadCobrada)>0?` · <span style="color:var(--pos)">${numCant(l.cantidadCobrada)} cobrada${Number(l.cantidadCobrada)===1?"":"s"}</span>`:"";
+        return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)">
+        <div style="flex:1;min-width:0"><strong style="font-size:14px">${l.descripcion}</strong><br><small>${precioHtml}${cobradaHtml}</small></div>
         <div class="hos-step">
           <button onclick="hosMenos('${l.id}')" aria-label="Quitar uno">−</button>
           <span>${numCant(l.cantidad)}</span>
           <button onclick="hosMas('${l.id}')" aria-label="Añadir uno" ${String(l.id).startsWith("tmp-")?"disabled":""}>+</button>
         </div>
         <div style="width:72px;text-align:right;font-weight:650">${eur(l.total)}</div>
-      </div>`).join(""):'<p class="muted" style="padding:10px 0">Toca un producto para empezar a pedir.</p>';
+      </div>`;}).join(""):'<p class="muted" style="padding:10px 0">Toca un producto para empezar a pedir.</p>';
       tot.innerHTML=`<div style="margin-top:14px;text-align:right"><div class="muted" style="font-size:12px">Base ${eur(hosComanda.baseImponible)} · IVA ${eur(hosComanda.cuotaIva)}</div><div style="font-size:24px;font-weight:750">${eur(hosComanda.total)}</div></div>`;
       const cb=document.getElementById("hosCobrarBtn"); if(cb) cb.disabled=!ls.length;
     }
@@ -1010,6 +1017,15 @@
       else { l.cantidad=nueva; l.total=Number((nueva*l.precioUnitario).toFixed(2)); hosPintarCart();
         hosEncolar(()=>api("/comandas/"+id+"/lineas/"+lineaId,{method:"PUT",body:JSON.stringify({cantidad:nueva})})); }
     }
+    function hosPrecio(lineaId,actual){
+      const l=hosComanda?.lineas.find(x=>x.id===lineaId); if(!l||String(lineaId).startsWith("tmp-"))return;
+      if(Number(l.cantidadCobrada)>0){ toast("Esa línea ya está cobrada en parte","err"); return; }
+      const v=prompt(`Precio de «${l.descripcion}» (0 = invitar):`, numCant(actual));
+      if(v===null)return; const p=Number(String(v).replace(",",".")); if(!(p>=0)){ toast("Precio no válido","err"); return; }
+      const precio=Math.round(p*100)/100, id=hosComanda.id;
+      l.precioUnitario=precio; l.total=Number((l.cantidad*precio).toFixed(2)); hosPintarCart();
+      hosEncolar(()=>api(`/comandas/${id}/lineas/${lineaId}/precio`,{method:"PUT",body:JSON.stringify({precio})}));
+    }
     async function hosAnular(id){ try{ await api("/comandas/"+id+"/anular",{method:"POST"}); toast("Comanda anulada","ok"); vHosteleria();}catch(e){toast(e.message,"err");} }
     async function hosCuenta(id){ try{ await hosCola; await api("/comandas/"+id+"/cuenta/imprimir",{method:"POST"}); toast("🧾 Cuenta impresa para la mesa","ok"); }catch(e){ toast(e.message,"err"); } }
     function hosMesaMenu(id){
@@ -1037,33 +1053,56 @@
     async function hosEnviarCocina(id){ try{ await hosCola; const r=await api("/comandas/"+id+"/cocina",{method:"POST"});
         const n=(r.articulos||[]).reduce((s,a)=>s+Number(a.cantidad),0);
         toast(n>0?("🍳 Enviado a cocina · "+numCant(n)+" artículo(s)"):"Nada nuevo que enviar a cocina","ok"); }catch(e){ toast(e.message,"err"); } }
-    let cobroMetodo="Efectivo", cobroCent=0, cobroTotal=0, cobroPersonas=1, cobroPropinaCent=0;
-    const cobroTotalCent=()=>Math.round(cobroTotal*100)+cobroPropinaCent; // consumición + propina
+    let cobroMetodo="Efectivo", cobroCent=0, cobroTotal=0, cobroPersonas=1, cobroPropinaCent=0, cobroDescPct=0;
+    // Total de la consumición ya con el descuento (mismo cálculo por línea que el servidor), en céntimos.
+    function cobroTotalDesc(){ const f=1-cobroDescPct/100; let base=0,iva=0;
+      for(const l of (hosComanda?.lineas||[])){ const b=Math.round(Number(l.base)*f*100)/100; base+=b; iva+=Math.round(b*Number(l.porcentajeIva))/100; }
+      return Math.round((Math.round(base*100)/100+Math.round(iva*100)/100)*100); }
+    const cobroTotalCent=()=>cobroTotalDesc()+cobroPropinaCent; // consumición (con descuento) + propina
     function hosCobrar(id){
-      cobroMetodo="Efectivo"; cobroCent=0; cobroTotal=Number(hosComanda?.total||0); cobroPersonas=1; cobroPropinaCent=0;
+      cobroMetodo="Efectivo"; cobroCent=0; cobroTotal=Number(hosComanda?.total||0); cobroPersonas=1; cobroPropinaCent=0; cobroDescPct=0;
       const seg=m=>`<button class="${cobroMetodo===m?"on":""}" onclick="cobroSetMetodo('${m}')">${m==="Efectivo"?"💶 Efectivo":m==="Tarjeta"?"💳 Tarjeta":"Otro"}</button>`;
       const pb=(p,t)=>`<button data-p="${p}" class="${p==="0"?"on":""}" onclick="cobroPropina('${p}')">${t}</button>`;
+      const db=(p,t)=>`<button data-d="${p}" class="${p===0?"on":""}" onclick="cobroDescuento(${p})">${t}</button>`;
       abrir("Cobrar comanda",
-        `<div class="cobro-tot"><div class="lbl">Total a cobrar</div><div class="val">${eur(cobroTotal)}</div><div class="pp" id="cobroPP" style="display:none"></div></div>
-         <div class="cobro-split"><span class="lb">Dividir a escote</span><div class="split-step"><button onclick="cobroDiv(-1)" aria-label="Menos personas">−</button><span class="n" id="cobroPers">1</span><button onclick="cobroDiv(1)" aria-label="Más personas">+</button></div></div>
+        `<div class="cobro-tot"><div class="lbl">Total a cobrar</div><div class="val" id="cobroTotalVal">${eur(cobroTotalDesc()/100)}</div><div class="pp" id="cobroDescLn" style="display:none"></div></div>
+         <div class="cobro-split"><span class="lb">Descuento</span><div class="prop-quick">${db(0,"Sin")}${db(5,"5 %")}${db(10,"10 %")}<button onclick="cobroDescOtro()">Otro…</button></div></div>
+         <div class="cobro-split"><span class="lb">Dividir a escote</span><div style="display:flex;align-items:center;gap:14px"><strong id="cobroPerImp" style="color:var(--accent);font-size:15px;display:none"></strong><div class="split-step"><button onclick="cobroDiv(-1)" aria-label="Menos personas">−</button><span class="n" id="cobroPers">1</span><button onclick="cobroDiv(1)" aria-label="Más personas">+</button></div></div></div>
          <div class="cobro-split"><span class="lb">Propina</span><div class="prop-quick">${pb("0","Sin")}${pb("5","5 %")}${pb("10","10 %")}${pb("round","Redondear")}</div></div>
          <div class="pp" id="cobroProp" style="display:none;text-align:right;margin:-6px 0 12px"></div>
          <div class="pay-seg">${seg("Efectivo")}${seg("Tarjeta")}${seg("Otro")}</div>
          <div id="cobroEfectivo"></div>
          <label style="display:flex;align-items:center;gap:8px;margin-top:6px;font-weight:500;cursor:pointer"><input id="hos_print" type="checkbox" style="width:auto" checked/> 🖨️ Imprimir ticket en la impresora</label>
-         <p class="muted" style="font-size:12px;margin-top:10px">Se emitirá un ticket (factura simplificada) por la consumición; la propina no va en el ticket. Se descontará el stock y la mesa quedará libre.</p>`,
-        async()=>{ const metodo=cobroMetodo; const imprimir=document.getElementById("hos_print").checked; const propina=cobroPropinaCent; await hosCola;
-          const c=await api("/comandas/"+id+"/cobrar",{method:"POST",body:JSON.stringify({metodo})});
+         <p class="muted" style="font-size:12px;margin-top:10px">El descuento va en el ticket (recalcula base e IVA); la propina no. Se emite la factura simplificada, se descuenta el stock y la mesa queda libre.</p>`,
+        async()=>{ const metodo=cobroMetodo; const imprimir=document.getElementById("hos_print").checked; const propina=cobroPropinaCent; const desc=cobroDescPct; await hosCola;
+          const c=await api("/comandas/"+id+"/cobrar",{method:"POST",body:JSON.stringify({metodo,descuentoPorcentaje:desc})});
           const cambio=metodo==="Efectivo" && cobroCent>=cobroTotalCent() ? (cobroCent-cobroTotalCent())/100 : 0;
-          const propTxt=propina>0?(" · propina "+eur(propina/100)):"";
-          toast((cambio>0?("Cobrado · cambio "+eur(cambio)):("Cobrado · ticket "+(c.numeroTicket||"")))+propTxt,"ok");
+          const extra=(desc>0?(" · dto "+desc+"%"):"")+(propina>0?(" · propina "+eur(propina/100)):"");
+          toast((cambio>0?("Cobrado · cambio "+eur(cambio)):("Cobrado · ticket "+(c.numeroTicket||"")))+extra,"ok");
           if(imprimir && c.facturaId){ try{ await api("/facturas/"+c.facturaId+"/imprimir",{method:"POST"}); toast("🖨️ Ticket enviado a la impresora","ok"); }catch(e){ toast(e.message,"err"); } }
           vHosteleria(); });
       const ok=document.getElementById("modalOk"); if(ok) ok.textContent="Cobrar";
       cobroPintarEfectivo();
     }
+    function cobroDescuento(pct){ cobroDescPct=Math.max(0,Math.min(100,pct));
+      document.querySelectorAll(".prop-quick button[data-d]").forEach(b=>b.classList.toggle("on", Number(b.dataset.d)===cobroDescPct));
+      cobroRefrescarTotal();
+    }
+    function cobroDescOtro(){ const v=prompt("Descuento en % (0–100):", cobroDescPct||""); if(v===null)return; const p=Number(String(v).replace(",",".")); if(!(p>=0&&p<=100)){ toast("Descuento no válido","err"); return; }
+      cobroDescPct=Math.round(p*100)/100; document.querySelectorAll(".prop-quick button[data-d]").forEach(b=>b.classList.remove("on")); cobroRefrescarTotal(); }
+    function cobroRefrescarTotal(){
+      const v=document.getElementById("cobroTotalVal"); if(v) v.textContent=eur(cobroTotalDesc()/100);
+      const ln=document.getElementById("cobroDescLn"); if(ln){ if(cobroDescPct>0){ ln.style.display=""; ln.innerHTML=`Descuento ${cobroDescPct}% · antes <span style="text-decoration:line-through">${eur(cobroTotal)}</span>`; } else ln.style.display="none"; }
+      cobroPintarPersona();
+      cobroPintarCambio();
+    }
+    function cobroPintarPersona(){
+      const el=document.getElementById("cobroPerImp"); if(!el)return;
+      if(cobroPersonas>1){ el.style.display=""; el.textContent=`${eur(cobroPorPersona()/100)} / persona`; }
+      else el.style.display="none";
+    }
     function cobroPropina(tipo){
-      const baseC=Math.round(cobroTotal*100);
+      const baseC=cobroTotalDesc();
       if(tipo==="5") cobroPropinaCent=Math.round(baseC*0.05);
       else if(tipo==="10") cobroPropinaCent=Math.round(baseC*0.10);
       else if(tipo==="round") cobroPropinaCent=(Math.ceil(baseC/100)*100)-baseC;
@@ -1092,8 +1131,8 @@
     }
     function cobroDiv(delta){ cobroPersonas=Math.max(1,Math.min(20,cobroPersonas+delta));
       const n=document.getElementById("cobroPers"); if(n) n.textContent=cobroPersonas;
-      const pp=document.getElementById("cobroPP"); if(pp){ if(cobroPersonas>1){ pp.style.display=""; pp.textContent=`÷ ${cobroPersonas} = ${eur(cobroPorPersona()/100)} por persona`; } else pp.style.display="none"; } }
-    function cobroPorPersona(){ return Math.ceil(Math.round(cobroTotal*100)/cobroPersonas); } // céntimos, redondeo al alza
+      cobroPintarPersona(); }
+    function cobroPorPersona(){ return Math.ceil(cobroTotalDesc()/cobroPersonas); } // céntimos, redondeo al alza (sobre el total con descuento)
     function cobroKey(d){ if(cobroCent>=9999999)return; cobroCent=cobroCent*10+Number(d); cobroActualizar(); }
     function cobroBorrar(){ cobroCent=Math.floor(cobroCent/10); cobroActualizar(); }
     function cobroCero(){ cobroCent=0; cobroActualizar(); }

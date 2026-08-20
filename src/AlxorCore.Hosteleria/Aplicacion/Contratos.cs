@@ -56,12 +56,13 @@ public sealed record ComandaDto(
     string? NumeroTicket,
     bool TieneCobroParcial,
     decimal TotalPendienteCobro,
+    decimal DescuentoPorcentaje,
     IReadOnlyList<LineaComandaDto> Lineas)
 {
     public static ComandaDto Desde(Comanda c) => new(
         c.Id, c.MesaId, c.Estado.ToString(), c.AbiertaEn, c.CerradaEn, c.Notas,
         c.BaseImponible, c.CuotaIva, c.Total, c.MetodoCobro?.ToString(), c.FacturaId, c.NumeroTicket,
-        c.TieneCobroParcial, c.TotalPendienteCobro,
+        c.TieneCobroParcial, c.TotalPendienteCobro, c.DescuentoPorcentaje,
         c.Lineas.Select(LineaComandaDto.Desde).ToList());
 }
 

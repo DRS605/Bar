@@ -331,4 +331,50 @@ public class ComandaTests
 
         destino.AbsorberDe(origen, Reloj).Error.Codigo.Should().Be("comanda.juntar_con_cobro_parcial");
     }
+
+    [Fact]
+    public void Cambiar_el_precio_de_una_linea_recalcula_y_permite_invitar()
+    {
+        var comanda = ComandaAbierta();
+        var canas = comanda.AgregarLinea(Producto, "Caña", 2m, 1.50m, "IVA10", 10m, Reloj).Valor; // total 3,30
+
+        comanda.CambiarPrecioLinea(canas.Id, 1.00m, Reloj).EsCorrecto.Should().BeTrue();
+        canas.PrecioUnitario.Should().Be(1.00m);
+        comanda.Total.Should().Be(2.20m); // 2×1,00 + 10% IVA
+
+        comanda.CambiarPrecioLinea(canas.Id, 0m, Reloj).EsCorrecto.Should().BeTrue(); // invitar
+        comanda.Total.Should().Be(0m);
+    }
+
+    [Fact]
+    public void No_se_puede_cambiar_el_precio_de_una_linea_ya_cobrada()
+    {
+        var comanda = ComandaAbierta();
+        var canas = comanda.AgregarLinea(Producto, "Caña", 2m, 1.50m, "IVA10", 10m, Reloj).Valor;
+        comanda.AplicarCobroParcial([new ItemCobroParcial(canas.Id, 1m)], Guid.NewGuid(), "T2026/000001", MetodoCobro.Efectivo, Reloj);
+
+        comanda.CambiarPrecioLinea(canas.Id, 1.00m, Reloj).Error.Codigo.Should().Be("comanda.linea_cobrada");
+    }
+
+    [Fact]
+    public void Aplicar_descuento_reduce_base_iva_y_total()
+    {
+        var comanda = ComandaAbierta();
+        comanda.AgregarLinea(Producto, "Caña", 2m, 1.50m, "IVA10", 10m, Reloj); // base 3,00 · IVA 0,30 · total 3,30
+
+        comanda.AplicarDescuento(10m, Reloj).EsCorrecto.Should().BeTrue();
+
+        comanda.DescuentoPorcentaje.Should().Be(10m);
+        comanda.BaseImponible.Should().Be(2.70m); // 3,00 − 10%
+        comanda.CuotaIva.Should().Be(0.27m);       // 10% de 2,70
+        comanda.Total.Should().Be(2.97m);
+    }
+
+    [Fact]
+    public void Un_descuento_fuera_de_rango_falla()
+    {
+        var comanda = ComandaAbierta();
+        comanda.AgregarLinea(Producto, "Caña", 1m, 1.50m, "IVA10", 10m, Reloj);
+        comanda.AplicarDescuento(120m, Reloj).Error.Codigo.Should().Be("comanda.descuento_invalido");
+    }
 }

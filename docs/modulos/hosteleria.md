@@ -30,10 +30,13 @@ Ciclo de vida:
    catálogo**; su precio y su IVA se **congelan** en ese momento, de modo que un cambio de tarifa
    posterior no altere una cuenta ya en marcha. Pedir **el mismo producto** (al mismo precio e IVA) se
    **acumula en su línea** (una comanda muestra «Caña ×3», no tres líneas); un precio distinto abre
-   línea nueva. Se puede **fijar la cantidad** de una línea (botones +/− del TPV). Los totales se
-   recalculan en cada cambio.
+   línea nueva. Se puede **fijar la cantidad** de una línea (botones +/− del TPV) y **cambiar su precio
+   a mano** («hacer precio», o 0 para **invitar**). Los totales se recalculan en cada cambio. No se puede
+   cambiar el precio de una línea ya cobrada en parte.
 3. **Cobrar**: emite un **ticket** (factura simplificada, serie `T`) con las líneas congeladas y elige
-   la forma de cobro (Efectivo/Tarjeta/Otro). La comanda queda **Cobrada** e inmutable y la mesa libre.
+   la forma de cobro (Efectivo/Tarjeta/Otro). Admite un **descuento global** (%) que **recalcula base e
+   IVA por línea** —de modo que el ticket cuadra— y queda asentado en la comanda. La comanda queda
+   **Cobrada** e inmutable y la mesa libre.
 4. **Repartir la cuenta por artículos** (cobro parcial): cobra **parte** de la comanda emitiendo un
    ticket solo por los artículos y cantidades indicados. Cada línea lleva la cuenta de lo ya cobrado
    (`CantidadCobrada`), así que la mesa **sigue abierta** con lo que falta hasta que el último pago la
@@ -104,6 +107,7 @@ marca lo enviado). En el editor de comanda, el botón **«🍳 Cocina»** lo dis
 | `POST` | `/comandas` | permiso `hosteleria.gestionar` | Abre una comanda en una mesa. **201** |
 | `POST` | `/comandas/{id}/lineas` | permiso `hosteleria.gestionar` | Añade un producto (acumula si se repite). |
 | `PUT` | `/comandas/{id}/lineas/{lineaId}` | permiso `hosteleria.gestionar` | Fija la cantidad de una línea (+/−). |
+| `PUT` | `/comandas/{id}/lineas/{lineaId}/precio` | permiso `hosteleria.gestionar` | Cambia el precio de una línea (hacer precio o invitar con 0). |
 | `DELETE` | `/comandas/{id}/lineas/{lineaId}` | permiso `hosteleria.gestionar` | Quita una línea. |
 | `POST` | `/comandas/{id}/cocina` | permiso `hosteleria.gestionar` | Envía a cocina los artículos nuevos (marca e imprime). |
 | `GET` | `/comandas/{id}/cuenta.escpos` | permiso `hosteleria.gestionar` | Descarga la cuenta previa (pre-ticket, sin valor fiscal) en ESC/POS. |
@@ -127,12 +131,13 @@ ofrece escritura (`IRepositorioMesas`, `IRepositorioComandas`) y consultas (`ICo
 Sección **«Barra / Salón»**: rejilla de mesas (libres/ocupadas con su total) y **TPV de mesa** rápido —
 una **rejilla de productos** (un toque = pedir, con búsqueda/escáner y **filtros por categoría** cuando
 los artículos la tienen —«Cervezas», «Tapas»…— más «Otros» para los que no) y la **comanda en vivo** con
-selectores **+/−** por línea y total al instante. Los toques se reflejan de inmediato (optimista) y se
+selectores **+/−** por línea, **precio editable** por línea (tocar el precio para «hacer precio» o
+invitar) y total al instante. Los toques se reflejan de inmediato (optimista) y se
 sincronizan en una cola (una operación a la vez, para no chocar); la respuesta del servidor manda. Desde
 ahí se anula o se **cobra**: forma de pago con botones grandes, **teclado numérico** que calcula el
-**cambio a devolver** en efectivo, **propina** (5 %, 10 % o redondear al alza; se suma a lo que se cobra
-y al cálculo del cambio, pero **no va en el ticket**), **dividir a escote** (importe por comensal) y
-**«Repartir»** la
+**cambio a devolver** en efectivo, **descuento** (%, con «Otro…» libre; recalcula base e IVA y **sí va
+en el ticket**), **propina** (5 %, 10 % o redondear; se suma a lo que se cobra y al cambio, pero **no va
+en el ticket**), **dividir a escote** con el **importe por comensal** a la vista, y **«Repartir»** la
 cuenta **por artículos** —elegir lo que paga cada uno y emitir su ticket, dejando la mesa abierta hasta
 el último pago—, con opción de **imprimir el ticket** en la impresora térmica (ver módulo Documentos).
 El botón **«🧾 Cuenta»** imprime la **cuenta previa** (pre-ticket, sin valor fiscal) para que el cliente
@@ -153,11 +158,14 @@ dibujo** del plano en SVG para imprimirlo.
   parcial, rechazar cobrar más de lo pendiente, no cerrar mientras quede pendiente, **cerrar al saldar
   lo último**, y no poder quitar ni bajar una línea por debajo de lo ya cobrado; **mover** de mesa y
   rechazo de la misma mesa; **juntar** acumulando líneas y cerrando la de origen, y rechazo si hay un
-  cobro parcial en curso).
+  cobro parcial en curso; **cambiar el precio** de una línea —incluido invitar con 0— y rechazo si ya
+  está cobrada; y **aplicar descuento** recalculando base e IVA, con rechazo fuera de rango).
 - **Integración**: flujo completo abrir → pedir → cobrar (genera ticket, libera la mesa y descuenta
   stock), crear barra con forma y recolocarla en el plano, una sola comanda por mesa, listado de
   abiertas, acumular el mismo producto en una línea, fijar la cantidad de una línea (y rechazar cero),
-  quitar línea, **enviar a cocina los artículos nuevos sin repetirlos**, cobro que figura en el cierre
+  quitar línea, **cambiar el precio de una línea** (recalcula el total), **cobro con descuento** (el
+  ticket y la caja llevan el importe con descuento), **enviar a cocina los artículos nuevos sin
+  repetirlos**, cobro que figura en el cierre
   de caja, **reparto por artículos** (un ticket por comensal, la mesa sigue abierta hasta el último pago
   y cada cobro figura en caja; y rechazo del cobro por encima de lo pendiente), **cuenta previa** en
   ESC/POS (se descarga sin emitir factura ni cerrar la mesa; aviso al imprimir sin impresora), **mover

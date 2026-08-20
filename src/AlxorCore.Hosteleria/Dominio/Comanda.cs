@@ -96,8 +96,11 @@ public sealed class Comanda : RaizAgregadoEmpresa<Guid>
     /// <summary>Cuota de IVA acumulada de las líneas.</summary>
     public decimal CuotaIva { get; private set; }
 
-    /// <summary>Total a pagar (base + IVA).</summary>
+    /// <summary>Total a pagar (base + IVA, ya con el descuento aplicado si lo hay).</summary>
     public decimal Total { get; private set; }
+
+    /// <summary>Descuento global sobre la cuenta, en porcentaje (0–100). Reduce base e IVA.</summary>
+    public decimal DescuentoPorcentaje { get; private set; }
 
     /// <summary>Forma de cobro empleada; nulo mientras no se ha cobrado.</summary>
     public MetodoCobro? MetodoCobro { get; private set; }
@@ -223,6 +226,63 @@ public sealed class Comanda : RaizAgregadoEmpresa<Guid>
         linea.FijarCantidad(cantidad);
         Recalcular(reloj);
         return Resultado.Ok(linea);
+    }
+
+    /// <summary>
+    /// Cambia el precio unitario de una línea (hacer precio a mano, o 0 para invitar). Solo mientras la
+    /// comanda está abierta y la línea no se haya cobrado ya en parte. Recalcula base, IVA y total.
+    /// </summary>
+    public Resultado<LineaComanda> CambiarPrecioLinea(Guid lineaId, decimal precioUnitario, IReloj reloj)
+    {
+        ArgumentNullException.ThrowIfNull(reloj);
+
+        if (Estado != EstadoComanda.Abierta)
+        {
+            return Resultado.Fallo<LineaComanda>(Error.Conflicto("comanda.no_abierta", "Solo se puede cambiar el precio en una comanda abierta."));
+        }
+
+        var linea = _lineas.SingleOrDefault(l => l.Id == lineaId);
+        if (linea is null)
+        {
+            return Resultado.Fallo<LineaComanda>(Error.NoEncontrado("comanda.linea_no_encontrada", "La línea no existe en la comanda."));
+        }
+
+        if (precioUnitario < 0)
+        {
+            return Resultado.Fallo<LineaComanda>(Error.Validacion("comanda.precio_negativo", "El precio no puede ser negativo."));
+        }
+
+        if (linea.CantidadCobrada > 0)
+        {
+            return Resultado.Fallo<LineaComanda>(Error.Conflicto("comanda.linea_cobrada", "No se puede cambiar el precio de una línea ya cobrada en parte."));
+        }
+
+        linea.FijarPrecio(precioUnitario);
+        Recalcular(reloj);
+        return Resultado.Ok(linea);
+    }
+
+    /// <summary>
+    /// Aplica un descuento global a la cuenta, en porcentaje (0–100). Reduce base e IVA por igual y el
+    /// ticket lo refleja como descuento por línea. Solo mientras la comanda está abierta.
+    /// </summary>
+    public Resultado AplicarDescuento(decimal porcentaje, IReloj reloj)
+    {
+        ArgumentNullException.ThrowIfNull(reloj);
+
+        if (Estado != EstadoComanda.Abierta)
+        {
+            return Resultado.Fallo(Error.Conflicto("comanda.no_abierta", "Solo se puede aplicar un descuento a una comanda abierta."));
+        }
+
+        if (porcentaje is < 0m or > 100m)
+        {
+            return Resultado.Fallo(Error.Validacion("comanda.descuento_invalido", "El descuento debe estar entre 0 y 100%."));
+        }
+
+        DescuentoPorcentaje = porcentaje;
+        Recalcular(reloj);
+        return Resultado.Ok();
     }
 
     /// <summary>
@@ -470,8 +530,11 @@ public sealed class Comanda : RaizAgregadoEmpresa<Guid>
     private void Recalcular(IReloj reloj)
     {
         _ = reloj;
-        BaseImponible = Redondeo.Dos(_lineas.Sum(l => l.Base));
-        CuotaIva = Redondeo.Dos(_lineas.Sum(l => l.CuotaIva));
+        // El descuento se aplica por línea (igual que en el ticket): reduce la base y el IVA se calcula
+        // sobre la base ya descontada, de modo que la comanda y la factura simplificada cuadran al céntimo.
+        var factor = 1m - (DescuentoPorcentaje / 100m);
+        BaseImponible = Redondeo.Dos(_lineas.Sum(l => Redondeo.Dos(l.Base * factor)));
+        CuotaIva = Redondeo.Dos(_lineas.Sum(l => Redondeo.Dos(Redondeo.Dos(l.Base * factor) * l.PorcentajeIva / 100m)));
         Total = Redondeo.Dos(BaseImponible + CuotaIva);
     }
 
