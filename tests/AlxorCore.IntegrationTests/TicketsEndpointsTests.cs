@@ -35,7 +35,7 @@ public sealed class TicketsEndpointsTests : IClassFixture<FabricaApiPruebas>
         ticket!.NumeroCompleto.Should().Be($"T{anio}/000001");
         ticket.Tipo.Should().Be("Simplificada");
         ticket.ClienteNombre.Should().Be("Cliente de contado");
-        ticket.Total.Should().Be(3.30m); // 3,00 + 10% IVA
+        ticket.Total.Should().Be(3.00m); // precios con IVA incluido: 2 × 1,50 = 3,00
     }
 
     [Fact]

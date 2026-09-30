@@ -160,7 +160,8 @@ internal static class RegistroVerifactu
 internal static class ResolucionLineasFactura
 {
     public static async Task<Resultado<List<NuevaLinea>>> ResolverAsync(
-        IReadOnlyList<LineaComando> lineas, IConsultaProductos productos, CancellationToken ct, bool recargoEquivalencia = false)
+        IReadOnlyList<LineaComando> lineas, IConsultaProductos productos, CancellationToken ct,
+        bool recargoEquivalencia = false, bool precioConIvaIncluido = false)
     {
         var resueltas = new List<NuevaLinea>(lineas.Count);
         foreach (var linea in lineas)
@@ -202,7 +203,7 @@ internal static class ResolucionLineasFactura
 
             var porcentajeRecargo = recargoEquivalencia ? Impuesto.RecargoEquivalencia(impuesto.Valor.Porcentaje) : 0m;
             resueltas.Add(new NuevaLinea(
-                descripcion, linea.Cantidad, precio.Value, impuesto.Valor.Codigo, impuesto.Valor.Porcentaje, linea.PorcentajeDescuento, linea.ProductoId, coste ?? 0m, porcentajeRecargo));
+                descripcion, linea.Cantidad, precio.Value, impuesto.Valor.Codigo, impuesto.Valor.Porcentaje, linea.PorcentajeDescuento, linea.ProductoId, coste ?? 0m, porcentajeRecargo, precioConIvaIncluido));
         }
 
         return Resultado.Ok(resueltas);

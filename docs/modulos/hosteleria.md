@@ -28,7 +28,9 @@ Ciclo de vida:
 1. **Abrir** una comanda en una mesa **libre** (una mesa no puede tener dos comandas abiertas a la vez).
 2. **Añadir / ajustar / quitar líneas** mientras está abierta. Cada línea se toma de un **producto del
    catálogo**; su precio y su IVA se **congelan** en ese momento, de modo que un cambio de tarifa
-   posterior no altere una cuenta ya en marcha. Pedir **el mismo producto** (al mismo precio e IVA) se
+   posterior no altere una cuenta ya en marcha. **El precio lleva el IVA incluido** (PVP: lo que paga el
+   cliente); la base imponible se desglosa hacia atrás (`DesgloseIva.DesdeBruto`, en Núcleo), de modo que
+   `base + IVA == importe` al céntimo y la comanda cuadra con el ticket. Pedir **el mismo producto** (al mismo precio e IVA) se
    **acumula en su línea** (una comanda muestra «Caña ×3», no tres líneas); un precio distinto abre
    línea nueva. Se puede **fijar la cantidad** de una línea (botones +/− del TPV) y **cambiar su precio
    a mano** («hacer precio», o 0 para **invitar**). Los totales se recalculan en cada cambio. No se puede

@@ -31,8 +31,7 @@ public sealed class LineaComanda : EntidadBase<Guid>
         CodigoIva = codigoIva;
         PorcentajeIva = porcentajeIva;
 
-        Base = Redondeo.Dos(Cantidad * PrecioUnitario);
-        CuotaIva = Redondeo.Dos(Base * PorcentajeIva / 100m);
+        Recalcular();
     }
 
     /// <summary>Empresa (para el aislamiento multiempresa de la tabla de líneas).</summary>
@@ -51,19 +50,20 @@ public sealed class LineaComanda : EntidadBase<Guid>
 
     public decimal Cantidad { get; private set; }
 
+    /// <summary>Precio unitario <b>con IVA incluido</b> (PVP): es el importe que paga el cliente por unidad.</summary>
     public decimal PrecioUnitario { get; private set; }
 
     public string CodigoIva { get; private set; }
 
     public decimal PorcentajeIva { get; private set; }
 
-    /// <summary>Base imponible de la línea (cantidad × precio).</summary>
+    /// <summary>Base imponible de la línea (IVA excluido), derivada del importe con IVA incluido.</summary>
     public decimal Base { get; private set; }
 
     /// <summary>Cuota de IVA de la línea.</summary>
     public decimal CuotaIva { get; private set; }
 
-    /// <summary>Importe total de la línea con IVA incluido.</summary>
+    /// <summary>Importe total de la línea con IVA incluido (cantidad × precio, con IVA ya dentro).</summary>
     public decimal Total => Redondeo.Dos(Base + CuotaIva);
 
     /// <summary>Cantidad de esta línea ya enviada a cocina/barra (para acumular reenvíos parciales).</summary>
@@ -78,14 +78,30 @@ public sealed class LineaComanda : EntidadBase<Guid>
     /// <summary>Cantidad todavía pendiente de cobro (lo pedido menos lo ya cobrado).</summary>
     public decimal CantidadPendienteCobro => Cantidad > CantidadCobrada ? Cantidad - CantidadCobrada : 0m;
 
-    /// <summary>Base imponible de la parte pendiente de cobro.</summary>
-    public decimal BasePendiente => Redondeo.Dos(CantidadPendienteCobro * PrecioUnitario);
+    /// <summary>Base imponible de la parte pendiente de cobro (derivada del importe con IVA incluido).</summary>
+    public decimal BasePendiente => DesglosarPendiente().Base;
 
     /// <summary>Cuota de IVA de la parte pendiente de cobro.</summary>
-    public decimal CuotaIvaPendiente => Redondeo.Dos(BasePendiente * PorcentajeIva / 100m);
+    public decimal CuotaIvaPendiente => DesglosarPendiente().CuotaIva;
 
     /// <summary>Importe total (con IVA) de la parte pendiente de cobro.</summary>
-    public decimal TotalPendiente => Redondeo.Dos(BasePendiente + CuotaIvaPendiente);
+    public decimal TotalPendiente => Redondeo.Dos(BrutoDe(CantidadPendienteCobro));
+
+    private (decimal Base, decimal CuotaIva) DesglosarPendiente()
+    {
+        var (b, cuota, _) = DesgloseIva.DesdeBruto(BrutoDe(CantidadPendienteCobro), PorcentajeIva);
+        return (b, cuota);
+    }
+
+    private decimal BrutoDe(decimal cantidad) => Redondeo.Dos(cantidad * PrecioUnitario);
+
+    /// <summary>Recalcula base e IVA a partir del importe con IVA incluido (cantidad × precio).</summary>
+    private void Recalcular()
+    {
+        var (b, cuota, _) = DesgloseIva.DesdeBruto(BrutoDe(Cantidad), PorcentajeIva);
+        Base = b;
+        CuotaIva = cuota;
+    }
 
     /// <summary>Suma cantidad a la parte ya cobrada de la línea (al emitir un ticket parcial).</summary>
     internal void RegistrarCobrado(decimal cantidad) => CantidadCobrada += cantidad;
@@ -112,16 +128,14 @@ public sealed class LineaComanda : EntidadBase<Guid>
     internal void FijarCantidad(decimal cantidad)
     {
         Cantidad = cantidad;
-        Base = Redondeo.Dos(Cantidad * PrecioUnitario);
-        CuotaIva = Redondeo.Dos(Base * PorcentajeIva / 100m);
+        Recalcular();
     }
 
-    /// <summary>Fija el precio unitario de la línea (hacer precio o invitar con 0) y recalcula base e IVA.</summary>
+    /// <summary>Fija el precio unitario (con IVA incluido) de la línea (hacer precio o invitar con 0) y recalcula base e IVA.</summary>
     internal void FijarPrecio(decimal precioUnitario)
     {
         PrecioUnitario = precioUnitario;
-        Base = Redondeo.Dos(Cantidad * PrecioUnitario);
-        CuotaIva = Redondeo.Dos(Base * PorcentajeIva / 100m);
+        Recalcular();
     }
 
     /// <summary>Fija la nota de preparación de la línea (para cocina). Vacía o nula la borra.</summary>

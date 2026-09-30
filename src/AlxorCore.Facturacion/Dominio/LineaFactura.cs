@@ -30,9 +30,19 @@ public sealed class LineaFactura : EntidadBase<Guid>
         PorcentajeIva = datos.PorcentajeIva;
         PorcentajeRecargo = datos.PorcentajeRecargo;
 
-        Base = Redondeo.Dos(Cantidad * PrecioUnitario * (1 - (PorcentajeDescuento / 100m)));
-        CuotaIva = Redondeo.Dos(Base * PorcentajeIva / 100m);
-        CuotaRecargo = Redondeo.Dos(Base * PorcentajeRecargo / 100m);
+        if (datos.PrecioConIvaIncluido)
+        {
+            // El precio ya incluye el IVA (hostelería/TPV): se desglosa la base hacia atrás, de modo
+            // que base + IVA + recargo == importe con IVA incluido (lo que paga el cliente).
+            var bruto = Redondeo.Dos(Cantidad * PrecioUnitario * (1 - (PorcentajeDescuento / 100m)));
+            (Base, CuotaIva, CuotaRecargo) = DesgloseIva.DesdeBruto(bruto, PorcentajeIva, PorcentajeRecargo);
+        }
+        else
+        {
+            Base = Redondeo.Dos(Cantidad * PrecioUnitario * (1 - (PorcentajeDescuento / 100m)));
+            CuotaIva = Redondeo.Dos(Base * PorcentajeIva / 100m);
+            CuotaRecargo = Redondeo.Dos(Base * PorcentajeRecargo / 100m);
+        }
     }
 
     /// <summary>Empresa (para el aislamiento multiempresa de la tabla de líneas).</summary>

@@ -99,9 +99,10 @@ public class ComandaTests
 
         linea.EsCorrecto.Should().BeTrue();
         comanda.Lineas.Should().ContainSingle();
-        comanda.BaseImponible.Should().Be(3.00m);
-        comanda.CuotaIva.Should().Be(0.30m);
-        comanda.Total.Should().Be(3.30m);
+        // El precio lleva IVA incluido: 2 × 1,50 = 3,00 (lo que paga el cliente); la base se desglosa.
+        comanda.BaseImponible.Should().Be(2.73m); // 3,00 / 1,10
+        comanda.CuotaIva.Should().Be(0.27m);       // 3,00 − 2,73
+        comanda.Total.Should().Be(3.00m);
     }
 
     [Fact]
@@ -121,8 +122,8 @@ public class ComandaTests
         segunda.EsCorrecto.Should().BeTrue();
         comanda.Lineas.Should().ContainSingle();
         comanda.Lineas[0].Cantidad.Should().Be(3m);
-        comanda.BaseImponible.Should().Be(4.50m);
-        comanda.Total.Should().Be(4.95m);
+        comanda.BaseImponible.Should().Be(4.09m); // 3 × 1,50 = 4,50 con IVA incl. → base 4,50/1,10
+        comanda.Total.Should().Be(4.50m);
     }
 
     [Fact]
@@ -159,8 +160,8 @@ public class ComandaTests
         comanda.QuitarLinea(a.Id, Reloj).EsCorrecto.Should().BeTrue();
 
         comanda.Lineas.Should().ContainSingle();
-        comanda.BaseImponible.Should().Be(4.00m);
-        comanda.Total.Should().Be(4.40m);
+        comanda.BaseImponible.Should().Be(3.64m); // Tapa 4,00 con IVA incl. → base 4,00/1,10
+        comanda.Total.Should().Be(4.00m);
     }
 
     [Fact]
@@ -250,7 +251,7 @@ public class ComandaTests
         comanda.Estado.Should().Be(EstadoComanda.Abierta);
         comanda.TieneCobroParcial.Should().BeTrue();
         canas.CantidadPendienteCobro.Should().Be(1m);
-        comanda.TotalPendienteCobro.Should().Be(1.65m); // 1 × 1,50 + 10% IVA
+        comanda.TotalPendienteCobro.Should().Be(1.50m); // 1 × 1,50 (IVA incluido)
     }
 
     [Fact]
@@ -314,7 +315,7 @@ public class ComandaTests
 
         destino.Lineas.Single(l => l.Descripcion == "Caña").Cantidad.Should().Be(3m); // 2 + 1 acumuladas
         destino.Lineas.Should().Contain(l => l.Descripcion == "Tapa" && l.Cantidad == 1m);
-        destino.Total.Should().Be(9.35m); // (3×1,50 + 4,00) = 8,50 + 10% IVA
+        destino.Total.Should().Be(8.50m); // 3×1,50 + 4,00 = 8,50 (IVA incluido)
         origen.Estado.Should().Be(EstadoComanda.Juntada);
         origen.CerradaEn.Should().NotBeNull();
         origen.EventosDominio.Should().Contain(e => e is ComandaJuntada);
@@ -336,11 +337,11 @@ public class ComandaTests
     public void Cambiar_el_precio_de_una_linea_recalcula_y_permite_invitar()
     {
         var comanda = ComandaAbierta();
-        var canas = comanda.AgregarLinea(Producto, "Caña", 2m, 1.50m, "IVA10", 10m, Reloj).Valor; // total 3,30
+        var canas = comanda.AgregarLinea(Producto, "Caña", 2m, 1.50m, "IVA10", 10m, Reloj).Valor; // total 3,00 (IVA incl.)
 
         comanda.CambiarPrecioLinea(canas.Id, 1.00m, Reloj).EsCorrecto.Should().BeTrue();
         canas.PrecioUnitario.Should().Be(1.00m);
-        comanda.Total.Should().Be(2.20m); // 2×1,00 + 10% IVA
+        comanda.Total.Should().Be(2.00m); // 2×1,00 (IVA incluido)
 
         comanda.CambiarPrecioLinea(canas.Id, 0m, Reloj).EsCorrecto.Should().BeTrue(); // invitar
         comanda.Total.Should().Be(0m);
@@ -360,14 +361,15 @@ public class ComandaTests
     public void Aplicar_descuento_reduce_base_iva_y_total()
     {
         var comanda = ComandaAbierta();
-        comanda.AgregarLinea(Producto, "Caña", 2m, 1.50m, "IVA10", 10m, Reloj); // base 3,00 · IVA 0,30 · total 3,30
+        comanda.AgregarLinea(Producto, "Caña", 2m, 1.50m, "IVA10", 10m, Reloj); // 2×1,50 = 3,00 (IVA incl.)
 
         comanda.AplicarDescuento(10m, Reloj).EsCorrecto.Should().BeTrue();
 
         comanda.DescuentoPorcentaje.Should().Be(10m);
-        comanda.BaseImponible.Should().Be(2.70m); // 3,00 − 10%
-        comanda.CuotaIva.Should().Be(0.27m);       // 10% de 2,70
-        comanda.Total.Should().Be(2.97m);
+        // 3,00 − 10% = 2,70 (con IVA); base 2,70/1,10 = 2,45; IVA 0,25.
+        comanda.BaseImponible.Should().Be(2.45m);
+        comanda.CuotaIva.Should().Be(0.25m);
+        comanda.Total.Should().Be(2.70m);
     }
 
     [Fact]

@@ -85,16 +85,17 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
         conLinea.StatusCode.Should().Be(HttpStatusCode.OK);
         var actualizada = (await conLinea.Content.ReadFromJsonAsync<ComandaResp>())!;
         actualizada.Lineas.Should().ContainSingle();
-        actualizada.BaseImponible.Should().Be(4.50m);
-        actualizada.CuotaIva.Should().Be(0.45m);
-        actualizada.Total.Should().Be(4.95m);
+        // Precios con IVA incluido: 3 × 1,50 = 4,50 (lo que paga el cliente); la base se desglosa.
+        actualizada.BaseImponible.Should().Be(4.09m);
+        actualizada.CuotaIva.Should().Be(0.41m);
+        actualizada.Total.Should().Be(4.50m);
 
         // La mesa figura ocupada con el total de la comanda
         var mesasOcupadas = await cliente.GetFromJsonAsync<List<MesaResp>>("/mesas");
         var mesaOcupada = mesasOcupadas!.Single(m => m.Id == mesa.Id);
         mesaOcupada.Ocupada.Should().BeTrue();
         mesaOcupada.ComandaAbiertaId.Should().Be(comanda.Id);
-        mesaOcupada.TotalComandaAbierta.Should().Be(4.95m);
+        mesaOcupada.TotalComandaAbierta.Should().Be(4.50m);
 
         // Cobrar
         var cobrar = await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/cobrar", new { Metodo = "Tarjeta" });
@@ -111,7 +112,7 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
 
         // Se generó un ticket (factura simplificada)
         var facturas = await cliente.GetFromJsonAsync<List<FacturaResp>>("/facturas");
-        facturas.Should().Contain(f => f.Id == cobrada.FacturaId && f.Tipo == "Simplificada" && f.Total == 4.95m);
+        facturas.Should().Contain(f => f.Id == cobrada.FacturaId && f.Tipo == "Simplificada" && f.Total == 4.50m);
 
         // El stock se descontó (100 - 3)
         var tras = await cliente.GetFromJsonAsync<ProductoResp>($"/productos/{producto.Id}");
@@ -168,7 +169,7 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
         var resumen = abiertas!.Single(c => c.Id == comanda.Id);
         resumen.MesaNombre.Should().Be("Barra");
         resumen.NumeroLineas.Should().Be(1);
-        resumen.Total.Should().Be(3.30m);
+        resumen.Total.Should().Be(3.00m); // 2 × 1,50 (IVA incluido)
     }
 
     [Fact]
@@ -201,7 +202,7 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
 
         segunda.Lineas.Should().ContainSingle();
         segunda.Lineas.Single().Cantidad.Should().Be(3m);
-        segunda.Total.Should().Be(4.95m);
+        segunda.Total.Should().Be(4.50m); // 3 × 1,50 (IVA incluido)
     }
 
     [Fact]
@@ -218,7 +219,7 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
         fijar.StatusCode.Should().Be(HttpStatusCode.OK);
         var actualizada = (await fijar.Content.ReadFromJsonAsync<ComandaResp>())!;
         actualizada.Lineas.Single().Cantidad.Should().Be(5m);
-        actualizada.Total.Should().Be(8.25m);
+        actualizada.Total.Should().Be(7.50m); // 5 × 1,50 (IVA incluido)
 
         // Cantidad cero se rechaza (para eliminar se usa el borrado de la línea).
         var cero = await cliente.PutAsJsonAsync($"/comandas/{comanda.Id}/lineas/{lineaId}", new { Cantidad = 0m });
@@ -237,7 +238,7 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
 
         var precio = await cliente.PutAsJsonAsync($"/comandas/{comanda.Id}/lineas/{lineaId}/precio", new { Precio = 1.00m });
         precio.StatusCode.Should().Be(HttpStatusCode.OK);
-        (await precio.Content.ReadFromJsonAsync<ComandaResp>())!.Total.Should().Be(2.20m); // 2×1,00 + 10% IVA
+        (await precio.Content.ReadFromJsonAsync<ComandaResp>())!.Total.Should().Be(2.00m); // 2×1,00 (IVA incluido)
     }
 
     [Fact]
@@ -247,21 +248,21 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
         var producto = await CrearCañaAsync(cliente, stock: false); // 1,50 IVA10
         var mesa = await CrearMesaAsync(cliente);
         var comanda = (await (await cliente.PostAsJsonAsync("/comandas", new { MesaId = mesa.Id })).Content.ReadFromJsonAsync<ComandaResp>())!;
-        await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/lineas", new { ProductoId = producto.Id, Cantidad = 2m }); // total 3,30
+        await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/lineas", new { ProductoId = producto.Id, Cantidad = 2m }); // total 3,00 (IVA incl.)
 
         var cobrar = await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/cobrar", new { Metodo = "Efectivo", DescuentoPorcentaje = 10m });
         cobrar.StatusCode.Should().Be(HttpStatusCode.OK);
         var cobrada = (await cobrar.Content.ReadFromJsonAsync<ComandaResp>())!;
-        cobrada.Total.Should().Be(2.97m); // 3,30 − 10%
+        cobrada.Total.Should().Be(2.70m); // 3,00 − 10%
 
         // El ticket emitido lleva el importe con descuento.
         var facturas = await cliente.GetFromJsonAsync<List<FacturaResp>>("/facturas");
-        facturas.Should().Contain(f => f.Id == cobrada.FacturaId && f.Total == 2.97m);
+        facturas.Should().Contain(f => f.Id == cobrada.FacturaId && f.Total == 2.70m);
 
         // Y la caja del día cuadra con lo cobrado (con descuento).
         var hoy = DateTime.UtcNow.ToString("yyyy-MM-dd");
         var cierre = await cliente.GetFromJsonAsync<CierreResp>($"/informes/cierre-caja?dia={hoy}");
-        cierre!.CobrosPorMetodo.Should().ContainSingle(m => m.Metodo == "Efectivo" && m.Importe == 2.97m);
+        cierre!.CobrosPorMetodo.Should().ContainSingle(m => m.Metodo == "Efectivo" && m.Importe == 2.70m);
     }
 
     [Fact]
@@ -271,7 +272,7 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
         var producto = await CrearCañaAsync(cliente, stock: false); // 1,50 € IVA10
         var mesa = await CrearMesaAsync(cliente);
         var comanda = (await (await cliente.PostAsJsonAsync("/comandas", new { MesaId = mesa.Id })).Content.ReadFromJsonAsync<ComandaResp>())!;
-        await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/lineas", new { ProductoId = producto.Id, Cantidad = 2m }); // total 3,30 €
+        await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/lineas", new { ProductoId = producto.Id, Cantidad = 2m }); // total 3,00 € (IVA incl.)
 
         var cobrar = await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/cobrar", new { Metodo = "Tarjeta" });
         cobrar.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -279,8 +280,8 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
         // La venta del bar aparece en el cierre de caja del día, por su forma de pago.
         var hoy = DateTime.UtcNow.ToString("yyyy-MM-dd");
         var cierre = await cliente.GetFromJsonAsync<CierreResp>($"/informes/cierre-caja?dia={hoy}");
-        cierre!.CobrosPorMetodo.Should().ContainSingle(m => m.Metodo == "Tarjeta" && m.Importe == 3.30m && m.Numero == 1);
-        cierre.TotalCobrado.Should().Be(3.30m);
+        cierre!.CobrosPorMetodo.Should().ContainSingle(m => m.Metodo == "Tarjeta" && m.Importe == 3.00m && m.Numero == 1);
+        cierre.TotalCobrado.Should().Be(3.00m);
     }
 
     [Fact]
@@ -302,29 +303,29 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
         var lineaCana = conTapa.Lineas.Single(l => l.ProductoId == cana.Id);
         var lineaTapa = conTapa.Lineas.Single(l => l.ProductoId == tapa.Id);
 
-        // Primer comensal paga sus 2 cañas (3,30 €): se emite un ticket y la mesa sigue abierta con lo que falta.
+        // Primer comensal paga sus 2 cañas (3,00 €): se emite un ticket y la mesa sigue abierta con lo que falta.
         var pago1 = await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/cobrar-parcial",
             new { Items = new[] { new { LineaId = lineaCana.Id, Cantidad = 2m } }, Metodo = "Efectivo" });
         pago1.StatusCode.Should().Be(HttpStatusCode.OK);
         var r1 = (await pago1.Content.ReadFromJsonAsync<CobroParcialResp>())!;
-        r1.Total.Should().Be(3.30m);
+        r1.Total.Should().Be(3.00m);
         r1.NumeroTicket.Should().Be($"T{anio}/000001");
         r1.Cerrada.Should().BeFalse();
         r1.Comanda.Estado.Should().Be("Abierta");
         r1.Comanda.TieneCobroParcial.Should().BeTrue();
-        r1.Comanda.TotalPendienteCobro.Should().Be(4.40m); // la tapa: 4,00 + 10%
+        r1.Comanda.TotalPendienteCobro.Should().Be(4.00m); // la tapa: 4,00 (IVA incluido)
         r1.Comanda.Lineas.Single(l => l.ProductoId == cana.Id).CantidadPendienteCobro.Should().Be(0m);
 
         // La mesa sigue ocupada mientras quede algo por cobrar.
         var mesasMedias = await cliente.GetFromJsonAsync<List<MesaResp>>("/mesas");
         mesasMedias!.Single(m => m.Id == mesa.Id).Ocupada.Should().BeTrue();
 
-        // Segundo comensal paga la tapa (4,40 €): el último pago cierra la comanda y libera la mesa.
+        // Segundo comensal paga la tapa (4,00 €): el último pago cierra la comanda y libera la mesa.
         var pago2 = await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/cobrar-parcial",
             new { Items = new[] { new { LineaId = lineaTapa.Id, Cantidad = 1m } }, Metodo = "Tarjeta" });
         pago2.StatusCode.Should().Be(HttpStatusCode.OK);
         var r2 = (await pago2.Content.ReadFromJsonAsync<CobroParcialResp>())!;
-        r2.Total.Should().Be(4.40m);
+        r2.Total.Should().Be(4.00m);
         r2.NumeroTicket.Should().Be($"T{anio}/000002");
         r2.Cerrada.Should().BeTrue();
         r2.Comanda.Estado.Should().Be("Cobrada");
@@ -337,9 +338,9 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
         facturas!.Count(f => f.Tipo == "Simplificada").Should().BeGreaterThanOrEqualTo(2);
         var hoy = DateTime.UtcNow.ToString("yyyy-MM-dd");
         var cierre = await cliente.GetFromJsonAsync<CierreResp>($"/informes/cierre-caja?dia={hoy}");
-        cierre!.TotalCobrado.Should().Be(7.70m);
-        cierre.CobrosPorMetodo.Should().Contain(m => m.Metodo == "Efectivo" && m.Importe == 3.30m);
-        cierre.CobrosPorMetodo.Should().Contain(m => m.Metodo == "Tarjeta" && m.Importe == 4.40m);
+        cierre!.TotalCobrado.Should().Be(7.00m);
+        cierre.CobrosPorMetodo.Should().Contain(m => m.Metodo == "Efectivo" && m.Importe == 3.00m);
+        cierre.CobrosPorMetodo.Should().Contain(m => m.Metodo == "Tarjeta" && m.Importe == 4.00m);
     }
 
     [Fact]
@@ -415,9 +416,9 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
         var juntar = await cliente.PostAsJsonAsync($"/comandas/{destino.Id}/juntar", new { OrigenId = origen.Id });
         juntar.StatusCode.Should().Be(HttpStatusCode.OK);
         var fundida = (await juntar.Content.ReadFromJsonAsync<ComandaResp>())!;
-        // 3 cañas (2+1 acumuladas) + 1 tapa = 8,50 + 10% IVA = 9,35 €
+        // 3 cañas (2+1 acumuladas) + 1 tapa = 3×1,50 + 4,00 = 8,50 € (IVA incluido)
         fundida.Lineas.Single(l => l.ProductoId == cana.Id).Cantidad.Should().Be(3m);
-        fundida.Total.Should().Be(9.35m);
+        fundida.Total.Should().Be(8.50m);
 
         // La mesa de origen queda libre; solo queda una comanda abierta.
         var mesas = await cliente.GetFromJsonAsync<List<MesaResp>>("/mesas");

@@ -77,7 +77,8 @@ public sealed class EmitirTicket
                 datos.Id, datos.Nombre, datos.NifFiscal, datos.Calle, datos.CodigoPostal, datos.Poblacion, datos.Provincia, datos.Pais);
         }
 
-        var resolucion = await ResolucionLineasFactura.ResolverAsync(comando.Lineas, _productos, ct).ConfigureAwait(false);
+        // Los tickets del TPV/hostelería llevan los precios con IVA incluido (PVP): se desglosa la base.
+        var resolucion = await ResolucionLineasFactura.ResolverAsync(comando.Lineas, _productos, ct, precioConIvaIncluido: true).ConfigureAwait(false);
         if (resolucion.EsFallo)
         {
             return Resultado.Fallo<FacturaDto>(resolucion.Error);

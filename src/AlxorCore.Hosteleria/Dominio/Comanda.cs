@@ -548,12 +548,23 @@ public sealed class Comanda : RaizAgregadoEmpresa<Guid>
     private void Recalcular(IReloj reloj)
     {
         _ = reloj;
-        // El descuento se aplica por línea (igual que en el ticket): reduce la base y el IVA se calcula
-        // sobre la base ya descontada, de modo que la comanda y la factura simplificada cuadran al céntimo.
+        // Los precios llevan IVA incluido: se descuenta sobre el importe bruto (con IVA) de cada línea
+        // y luego se desglosa la base y el IVA hacia atrás. Así la comanda y la factura simplificada
+        // (que hace lo mismo por línea) cuadran al céntimo.
         var factor = 1m - (DescuentoPorcentaje / 100m);
-        BaseImponible = Redondeo.Dos(_lineas.Sum(l => Redondeo.Dos(l.Base * factor)));
-        CuotaIva = Redondeo.Dos(_lineas.Sum(l => Redondeo.Dos(Redondeo.Dos(l.Base * factor) * l.PorcentajeIva / 100m)));
-        Total = Redondeo.Dos(BaseImponible + CuotaIva);
+        decimal baseTotal = 0m, ivaTotal = 0m, total = 0m;
+        foreach (var linea in _lineas)
+        {
+            var brutoDescontado = Redondeo.Dos(linea.Total * factor);
+            var (baseLinea, cuotaLinea, _) = DesgloseIva.DesdeBruto(brutoDescontado, linea.PorcentajeIva);
+            baseTotal += baseLinea;
+            ivaTotal += cuotaLinea;
+            total += brutoDescontado;
+        }
+
+        BaseImponible = Redondeo.Dos(baseTotal);
+        CuotaIva = Redondeo.Dos(ivaTotal);
+        Total = Redondeo.Dos(total);
     }
 
     private static string? Normalizar(string? valor) => string.IsNullOrWhiteSpace(valor) ? null : valor.Trim();

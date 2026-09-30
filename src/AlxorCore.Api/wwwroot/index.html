@@ -787,10 +787,12 @@
     const numCant=n=>Number.isInteger(n)?n:n.toLocaleString("es-ES",{maximumFractionDigits:3});
     function tpvPintarCarrito(){ const el=document.getElementById("tpvCart"); if(!el)return;
       if(!tpvCart.length){ el.innerHTML=`<div class="empty" style="padding:28px 6px"><div class="big">${ICON.tpv}</div><h3>Ticket vacío</h3><p>Escanea o toca un artículo para añadirlo.</p></div>`; return; }
-      let base=0,iva=0;
-      const filas=tpvCart.map((l,i)=>{ const b=l.cantidad*l.precioUnitario; base+=b; iva+=b*l.porcentajeIva/100;
-        return `<div class="cart-line"><div class="cl-n">${l.descripcion}<br><small>${eur(l.precioUnitario)} · IVA ${l.porcentajeIva}%</small></div><div class="step"><button onclick="tpvPaso(${i},-1)">−</button><input type="text" inputmode="decimal" value="${numCant(l.cantidad)}" onchange="tpvSetCant(${i},this.value)" style="width:58px;text-align:center;padding:4px" title="Cantidad (admite decimales, p. ej. 1,25 kg)"/><button onclick="tpvPaso(${i},1)">+</button></div><div class="num" style="width:74px;text-align:right"><strong>${eur(b)}</strong></div></div>`; }).join("");
-      const total=base+iva;
+      // Los precios llevan IVA incluido (PVP): el importe de línea es lo que paga el cliente; la base se desglosa.
+      const r2=x=>Math.round(x*100)/100;
+      let base=0,iva=0,total=0;
+      const filas=tpvCart.map((l,i)=>{ const b=r2(l.cantidad*l.precioUnitario); const bImp=r2(b/(1+l.porcentajeIva/100)); base+=bImp; iva+=r2(b-bImp); total+=b;
+        return `<div class="cart-line"><div class="cl-n">${l.descripcion}<br><small>${eur(l.precioUnitario)} · IVA ${l.porcentajeIva}% incl.</small></div><div class="step"><button onclick="tpvPaso(${i},-1)">−</button><input type="text" inputmode="decimal" value="${numCant(l.cantidad)}" onchange="tpvSetCant(${i},this.value)" style="width:58px;text-align:center;padding:4px" title="Cantidad (admite decimales, p. ej. 1,25 kg)"/><button onclick="tpvPaso(${i},1)">+</button></div><div class="num" style="width:74px;text-align:right"><strong>${eur(b)}</strong></div></div>`; }).join("");
+      base=r2(base); iva=r2(iva); total=r2(total);
       const metodos=["Efectivo","Tarjeta","Bizum"].map(m=>`<option value="${m}"${m===tpvMetodo?" selected":""}>${m}</option>`).join("");
       const cambio=tpvMetodo==="Efectivo"?`<div class="grid2" style="margin-top:10px"><div><label>Entregado (€)</label><input id="tpvEnt" type="number" step="0.01" placeholder="0,00" oninput="tpvCambio(${total})"/></div><div><label>Cambio a devolver</label><div id="tpvCambioOut" style="font-weight:750;font-size:18px;padding:8px 0">—</div></div></div>`:"";
       el.innerHTML=filas+`<div style="margin-top:12px">
@@ -1065,10 +1067,11 @@
         const n=(r.articulos||[]).reduce((s,a)=>s+Number(a.cantidad),0);
         toast(n>0?("🍳 Enviado a cocina · "+numCant(n)+" artículo(s)"):"Nada nuevo que enviar a cocina","ok"); }catch(e){ toast(e.message,"err"); } }
     let cobroMetodo="Efectivo", cobroCent=0, cobroTotal=0, cobroPersonas=1, cobroPropinaCent=0, cobroDescPct=0;
-    // Total de la consumición ya con el descuento (mismo cálculo por línea que el servidor), en céntimos.
-    function cobroTotalDesc(){ const f=1-cobroDescPct/100; let base=0,iva=0;
-      for(const l of (hosComanda?.lineas||[])){ const b=Math.round(Number(l.base)*f*100)/100; base+=b; iva+=Math.round(b*Number(l.porcentajeIva))/100; }
-      return Math.round((Math.round(base*100)/100+Math.round(iva*100)/100)*100); }
+    // Total de la consumición ya con el descuento, en céntimos. Los precios llevan IVA incluido:
+    // se descuenta sobre el importe bruto de cada línea (igual que el servidor).
+    function cobroTotalDesc(){ const f=1-cobroDescPct/100; let total=0;
+      for(const l of (hosComanda?.lineas||[])){ total+=Math.round(Number(l.total)*f*100)/100; }
+      return Math.round(total*100); }
     const cobroTotalCent=()=>cobroTotalDesc()+cobroPropinaCent; // consumición (con descuento) + propina
     function hosCobrar(id){
       cobroMetodo="Efectivo"; cobroCent=0; cobroTotal=Number(hosComanda?.total||0); cobroPersonas=1; cobroPropinaCent=0; cobroDescPct=0;
@@ -1196,7 +1199,8 @@
       const n=document.getElementById("rep_"+id); if(n) n.textContent=numCant(repartoSel[id]||0);
       const row=document.getElementById("reprow_"+id); if(row) row.classList.toggle("sel",(repartoSel[id]||0)>0);
       let cent=0;
-      for(const l of repartoComanda.lineas){ const q=repartoSel[l.id]||0; if(q>0){ const base=Math.round(q*Number(l.precioUnitario)*100)/100; const iva=Math.round(base*Number(l.porcentajeIva))/100; cent+=cent2(base+iva); } }
+      // Precios con IVA incluido: el importe de lo seleccionado es cantidad × precio (lo que se cobra).
+      for(const l of repartoComanda.lineas){ const q=repartoSel[l.id]||0; if(q>0){ cent+=cent2(Math.round(q*Number(l.precioUnitario)*100)/100); } }
       const t=document.getElementById("repTotal"); if(t) t.textContent=eur(cent/100);
     }
 
@@ -1799,7 +1803,7 @@
       const editar=p&&p.id;
       abrir(editar?"Editar artículo":(p?"Nuevo artículo (copia)":"Nuevo artículo"),`<label>Nombre</label><input id="p_nombre" placeholder="Nombre del producto o servicio"/>
       <div class="grid2"><div><label>Código / EAN (opcional)</label><input id="p_ref" placeholder="Ej. 8412345678901"/></div><div><label>IVA</label>${ivaSel("p_iva")}</div></div>
-      <div class="grid2"><div><label>Precio de venta (€)</label><input id="p_precio" type="number" step="0.01" value="0"/></div><div><label>Precio de compra / coste (€)</label><input id="p_compra" type="number" step="0.01" value="0"/></div></div>
+      <div class="grid2"><div><label>Precio de venta · PVP (IVA incl.)</label><input id="p_precio" type="number" step="0.01" value="0"/></div><div><label>Precio de compra / coste (€)</label><input id="p_compra" type="number" step="0.01" value="0"/></div></div>
       <label>Categoría (opcional, agrupa en el TPV)</label><input id="p_cat" list="p_cat_lista" placeholder="Ej. Cervezas, Vinos, Tapas, Refrescos"/><datalist id="p_cat_lista">${[...new Set((_cacheProd||[]).map(x=>x.categoria).filter(Boolean))].map(c=>`<option value="${c}">`).join("")}</datalist>
       <label>Proveedor habitual (opcional)</label><select id="p_prov">${provOpts}</select>
       <label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-weight:500;cursor:pointer"><input id="p_stock_ctrl" type="checkbox" style="width:auto" onchange="document.getElementById('p_stock_box').style.display=this.checked?'block':'none'"/> Llevar control de stock (existencias)</label>
