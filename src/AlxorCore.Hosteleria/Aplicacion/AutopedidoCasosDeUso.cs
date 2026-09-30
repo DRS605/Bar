@@ -403,6 +403,127 @@ public sealed class GuardarTraduccion
     }
 }
 
+/// <summary>Alta o edición de la ficha de carta (alérgenos y foto) de un producto.</summary>
+public sealed record DatosFichaCarta(
+    IReadOnlyList<string>? Alergenos = null,
+    string? FotoBase64 = null,
+    string? FotoTipo = null,
+    bool QuitarFoto = false);
+
+/// <summary>Caso de uso (personal): lista las fichas de carta (alérgenos y foto) de la empresa.</summary>
+public sealed class ListarFichasCarta
+{
+    private readonly IConsultaFichasCarta _consulta;
+
+    public ListarFichasCarta(IConsultaFichasCarta consulta) => _consulta = consulta;
+
+    public Task<IReadOnlyList<FichaCartaDto>> EjecutarAsync(Guid empresaId, CancellationToken ct = default) =>
+        _consulta.ListarAsync(empresaId, ct);
+}
+
+/// <summary>
+/// Caso de uso (personal): guarda la ficha de carta de un producto (alérgenos y/o foto). La foto llega
+/// como data URL o base64 desde el navegador (que ya la reduce de tamaño).
+/// </summary>
+public sealed class GuardarFichaCarta
+{
+    private readonly IRepositorioFichasCarta _fichas;
+    private readonly IConsultaProductos _productos;
+    private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
+    private readonly IReloj _reloj;
+
+    public GuardarFichaCarta(IRepositorioFichasCarta fichas, IConsultaProductos productos, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    {
+        _fichas = fichas;
+        _productos = productos;
+        _unidadDeTrabajo = unidadDeTrabajo;
+        _reloj = reloj;
+    }
+
+    public async Task<Resultado> EjecutarAsync(Guid empresaId, Guid productoId, DatosFichaCarta datos, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(datos);
+
+        var producto = await _productos.ObtenerAsync(productoId, ct).ConfigureAwait(false);
+        if (producto is null)
+        {
+            return Resultado.Fallo(Error.NoEncontrado("producto.no_encontrado", "El producto no existe."));
+        }
+
+        var ficha = await _fichas.ObtenerPorProductoAsync(productoId, ct).ConfigureAwait(false);
+        var nueva = ficha is null;
+        ficha ??= FichaCarta.Crear(empresaId, productoId, _reloj);
+
+        ficha.FijarAlergenos(Alergenos.DeNombres(datos.Alergenos), _reloj);
+
+        if (datos.QuitarFoto)
+        {
+            ficha.QuitarFoto(_reloj);
+        }
+        else if (!string.IsNullOrWhiteSpace(datos.FotoBase64))
+        {
+            var (bytes, tipo) = DecodificarFoto(datos.FotoBase64!, datos.FotoTipo);
+            if (bytes is null)
+            {
+                return Resultado.Fallo(Error.Validacion("ficha.foto_invalida", "No se pudo leer la imagen."));
+            }
+
+            var r = ficha.FijarFoto(bytes, tipo, _reloj);
+            if (r.EsFallo)
+            {
+                return r;
+            }
+        }
+
+        if (nueva)
+        {
+            _fichas.Agregar(ficha);
+        }
+
+        await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+        return Resultado.Ok();
+    }
+
+    private static (byte[]? Bytes, string Tipo) DecodificarFoto(string valor, string? tipoIndicado)
+    {
+        var tipo = tipoIndicado;
+        var payload = valor.Trim();
+        if (payload.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+        {
+            var coma = payload.IndexOf(',');
+            if (coma < 0)
+            {
+                return (null, string.Empty);
+            }
+
+            var cabecera = payload[5..coma]; // p. ej. image/jpeg;base64
+            var puntoComa = cabecera.IndexOf(';');
+            tipo = puntoComa >= 0 ? cabecera[..puntoComa] : cabecera;
+            payload = payload[(coma + 1)..];
+        }
+
+        try
+        {
+            return (Convert.FromBase64String(payload), (tipo ?? string.Empty).Trim().ToLowerInvariant());
+        }
+        catch (FormatException)
+        {
+            return (null, string.Empty);
+        }
+    }
+}
+
+/// <summary>Caso de uso <b>anónimo</b>: sirve la foto de un producto para la carta pública.</summary>
+public sealed class ObtenerFotoProducto
+{
+    private readonly IConsultaFichasCarta _fichas;
+
+    public ObtenerFotoProducto(IConsultaFichasCarta fichas) => _fichas = fichas;
+
+    public Task<FotoProducto?> EjecutarAsync(Guid empresaId, Guid productoId, CancellationToken ct = default) =>
+        _fichas.ObtenerFotoAsync(empresaId, productoId, ct);
+}
+
 /// <summary>Caso de uso (personal): genera un token de carta nuevo para una mesa (invalida sus QR).</summary>
 public sealed class RegenerarTokenCartaMesa
 {

@@ -96,6 +96,43 @@ public class AvisoMesaTests
     }
 }
 
+public class FichaCartaTests
+{
+    private static readonly IReloj Reloj = new RelojFijo();
+    private static readonly Guid Empresa = Guid.NewGuid();
+
+    [Fact]
+    public void Alergenos_ida_y_vuelta_entre_banderas_y_nombres()
+    {
+        var banderas = Alergenos.DeNombres(new[] { "Gluten", "lacteos", "desconocido" });
+        banderas.Should().Be(Alergeno.Gluten | Alergeno.Lacteos);
+        Alergenos.ANombres(banderas).Should().BeEquivalentTo(new[] { "Gluten", "Lacteos" });
+    }
+
+    [Fact]
+    public void Fijar_foto_valida_la_guarda_y_quitar_la_borra()
+    {
+        var ficha = FichaCarta.Crear(Empresa, Guid.NewGuid(), Reloj);
+        var datos = new byte[] { 1, 2, 3, 4 };
+
+        ficha.FijarFoto(datos, "image/jpeg", Reloj).EsCorrecto.Should().BeTrue();
+        ficha.TieneFoto.Should().BeTrue();
+        ficha.FotoTipo.Should().Be("image/jpeg");
+
+        ficha.QuitarFoto(Reloj);
+        ficha.TieneFoto.Should().BeFalse();
+    }
+
+    [Fact]
+    public void Fijar_foto_rechaza_tipo_no_valido_y_tamano_excesivo()
+    {
+        var ficha = FichaCarta.Crear(Empresa, Guid.NewGuid(), Reloj);
+
+        ficha.FijarFoto(new byte[] { 1 }, "application/pdf", Reloj).Error.Codigo.Should().Be("ficha.foto_tipo");
+        ficha.FijarFoto(new byte[FichaCarta.TamanoMaximoFoto + 1], "image/png", Reloj).Error.Codigo.Should().Be("ficha.foto_grande");
+    }
+}
+
 public class TokenCartaMesaTests
 {
     private static readonly IReloj Reloj = new RelojFijo();

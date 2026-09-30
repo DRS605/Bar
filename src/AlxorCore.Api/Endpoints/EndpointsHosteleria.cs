@@ -87,6 +87,16 @@ public static class EndpointsHosteleria
             .WithSummary("Guarda o borra una traducción de la carta (nombre vacío = volver al español).")
             .RequierePermiso(Permisos.HosteleriaGestionar);
 
+        var fichas = rutas.MapGroup("/carta/fichas").WithTags("Autopedido");
+
+        fichas.MapGet("", ListarFichasCartaAsync)
+            .WithSummary("Lista las fichas de carta (alérgenos y si tienen foto) de los productos.")
+            .RequireAuthorization();
+
+        fichas.MapPut("/{productoId:guid}", GuardarFichaCartaAsync)
+            .WithSummary("Guarda la ficha de carta de un producto (alérgenos y/o foto).")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
         var comandas = rutas.MapGroup("/comandas").WithTags("Comandas");
 
         comandas.MapGet("", ListarComandasAsync)
@@ -282,6 +292,26 @@ public static class EndpointsHosteleria
         }
 
         return (await caso.EjecutarAsync(contexto.EmpresaId.Value, datos, ct).ConfigureAwait(false)).ASinContenido();
+    }
+
+    private static async Task<IResult> ListarFichasCartaAsync(IContextoEmpresa contexto, ListarFichasCarta caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> GuardarFichaCartaAsync(Guid productoId, DatosFichaCarta datos, IContextoEmpresa contexto, GuardarFichaCarta caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return (await caso.EjecutarAsync(contexto.EmpresaId.Value, productoId, datos, ct).ConfigureAwait(false)).ASinContenido();
     }
 
     private static async Task<IResult> ListarComandasAsync(IContextoEmpresa contexto, ListarComandasAbiertas caso, CancellationToken ct)

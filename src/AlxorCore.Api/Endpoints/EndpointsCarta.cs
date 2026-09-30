@@ -16,7 +16,7 @@ namespace AlxorCore.Api.Endpoints;
 /// </summary>
 public static class EndpointsCarta
 {
-    public sealed record CartaItemDto(Guid Id, string Nombre, string? Descripcion, decimal Precio);
+    public sealed record CartaItemDto(Guid Id, string Nombre, string? Descripcion, decimal Precio, IReadOnlyList<string> Alergenos, string? Foto);
     public sealed record CartaCategoriaDto(string Nombre, IReadOnlyList<CartaItemDto> Items);
     public sealed record CartaPublicaDto(string Local, string Idioma, IReadOnlyList<CartaCategoriaDto> Categorias);
 
@@ -42,12 +42,17 @@ public static class EndpointsCarta
             .WithSummary("El cliente avisa desde la mesa: llamar al camarero o pedir la cuenta.")
             .AllowAnonymous();
 
+        carta.MapGet("/{empresaId:guid}/producto/{productoId:guid}/foto", FotoAsync)
+            .WithSummary("Foto de un producto para la carta pública.")
+            .AllowAnonymous();
+
         return rutas;
     }
 
     private static async Task<IResult> DatosAsync(
         Guid empresaId, string? idioma, IContextoEmpresaMutable contexto,
-        IConsultaProductos productos, IConsultaEmpresas empresas, IConsultaTraducciones traducciones, CancellationToken ct)
+        IConsultaProductos productos, IConsultaEmpresas empresas, IConsultaTraducciones traducciones,
+        IConsultaFichasCarta fichas, CancellationToken ct)
     {
         // Lectura pública acotada a este local (el filtro de empresa y la RLS usan la empresa fijada).
         contexto.Fijar(empresaId);
@@ -65,6 +70,9 @@ public static class EndpointsCarta
         var trCategoria = trads.Where(t => t.Ambito == nameof(Hosteleria.Dominio.AmbitoTraduccion.Categoria))
             .ToDictionary(t => t.Clave, t => t.Nombre, StringComparer.OrdinalIgnoreCase);
 
+        var fichasLista = await fichas.ListarAsync(empresaId, ct).ConfigureAwait(false);
+        var fichaPorProducto = fichasLista.ToDictionary(f => f.ProductoId);
+
         var lista = await productos.ListarAsync(empresaId, incluirInactivos: false, ct).ConfigureAwait(false);
         var categorias = lista
             .Where(p => p.PrecioUnitario > 0)
@@ -76,7 +84,10 @@ public static class EndpointsCarta
                     .Select(p =>
                     {
                         trProducto.TryGetValue(p.Id.ToString(), out var t);
-                        return new CartaItemDto(p.Id, t?.Nombre ?? p.Nombre, t?.Descripcion, p.PrecioUnitario);
+                        fichaPorProducto.TryGetValue(p.Id, out var ficha);
+                        var foto = ficha is { TieneFoto: true } ? $"/carta/{empresaId}/producto/{p.Id}/foto" : null;
+                        return new CartaItemDto(p.Id, t?.Nombre ?? p.Nombre, t?.Descripcion, p.PrecioUnitario,
+                            ficha?.Alergenos ?? Array.Empty<string>(), foto);
                     })
                     .ToList()))
             .ToList();
@@ -106,5 +117,13 @@ public static class EndpointsCarta
     {
         contexto.Fijar(empresaId);
         return (await caso.EjecutarAsync(empresaId, mesaId, datos, ct).ConfigureAwait(false)).ASinContenido();
+    }
+
+    private static async Task<IResult> FotoAsync(
+        Guid empresaId, Guid productoId, IContextoEmpresaMutable contexto, ObtenerFotoProducto caso, CancellationToken ct)
+    {
+        contexto.Fijar(empresaId);
+        var foto = await caso.EjecutarAsync(empresaId, productoId, ct).ConfigureAwait(false);
+        return foto is null ? Results.NotFound() : Results.File(foto.Datos, foto.Tipo);
     }
 }

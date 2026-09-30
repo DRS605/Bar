@@ -120,11 +120,17 @@ camarero. El pedido **no toca la cuenta** hasta que un camarero lo **acepta**.
   `LlamarCamarero` o `PedirCuenta`. `GET /avisos` los lista pendientes y `POST /avisos/{id}/atender`
   los cierra.
 - **Carta multiidioma.** `GET /carta/{empresaId}/datos?idioma=es|en|fr` devuelve categorías, artículos
-  (con `id`, nombre, descripción y precio con IVA incluido). El español es la base (del catálogo); las
-  traducciones a inglés/francés se guardan en `TraduccionCarta` (nombre/descripción de producto y
-  nombre de categoría) y se gestionan con `GET/PUT /carta/traducciones` (nombre vacío borra la
-  traducción). En la interfaz, «Carta con QR» trae el editor de idiomas y Barra/Salón muestra los
-  pedidos por confirmar y los avisos, y el botón **«📱 QR»** de cada mesa.
+  (con `id`, nombre, descripción, precio con IVA incluido, **alérgenos** y **foto**). El español es la
+  base (del catálogo); las traducciones a inglés/francés se guardan en `TraduccionCarta`
+  (nombre/descripción de producto y nombre de categoría) y se gestionan con `GET/PUT
+  /carta/traducciones` (nombre vacío borra la traducción).
+- **Fotos y alérgenos** (`FichaCarta`, uno por producto): los 14 alérgenos de declaración obligatoria
+  (Reglamento UE 1169/2011) y una **foto**. Se gestionan con `GET /carta/fichas` y `PUT
+  /carta/fichas/{productoId}` (la foto llega como data URL/base64 que el navegador reduce; máx. 3 MB,
+  JPG/PNG/WebP). La foto se sirve anónima en `GET /carta/{empresaId}/producto/{productoId}/foto` y la
+  carta pública trae el enlace. En la interfaz, «Carta con QR» trae el editor de idiomas y el de fotos
+  y alérgenos; Barra/Salón muestra los pedidos por confirmar y los avisos, y el botón **«📱 QR»** de
+  cada mesa.
 
 ## API
 
@@ -164,6 +170,9 @@ camarero. El pedido **no toca la cuenta** hasta que un camarero lo **acepta**.
 | `POST` | `/avisos/{id}/atender` | permiso `hosteleria.gestionar` | Marca un aviso como atendido. **204** |
 | `GET` | `/carta/traducciones` | JWT + empresa | Traducciones de la carta del local. |
 | `PUT` | `/carta/traducciones` | permiso `hosteleria.gestionar` | Guarda o borra una traducción. **204** |
+| `GET` | `/carta/fichas` | JWT + empresa | Fichas de carta (alérgenos y si tienen foto). |
+| `PUT` | `/carta/fichas/{productoId}` | permiso `hosteleria.gestionar` | Guarda la ficha (alérgenos y/o foto). **204** |
+| `GET` | `/carta/{empresaId}/producto/{productoId}/foto` | anónimo | Foto del producto para la carta. |
 
 El permiso **`hosteleria.gestionar`** lo tienen los roles *Propietario* y *Usuario*.
 

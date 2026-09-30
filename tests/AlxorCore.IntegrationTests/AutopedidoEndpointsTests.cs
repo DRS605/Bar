@@ -18,7 +18,8 @@ public sealed class AutopedidoEndpointsTests : IClassFixture<FabricaApiPruebas>
     private sealed record ProductoResp(Guid Id, string Nombre, decimal PrecioUnitario);
     private sealed record MesaResp(Guid Id, string Nombre, bool Ocupada);
     private sealed record CartaLinkResp(string Url, Guid Token);
-    private sealed record CartaItem(Guid Id, string Nombre, string? Descripcion, decimal Precio);
+    private sealed record CartaItem(Guid Id, string Nombre, string? Descripcion, decimal Precio, List<string> Alergenos, string? Foto);
+    private sealed record FichaResp(Guid ProductoId, List<string> Alergenos, bool TieneFoto);
     private sealed record CartaCategoria(string Nombre, List<CartaItem> Items);
     private sealed record CartaResp(string Local, string Idioma, List<CartaCategoria> Categorias);
     private sealed record PedidoCreadoResp(Guid Id, int NumeroLineas);
@@ -176,5 +177,46 @@ public sealed class AutopedidoEndpointsTests : IClassFixture<FabricaApiPruebas>
         // En español (base) mantiene el nombre del catálogo.
         var es = (await anon.GetFromJsonAsync<CartaResp>($"/carta/{empresaId}/datos?idioma=es"))!;
         es.Categorias.SelectMany(c => c.Items).Single(i => i.Id == producto.Id).Nombre.Should().Be("Caña");
+    }
+
+    // Un PNG 1×1 válido en base64 (data URL) para probar la subida de foto.
+    private const string PngDataUrl =
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+    [Fact]
+    public async Task Ficha_de_carta_guarda_alergenos_y_foto_y_salen_en_la_carta()
+    {
+        var (cliente, empresaId) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var producto = await CrearProductoAsync(cliente, "Tortilla", 4.50m, "Tapas");
+        var anon = _fabrica.CreateClient();
+
+        var guardar = await cliente.PutAsJsonAsync($"/carta/fichas/{producto.Id}", new
+        {
+            Alergenos = new[] { "Gluten", "Huevos" },
+            FotoBase64 = PngDataUrl,
+        });
+        guardar.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        // El listado del personal muestra la ficha con sus alérgenos y que tiene foto.
+        var fichas = await cliente.GetFromJsonAsync<List<FichaResp>>("/carta/fichas");
+        var ficha = fichas!.Single(f => f.ProductoId == producto.Id);
+        ficha.Alergenos.Should().BeEquivalentTo(new[] { "Gluten", "Huevos" });
+        ficha.TieneFoto.Should().BeTrue();
+
+        // La carta pública trae los alérgenos y el enlace a la foto.
+        var carta = (await anon.GetFromJsonAsync<CartaResp>($"/carta/{empresaId}/datos?idioma=es"))!;
+        var item = carta.Categorias.SelectMany(c => c.Items).Single(i => i.Id == producto.Id);
+        item.Alergenos.Should().BeEquivalentTo(new[] { "Gluten", "Huevos" });
+        item.Foto.Should().Be($"/carta/{empresaId}/producto/{producto.Id}/foto");
+
+        // Y la foto se sirve como imagen.
+        var foto = await anon.GetAsync(new Uri($"/carta/{empresaId}/producto/{producto.Id}/foto", UriKind.Relative));
+        foto.StatusCode.Should().Be(HttpStatusCode.OK);
+        foto.Content.Headers.ContentType!.MediaType.Should().Be("image/png");
+        (await foto.Content.ReadAsByteArrayAsync()).Length.Should().BeGreaterThan(0);
+
+        // Quitar la foto la elimina.
+        (await cliente.PutAsJsonAsync($"/carta/fichas/{producto.Id}", new { Alergenos = new[] { "Gluten", "Huevos" }, QuitarFoto = true })).StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await anon.GetAsync(new Uri($"/carta/{empresaId}/producto/{producto.Id}/foto", UriKind.Relative))).StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 }

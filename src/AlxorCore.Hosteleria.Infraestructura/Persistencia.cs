@@ -30,6 +30,8 @@ public sealed class HosteleriaDbContext : DbContextEmpresaBase, IUnidadDeTrabajo
 
     public DbSet<TraduccionCarta> Traducciones => Set<TraduccionCarta>();
 
+    public DbSet<FichaCarta> FichasCarta => Set<FichaCarta>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Esquema);
@@ -334,6 +336,59 @@ internal sealed class RepositorioAvisos : IRepositorioAvisos, IConsultaAvisos
             select new AvisoMesaDto(a.Id, a.MesaId, m != null ? m.Nombre : string.Empty, a.Tipo.ToString(), a.RecibidoEn);
 
         return await consulta.ToListAsync(ct).ConfigureAwait(false);
+    }
+}
+
+internal sealed class ConfiguracionFichaCarta : IEntityTypeConfiguration<FichaCarta>
+{
+    public void Configure(EntityTypeBuilder<FichaCarta> builder)
+    {
+        builder.ToTable("ficha_carta");
+        builder.HasKey(f => f.Id);
+        builder.Property(f => f.Id).HasColumnName("id");
+        builder.Property(f => f.EmpresaId).HasColumnName("empresa_id").IsRequired();
+        builder.Property(f => f.ProductoId).HasColumnName("producto_id").IsRequired();
+        builder.Property(f => f.Alergenos).HasColumnName("alergenos").HasConversion<int>().IsRequired();
+        builder.Property(f => f.Foto).HasColumnName("foto");
+        builder.Property(f => f.FotoTipo).HasColumnName("foto_tipo").HasMaxLength(30);
+        builder.Property(f => f.ActualizadaEn).HasColumnName("actualizada_en").IsRequired();
+
+        builder.HasIndex(f => new { f.EmpresaId, f.ProductoId }).IsUnique().HasDatabaseName("ux_ficha_carta_producto");
+        builder.Ignore(f => f.TieneFoto);
+        builder.Ignore(f => f.EventosDominio);
+    }
+}
+
+internal sealed class RepositorioFichasCarta : IRepositorioFichasCarta, IConsultaFichasCarta
+{
+    private readonly HosteleriaDbContext _contexto;
+
+    public RepositorioFichasCarta(HosteleriaDbContext contexto) => _contexto = contexto;
+
+    public Task<FichaCarta?> ObtenerPorProductoAsync(Guid productoId, CancellationToken ct = default) =>
+        _contexto.FichasCarta.SingleOrDefaultAsync(f => f.ProductoId == productoId, ct);
+
+    public void Agregar(FichaCarta ficha) => _contexto.FichasCarta.Add(ficha);
+
+    public async Task<IReadOnlyList<FichaCartaDto>> ListarAsync(Guid empresaId, CancellationToken ct = default)
+    {
+        // No cargamos los bytes de la foto en el listado; solo si tiene.
+        var filas = await _contexto.FichasCarta
+            .Where(f => f.EmpresaId == empresaId)
+            .Select(f => new { f.ProductoId, f.Alergenos, TieneFoto = f.Foto != null })
+            .ToListAsync(ct).ConfigureAwait(false);
+
+        return filas.Select(f => new FichaCartaDto(f.ProductoId, Alergenos.ANombres(f.Alergenos), f.TieneFoto)).ToList();
+    }
+
+    public async Task<FotoProducto?> ObtenerFotoAsync(Guid empresaId, Guid productoId, CancellationToken ct = default)
+    {
+        var f = await _contexto.FichasCarta
+            .Where(x => x.EmpresaId == empresaId && x.ProductoId == productoId && x.Foto != null)
+            .Select(x => new { x.Foto, x.FotoTipo })
+            .FirstOrDefaultAsync(ct).ConfigureAwait(false);
+
+        return f?.Foto is null ? null : new FotoProducto(f.Foto, f.FotoTipo ?? "image/jpeg");
     }
 }
 

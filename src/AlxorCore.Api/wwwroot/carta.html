@@ -21,9 +21,12 @@
   .cat h2{ font-family:var(--display); font-weight:600; font-size:20px; margin:0 0 4px; color:var(--accent); }
   .cat .rule{ height:2px; background:linear-gradient(90deg,var(--accent),transparent); border-radius:2px; margin-bottom:4px; }
   .item{ display:flex; align-items:flex-start; gap:12px; padding:13px 0; border-bottom:1px solid var(--line); }
+  .item .foto{ width:64px; height:64px; border-radius:12px; object-fit:cover; flex:none; background:var(--line); }
   .item .info{ flex:1; min-width:0; }
   .item .n{ font-size:15.5px; font-weight:600; }
   .item .d{ font-size:12.5px; color:var(--muted); margin-top:2px; line-height:1.4; }
+  .aler{ display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+  .aler .chip{ font-size:10.5px; font-weight:600; color:var(--copper); background:rgba(198,123,58,.12); border:1px solid rgba(198,123,58,.3); border-radius:999px; padding:2px 8px; line-height:1.5; }
   .item .right{ display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
   .item .p{ font-weight:700; font-size:15px; white-space:nowrap; }
   .add{ width:34px; height:34px; border-radius:10px; border:none; background:var(--accent); color:#fff; font-size:22px; line-height:1; cursor:pointer; box-shadow:0 3px 8px rgba(31,122,90,.28); }
@@ -86,6 +89,17 @@
     fr:{ carta:"Carte", iva:"Prix TVA comprise", pedido:"Votre commande", vacio:"Vous n'avez rien ajouté.", enviar:"Envoyer la commande", enviando:"Envoi…", enviado:"Commande envoyée !", enviadoSub:"Le serveur va la confirmer.", nota:"Note pour la cuisine (facultatif)", llamar:"Appeler le serveur", cuenta:"Demander l'addition", avisado:"Envoyé, le serveur arrive.", total:"Total", mesa:"Table", ver:"Voir la commande", art:"article", arts:"articles", errCarga:"Impossible de charger la carte.", errEnvio:"Envoi impossible. Réessayez.", sinCarta:"La carte n'est pas encore disponible.", seguir:"Continuer" },
   };
   const LANGS = [["es","ES"],["en","EN"],["fr","FR"]];
+  // Nombres de los 14 alérgenos (Reglamento UE 1169/2011) en cada idioma.
+  const ALER = {
+    Gluten:{es:"Gluten",en:"Gluten",fr:"Gluten"}, Crustaceos:{es:"Crustáceos",en:"Crustaceans",fr:"Crustacés"},
+    Huevos:{es:"Huevos",en:"Eggs",fr:"Œufs"}, Pescado:{es:"Pescado",en:"Fish",fr:"Poisson"},
+    Cacahuetes:{es:"Cacahuetes",en:"Peanuts",fr:"Arachides"}, Soja:{es:"Soja",en:"Soy",fr:"Soja"},
+    Lacteos:{es:"Lácteos",en:"Dairy",fr:"Lait"}, FrutosCascara:{es:"Frutos de cáscara",en:"Tree nuts",fr:"Fruits à coque"},
+    Apio:{es:"Apio",en:"Celery",fr:"Céleri"}, Mostaza:{es:"Mostaza",en:"Mustard",fr:"Moutarde"},
+    Sesamo:{es:"Sésamo",en:"Sesame",fr:"Sésame"}, Sulfitos:{es:"Sulfitos",en:"Sulphites",fr:"Sulfites"},
+    Altramuces:{es:"Altramuces",en:"Lupin",fr:"Lupin"}, Moluscos:{es:"Moluscos",en:"Molluscs",fr:"Mollusques"},
+  };
+  const alerLabel = a => (ALER[a] && ALER[a][lang]) || a;
   let lang = (()=>{ try{ return localStorage.getItem("bq_carta_lang"); }catch{} })()
     || (P.get("l")) || (navigator.language||"es").slice(0,2).toLowerCase();
   if(!STR[lang]) lang = "es";
@@ -133,8 +147,11 @@
 
   function fila(it){
     const ctl = pedirActivo ? control(it) : `<span class="p">${eur(it.precio)}</span>`;
+    const foto = it.foto ? `<img class="foto" src="${esc(it.foto)}" alt="" loading="lazy">` : "";
+    const aler = (it.alergenos && it.alergenos.length) ? `<div class="aler">${it.alergenos.map(a=>`<span class="chip">${esc(alerLabel(a))}</span>`).join("")}</div>` : "";
     return `<div class="item" id="it_${it.id}">
-      <div class="info"><div class="n">${esc(it.nombre)}</div>${it.descripcion?`<div class="d">${esc(it.descripcion)}</div>`:""}<div class="d" style="margin-top:4px;font-weight:700;color:var(--ink)">${eur(it.precio)}</div></div>
+      ${foto}
+      <div class="info"><div class="n">${esc(it.nombre)}</div>${it.descripcion?`<div class="d">${esc(it.descripcion)}</div>`:""}${aler}<div class="d" style="margin-top:4px;font-weight:700;color:var(--ink)">${eur(it.precio)}</div></div>
       <div class="right">${ctl}</div></div>`;
   }
   function control(it){

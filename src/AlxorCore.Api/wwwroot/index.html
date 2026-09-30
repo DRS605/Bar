@@ -595,11 +595,14 @@
     }
 
     function cartaUrlPublica(){ return `${location.origin}/carta.html?e=${empresa.id}`; }
-    let cartaIdiomaEdit="en", cartaTrads={}, cartaProds=[];
+    const ALER_ES = { Gluten:"Gluten", Crustaceos:"Crustáceos", Huevos:"Huevos", Pescado:"Pescado", Cacahuetes:"Cacahuetes", Soja:"Soja", Lacteos:"Lácteos", FrutosCascara:"Frutos de cáscara", Apio:"Apio", Mostaza:"Mostaza", Sesamo:"Sésamo", Sulfitos:"Sulfitos", Altramuces:"Altramuces", Moluscos:"Moluscos" };
+    let cartaIdiomaEdit="en", cartaTrads={}, cartaProds=[], cartaFichas={}, cartaFichaFile=null;
     async function vCartaQr(){
       view('<div class="muted">Cargando…</div>');
       const url=cartaUrlPublica(), qr=`/carta/${empresa.id}/qr.svg`;
-      try{ [cartaProds,cartaTrads]=await Promise.all([api("/productos").catch(()=>[]),cartaCargarTrads()]); }catch{ cartaProds=[];cartaTrads={}; }
+      try{ const [prods,trads,fichas]=await Promise.all([api("/productos").catch(()=>[]),cartaCargarTrads(),api("/carta/fichas").catch(()=>[])]);
+        cartaProds=prods; cartaTrads=trads; cartaFichas={}; for(const f of fichas) cartaFichas[f.productoId]=f;
+      }catch{ cartaProds=[];cartaTrads={};cartaFichas={}; }
       const cuerpo=`<div style="display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start">
         <div style="text-align:center">
           <div style="background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;display:inline-block"><img src="${qr}" alt="QR de la carta" style="width:200px;height:200px;display:block"/></div>
@@ -610,8 +613,47 @@
           <label>Enlace de la carta (general)</label>
           <div style="display:flex;gap:8px"><input id="cartaUrl" value="${url}" readonly style="flex:1"/><button class="btn small secondary" onclick="cartaCopiar()">Copiar</button></div>
         </div></div>`;
-      view(panel("Carta con QR",cuerpo)+`<div class="panel" id="cartaTradPanel" style="margin-top:18px">${cartaTradPanel()}</div>`);
+      view(panel("Carta con QR",cuerpo)+`<div class="panel" id="cartaFichaPanel" style="margin-top:18px">${cartaFichaPanel()}</div>`+`<div class="panel" id="cartaTradPanel" style="margin-top:18px">${cartaTradPanel()}</div>`);
     }
+    function cartaFichaPanel(){
+      const rows=cartaProds.filter(p=>p.precioUnitario>0).map(p=>{ const f=cartaFichas[p.id]||{}; const na=(f.alergenos||[]).length;
+        return `<tr><td><strong>${esc(p.nombre)}</strong><br><small class="muted">${eur(p.precioUnitario)}</small></td>
+          <td>${f.tieneFoto?'<span class="pill ok">📷 Con foto</span>':'<span class="pill wait">Sin foto</span>'}</td>
+          <td>${na?`<span class="muted">${na} alérgeno${na>1?"s":""}</span>`:'<span class="muted">—</span>'}</td>
+          <td class="right"><button class="btn small secondary" onclick="cartaFicha('${p.id}')">Editar ficha</button></td></tr>`; }).join("");
+      return `<div class="panel-head"><h2>Fotos y alérgenos</h2></div>
+        <div style="padding:8px 20px 16px"><p class="muted" style="font-size:12.5px">Añade una <strong>foto</strong> y marca los <strong>alérgenos</strong> de cada plato (Reglamento UE 1169/2011). Salen en la carta del cliente.</p>
+        <table><thead><tr><th>Artículo</th><th>Foto</th><th>Alérgenos</th><th></th></tr></thead>
+        <tbody>${rows||`<tr><td colspan="4" class="muted">Crea artículos con precio para completar su ficha.</td></tr>`}</tbody></table></div>`;
+    }
+    function cartaFicha(id){
+      const p=cartaProds.find(x=>x.id===id); if(!p) return; const f=cartaFichas[id]||{alergenos:[],tieneFoto:false};
+      cartaFichaFile=null; const sel=new Set(f.alergenos||[]);
+      const checks=Object.keys(ALER_ES).map(k=>`<label style="display:flex;align-items:center;gap:7px;font-weight:500;cursor:pointer;margin:0"><input type="checkbox" data-a="${k}" ${sel.has(k)?"checked":""} style="width:auto"/> ${ALER_ES[k]}</label>`).join("");
+      const fotoActual=f.tieneFoto?`<div id="fichaFotoActual" style="margin-bottom:8px"><img src="/carta/${empresa.id}/producto/${id}/foto?t=${Date.now()}" style="width:120px;height:120px;object-fit:cover;border-radius:12px;border:1px solid var(--line)"/><label style="display:flex;align-items:center;gap:7px;margin-top:6px;font-weight:500;cursor:pointer"><input type="checkbox" id="fichaQuitar" style="width:auto"/> Quitar la foto</label></div>`:"";
+      abrir("Ficha · "+p.nombre,
+        `<label>Foto del plato</label>${fotoActual}
+         <input type="file" id="fichaFile" accept="image/*" onchange="cartaFichaPrev(event)"/>
+         <div id="fichaPrev" style="margin-top:8px"></div>
+         <p class="muted" style="font-size:12px;margin:6px 0 0">La imagen se reduce en tu móvil antes de subirla.</p>
+         <label style="margin-top:16px">Alérgenos</label>
+         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-top:4px">${checks}</div>`,
+        async()=>{
+          const alergenos=[...document.querySelectorAll('#modalBody input[data-a]:checked')].map(c=>c.dataset.a);
+          const quitar=!!(document.getElementById("fichaQuitar")&&document.getElementById("fichaQuitar").checked);
+          const body={ alergenos }; if(quitar) body.quitarFoto=true; else if(cartaFichaFile){ body.fotoBase64=cartaFichaFile; }
+          await api("/carta/fichas/"+id,{method:"PUT",body:JSON.stringify(body)});
+          toast("Ficha guardada","ok"); vCartaQr();
+        });
+    }
+    async function cartaFichaPrev(ev){ const file=ev.target.files&&ev.target.files[0]; if(!file) return;
+      try{ cartaFichaFile=await cartaResizeFoto(file); const prev=document.getElementById("fichaPrev"); if(prev) prev.innerHTML=`<img src="${cartaFichaFile}" style="width:120px;height:120px;object-fit:cover;border-radius:12px;border:1px solid var(--line)"/>`;
+      }catch(e){ toast("No se pudo leer la imagen","err"); } }
+    function cartaResizeFoto(file){ return new Promise((res,rej)=>{ const rd=new FileReader();
+      rd.onload=()=>{ const img=new Image(); img.onload=()=>{ const max=900; let w=img.width,h=img.height; if(w>max||h>max){ const s=max/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s); }
+        const cv=document.createElement("canvas"); cv.width=w; cv.height=h; cv.getContext("2d").drawImage(img,0,0,w,h);
+        try{ res(cv.toDataURL("image/jpeg",0.82)); }catch(e){ rej(e); } }; img.onerror=rej; img.src=rd.result; };
+      rd.onerror=rej; rd.readAsDataURL(file); }); }
     async function cartaCargarTrads(){
       const lista=await api("/carta/traducciones").catch(()=>[]); const map={};
       for(const t of lista) map[`${t.ambito}|${t.clave}|${String(t.idioma).toLowerCase()}`]=t;

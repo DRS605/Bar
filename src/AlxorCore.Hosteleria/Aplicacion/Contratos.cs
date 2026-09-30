@@ -187,3 +187,28 @@ public interface IConsultaTraducciones
     /// <summary>Traducciones de un idioma concreto (para pintar la carta pública).</summary>
     Task<IReadOnlyList<TraduccionCartaDto>> ListarPorIdiomaAsync(Guid empresaId, IdiomaCarta idioma, CancellationToken ct = default);
 }
+
+/// <summary>Ficha de carta de un producto: sus alérgenos y si tiene foto.</summary>
+public sealed record FichaCartaDto(Guid ProductoId, IReadOnlyList<string> Alergenos, bool TieneFoto)
+{
+    public static FichaCartaDto Desde(FichaCarta f) => new(f.ProductoId, Dominio.Alergenos.ANombres(f.Alergenos), f.TieneFoto);
+}
+
+/// <summary>Imagen de un producto (para servirla en la carta).</summary>
+public sealed record FotoProducto(byte[] Datos, string Tipo);
+
+/// <summary>Repositorio de fichas de carta (alérgenos y foto por producto).</summary>
+public interface IRepositorioFichasCarta
+{
+    Task<FichaCarta?> ObtenerPorProductoAsync(Guid productoId, CancellationToken ct = default);
+
+    void Agregar(FichaCarta ficha);
+}
+
+/// <summary>Consultas de lectura de fichas de carta.</summary>
+public interface IConsultaFichasCarta
+{
+    Task<IReadOnlyList<FichaCartaDto>> ListarAsync(Guid empresaId, CancellationToken ct = default);
+
+    Task<FotoProducto?> ObtenerFotoAsync(Guid empresaId, Guid productoId, CancellationToken ct = default);
+}
