@@ -65,6 +65,10 @@ public static class EndpointsHosteleria
             .WithSummary("Cambia el precio de una línea (hacer precio a mano o invitar con 0).")
             .RequierePermiso(Permisos.HosteleriaGestionar);
 
+        comandas.MapPut("/{id:guid}/lineas/{lineaId:guid}/nota", CambiarNotaLineaAsync)
+            .WithSummary("Fija la nota de preparación de una línea (para cocina).")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
         comandas.MapDelete("/{id:guid}/lineas/{lineaId:guid}", QuitarLineaAsync)
             .WithSummary("Quita una línea de la comanda.")
             .RequierePermiso(Permisos.HosteleriaGestionar);
@@ -167,6 +171,9 @@ public static class EndpointsHosteleria
     private static async Task<IResult> CambiarPrecioLineaAsync(Guid id, Guid lineaId, DatosPrecioLinea datos, CambiarPrecioLineaComanda caso, CancellationToken ct) =>
         (await caso.EjecutarAsync(id, lineaId, datos, ct).ConfigureAwait(false)).AOk();
 
+    private static async Task<IResult> CambiarNotaLineaAsync(Guid id, Guid lineaId, DatosNotaLinea datos, CambiarNotaLineaComanda caso, CancellationToken ct) =>
+        (await caso.EjecutarAsync(id, lineaId, datos, ct).ConfigureAwait(false)).AOk();
+
     private static async Task<IResult> QuitarLineaAsync(Guid id, Guid lineaId, QuitarLineaComanda caso, CancellationToken ct) =>
         (await caso.EjecutarAsync(id, lineaId, ct).ConfigureAwait(false)).AOk();
 
@@ -190,7 +197,7 @@ public static class EndpointsHosteleria
                 var datos = new DatosComandaCocina(
                     string.IsNullOrWhiteSpace(mesa?.Nombre) ? "Mesa" : mesa!.Nombre,
                     resultado.Valor.Hora,
-                    resultado.Valor.Articulos.Select(a => new LineaCocina(a.Cantidad, a.Descripcion)).ToList(),
+                    resultado.Valor.Articulos.Select(a => new LineaCocina(a.Cantidad, a.Descripcion, a.Nota)).ToList(),
                     resultado.Valor.Notas);
                 await impresora.ImprimirAsync(generador.Generar(datos), ct).ConfigureAwait(false);
             }

@@ -44,6 +44,7 @@ public static class RegistroServicios
         servicios.AddScoped<AgregarLineaComanda>();
         servicios.AddScoped<FijarCantidadLineaComanda>();
         servicios.AddScoped<CambiarPrecioLineaComanda>();
+        servicios.AddScoped<CambiarNotaLineaComanda>();
         servicios.AddScoped<QuitarLineaComanda>();
         servicios.AddScoped<EnviarComandaCocina>();
         servicios.AddScoped<ListarComandasAbiertas>();

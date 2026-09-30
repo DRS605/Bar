@@ -18,10 +18,10 @@ public class GeneradorComandaCocinaEscPosTests
 
     private static DatosComandaCocina Datos() => new(
         "Mesa 4", new DateTimeOffset(2026, 2, 14, 21, 0, 0, TimeSpan.Zero),
-        new List<LineaCocina> { new(2m, "Caña"), new(1m, "Tortilla") }, "sin cebolla");
+        new List<LineaCocina> { new(2m, "Caña"), new(1m, "Tortilla", "sin cebolla") }, null);
 
     [Fact]
-    public void Lista_articulos_con_cantidad_y_sin_precios()
+    public void Lista_articulos_con_cantidad_sin_precios_y_con_notas()
     {
         var bytes = new GeneradorComandaCocinaEscPos().Generar(Datos());
 
@@ -31,7 +31,7 @@ public class GeneradorComandaCocinaEscPosTests
         var texto = Cp858.GetString(bytes);
         texto.Should().Contain("Mesa 4");
         texto.Should().Contain("2 x Caña").And.Contain("1 x Tortilla");
-        texto.Should().Contain("sin cebolla");
+        texto.Should().Contain("sin cebolla"); // la nota de preparación de la línea
         texto.Should().NotContain("€"); // la comanda de cocina no lleva precios
     }
 }

@@ -89,6 +89,7 @@ internal sealed class ConfiguracionComanda : IEntityTypeConfiguration<Comanda>
             linea.Property(l => l.EmpresaId).HasColumnName("empresa_id").IsRequired();
             linea.Property(l => l.ProductoId).HasColumnName("producto_id").IsRequired();
             linea.Property(l => l.Descripcion).HasColumnName("descripcion").HasMaxLength(LineaComanda.LongitudMaximaDescripcion).IsRequired();
+            linea.Property(l => l.Nota).HasColumnName("nota").HasMaxLength(LineaComanda.LongitudMaximaDescripcion);
             linea.Property(l => l.Cantidad).HasColumnName("cantidad").HasColumnType("numeric(14,3)").IsRequired();
             linea.Property(l => l.PrecioUnitario).HasColumnName("precio_unitario").HasColumnType("numeric(14,4)").IsRequired();
             linea.Property(l => l.CodigoIva).HasColumnName("codigo_iva").HasMaxLength(10).IsRequired();

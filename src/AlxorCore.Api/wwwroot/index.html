@@ -160,6 +160,8 @@
       transition: transform .15s ease, box-shadow .15s ease; }
     .kpi:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(20,60,45,.10); }
     .kpi .top { display:flex; align-items:center; justify-content:space-between; }
+    .kpi-link { cursor:pointer; transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease; }
+    .kpi-link:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(20,60,45,.12); border-color:#d5e3db; }
     .kpi .chipico { width: 34px; height: 34px; border-radius: 10px; display:grid; place-items:center; background: var(--accent-soft); color: var(--accent); }
     .kpi .chipico svg { width: 18px; height: 18px; stroke: currentColor; fill:none; stroke-width: 1.9; }
     .kpi .lbl { color: var(--muted); font-size: 12.5px; margin-top: 14px; }
@@ -558,10 +560,10 @@
       const sinCarta=!prods.length, sinMesas=!mesas.length, onboarding=sinCarta||sinMesas;
       const greet=`<div class="lgreet"><span class="eyebrow"><span class="dot"></span>${fecha.charAt(0).toUpperCase()+fecha.slice(1)}</span><h1>${saludo}, ${nombre}</h1><p>Este es el pulso de <strong>${empresa.razonSocial}</strong>. Elige por dónde empezar.</p></div>`;
       const kpis=`<div class="kpis">
-        <div class="kpi"><div class="top"><div class="chipico">${kIcon.fact}</div></div><div class="lbl">Ventas este mes</div><div class="val">${eur(d.facturadoMes)}</div></div>
-        <div class="kpi"><div class="top"><div class="chipico">${kIcon.gasto}</div></div><div class="lbl">Gastos este mes</div><div class="val">${eur(d.gastadoMes)}</div></div>
-        <div class="kpi pos"><div class="top"><div class="chipico">${ICON.hosteleria}</div></div><div class="lbl">Mesas ocupadas</div><div class="val">${ocup}<span style="font-size:15px;color:var(--muted)"> / ${mesas.length}</span></div></div>
-        <div class="kpi"><div class="top"><div class="chipico">${ICON.reservas}</div></div><div class="lbl">Reservas hoy</div><div class="val">${resHoy}</div></div></div>`;
+        <div class="kpi kpi-link" onclick="ir('informes')" title="Ver informes"><div class="top"><div class="chipico">${kIcon.fact}</div></div><div class="lbl">Ventas este mes</div><div class="val">${eur(d.facturadoMes)}</div></div>
+        <div class="kpi kpi-link" onclick="ir('gastos')" title="Ver gastos"><div class="top"><div class="chipico">${kIcon.gasto}</div></div><div class="lbl">Gastos este mes</div><div class="val">${eur(d.gastadoMes)}</div></div>
+        <div class="kpi pos kpi-link" onclick="ir('hosteleria')" title="Ir a Barra / Salón"><div class="top"><div class="chipico">${ICON.hosteleria}</div></div><div class="lbl">Mesas ocupadas</div><div class="val">${ocup}<span style="font-size:15px;color:var(--muted)"> / ${mesas.length}</span></div></div>
+        <div class="kpi kpi-link" onclick="ir('reservas')" title="Ver reservas"><div class="top"><div class="chipico">${ICON.reservas}</div></div><div class="lbl">Reservas hoy</div><div class="val">${resHoy}</div></div></div>`;
       const paso=(hecho,titulo,desc,accion)=>`<div class="onb-step${hecho?" done":""}"><span class="onb-check">${hecho?"✓":""}</span><div style="flex:1;min-width:0"><strong>${titulo}</strong><br><small class="muted">${desc}</small></div>${hecho?'<span class="pill ok">Hecho</span>':accion}</div>`;
       const onb=`<div class="panel onb"><div style="padding:20px 22px">
         <span class="eyebrow" style="color:var(--copper)">Primeros pasos</span>
@@ -978,8 +980,10 @@
           ? `<button onclick="hosPrecio('${l.id}',${l.precioUnitario})" title="Cambiar precio" style="background:none;border:0;padding:0;font:inherit;cursor:pointer;color:${invitado?'var(--copper)':'var(--muted)'};text-decoration:underline dotted">${invitado?'Invitación':eur(l.precioUnitario)} ✎</button>`
           : `<span class="muted">${eur(l.precioUnitario)}</span>`;
         const cobradaHtml=Number(l.cantidadCobrada)>0?` · <span style="color:var(--pos)">${numCant(l.cantidadCobrada)} cobrada${Number(l.cantidadCobrada)===1?"":"s"}</span>`:"";
+        const notaBtn=!String(l.id).startsWith("tmp-")?`<button onclick="hosNota('${l.id}')" title="Nota para cocina" style="background:none;border:0;padding:0 0 0 8px;cursor:pointer;color:${l.nota?'var(--copper)':'var(--muted)'};font:inherit">📝</button>`:"";
+        const notaHtml=l.nota?`<br><small style="color:var(--copper)">📝 ${l.nota}</small>`:"";
         return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)">
-        <div style="flex:1;min-width:0"><strong style="font-size:14px">${l.descripcion}</strong><br><small>${precioHtml}${cobradaHtml}</small></div>
+        <div style="flex:1;min-width:0"><strong style="font-size:14px">${l.descripcion}</strong>${notaBtn}<br><small>${precioHtml}${cobradaHtml}</small>${notaHtml}</div>
         <div class="hos-step">
           <button onclick="hosMenos('${l.id}')" aria-label="Quitar uno">−</button>
           <span>${numCant(l.cantidad)}</span>
@@ -1025,6 +1029,13 @@
       const precio=Math.round(p*100)/100, id=hosComanda.id;
       l.precioUnitario=precio; l.total=Number((l.cantidad*precio).toFixed(2)); hosPintarCart();
       hosEncolar(()=>api(`/comandas/${id}/lineas/${lineaId}/precio`,{method:"PUT",body:JSON.stringify({precio})}));
+    }
+    function hosNota(lineaId){
+      const l=hosComanda?.lineas.find(x=>x.id===lineaId); if(!l||String(lineaId).startsWith("tmp-"))return;
+      const v=prompt(`Nota para cocina en «${l.descripcion}» (p. ej. sin cebolla, poco hecho):`, l.nota||"");
+      if(v===null)return; const nota=v.trim()||null, id=hosComanda.id;
+      l.nota=nota; hosPintarCart();
+      hosEncolar(()=>api(`/comandas/${id}/lineas/${lineaId}/nota`,{method:"PUT",body:JSON.stringify({nota})}));
     }
     async function hosAnular(id){ try{ await api("/comandas/"+id+"/anular",{method:"POST"}); toast("Comanda anulada","ok"); vHosteleria();}catch(e){toast(e.message,"err");} }
     async function hosCuenta(id){ try{ await hosCola; await api("/comandas/"+id+"/cuenta/imprimir",{method:"POST"}); toast("🧾 Cuenta impresa para la mesa","ok"); }catch(e){ toast(e.message,"err"); } }
@@ -1194,10 +1205,20 @@
     async function vPlano(){
       view('<div class="muted">Cargando…</div>');
       planoMesas=await api("/mesas");
-      const W=1000,H=640;
+      const W=1000;
       const half=m=> m.forma==="Rectangular"?{w:95,h:27}:m.forma==="Redonda"?{w:38,h:38}:{w:36,h:36};
-      const cols=Math.max(1,Math.floor((W-120)/160)), pos={};
-      planoMesas.forEach((m,i)=>{ pos[m.id]=(m.posX>0||m.posY>0)?{x:m.posX,y:m.posY}:{x:90+(i%cols)*160,y:110+Math.floor(i/cols)*140}; });
+      const pos={};
+      // Disposición por defecto agrupada POR ZONAS (bandas horizontales), para que no se solapen.
+      const zonasOrden=[...new Set(planoMesas.map(m=>(m.zona&&m.zona.trim())||"Sin zona"))];
+      const x0=135, colW=155, rowH=130, bandGap=54; let yBand=132;
+      zonasOrden.forEach(z=>{
+        const arr=planoMesas.filter(m=>((m.zona&&m.zona.trim())||"Sin zona")===z);
+        const perRow=Math.max(1, Math.floor((W-2*x0+colW)/colW));
+        arr.forEach((m,i)=>{ pos[m.id]=(m.posX>0||m.posY>0)?{x:m.posX,y:m.posY}
+          :{x:x0+(i%perRow)*colW, y:yBand+Math.floor(i/perRow)*rowH}; });
+        yBand += Math.max(1,Math.ceil(arr.length/perRow))*rowH + bandGap;
+      });
+      const H=Math.max(560, Math.round(yBand+10));
       const zc={ "Barra":"#6366f1","Terraza":"#0ea5e9","Salón":"#f59e0b","Salon":"#f59e0b" }, pal=["#16a34a","#db2777","#7c3aed","#0891b2","#ca8a04"];
       const zonas={}; planoMesas.forEach(m=>{ const z=(m.zona&&m.zona.trim())||"Sin zona"; (zonas[z]=zonas[z]||[]).push(m); });
       let zi=0; const zonaSvg=Object.entries(zonas).map(([z,arr])=>{

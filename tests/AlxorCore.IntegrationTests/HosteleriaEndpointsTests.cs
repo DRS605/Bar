@@ -16,7 +16,7 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
 
     private sealed record MesaResp(Guid Id, string Nombre, string? Zona, int Capacidad, string Forma, double PosX, double PosY, bool Activa, bool Ocupada, Guid? ComandaAbiertaId, decimal TotalComandaAbierta);
 
-    private sealed record LineaResp(Guid Id, Guid ProductoId, string Descripcion, decimal Cantidad, decimal PrecioUnitario, decimal Total, decimal CantidadCobrada, decimal CantidadPendienteCobro);
+    private sealed record LineaResp(Guid Id, Guid ProductoId, string Descripcion, decimal Cantidad, decimal PrecioUnitario, decimal Total, decimal CantidadCobrada, decimal CantidadPendienteCobro, string? Nota);
 
     private sealed record ComandaResp(Guid Id, Guid MesaId, string Estado, decimal BaseImponible, decimal CuotaIva, decimal Total, string? MetodoCobro, Guid? FacturaId, string? NumeroTicket, bool TieneCobroParcial, decimal TotalPendienteCobro, List<LineaResp> Lineas);
 
@@ -29,7 +29,7 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
     private sealed record CierreMetodoResp(string Metodo, decimal Importe, int Numero);
     private sealed record CierreResp(decimal TotalCobrado, List<CierreMetodoResp> CobrosPorMetodo);
 
-    private sealed record ArticuloCocinaResp(decimal Cantidad, string Descripcion);
+    private sealed record ArticuloCocinaResp(decimal Cantidad, string Descripcion, string? Nota);
     private sealed record CocinaResp(Guid MesaId, List<ArticuloCocinaResp> Articulos);
 
     private static async Task<ProductoResp> CrearCañaAsync(HttpClient cliente, decimal precio = 1.50m, bool stock = true, decimal stockInicial = 100m)
@@ -477,6 +477,24 @@ public sealed class HosteleriaEndpointsTests : IClassFixture<FabricaApiPruebas>
         // Sin cambios, un segundo envío no manda nada de nuevo a cocina.
         var envio2 = await (await cliente.PostAsync(new Uri($"/comandas/{comanda.Id}/cocina", UriKind.Relative), content: null)).Content.ReadFromJsonAsync<CocinaResp>();
         envio2!.Articulos.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task La_nota_de_una_linea_llega_en_el_envio_a_cocina()
+    {
+        var (cliente, _) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var producto = await CrearCañaAsync(cliente, stock: false);
+        var mesa = await CrearMesaAsync(cliente);
+        var comanda = (await (await cliente.PostAsJsonAsync("/comandas", new { MesaId = mesa.Id })).Content.ReadFromJsonAsync<ComandaResp>())!;
+        var conLinea = (await (await cliente.PostAsJsonAsync($"/comandas/{comanda.Id}/lineas", new { ProductoId = producto.Id, Cantidad = 1m })).Content.ReadFromJsonAsync<ComandaResp>())!;
+        var lineaId = conLinea.Lineas.Single().Id;
+
+        var nota = await cliente.PutAsJsonAsync($"/comandas/{comanda.Id}/lineas/{lineaId}/nota", new { Nota = "sin hielo" });
+        nota.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await nota.Content.ReadFromJsonAsync<ComandaResp>())!.Lineas.Single().Nota.Should().Be("sin hielo");
+
+        var envio = await (await cliente.PostAsync(new Uri($"/comandas/{comanda.Id}/cocina", UriKind.Relative), content: null)).Content.ReadFromJsonAsync<CocinaResp>();
+        envio!.Articulos.Should().ContainSingle(a => a.Descripcion == "Caña" && a.Nota == "sin hielo");
     }
 
     [Fact]

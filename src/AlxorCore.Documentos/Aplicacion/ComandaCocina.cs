@@ -1,7 +1,7 @@
 namespace AlxorCore.Documentos.Aplicacion;
 
-/// <summary>Una línea de la comanda de cocina: cantidad y qué preparar.</summary>
-public sealed record LineaCocina(decimal Cantidad, string Descripcion);
+/// <summary>Una línea de la comanda de cocina: cantidad, qué preparar y su nota (opcional).</summary>
+public sealed record LineaCocina(decimal Cantidad, string Descripcion, string? Nota = null);
 
 /// <summary>Datos para imprimir una comanda de cocina/barra (sin precios): mesa, hora y qué preparar.</summary>
 public sealed record DatosComandaCocina(string Mesa, DateTimeOffset Hora, IReadOnlyList<LineaCocina> Lineas, string? Notas);

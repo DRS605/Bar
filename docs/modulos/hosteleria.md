@@ -93,6 +93,10 @@ hora y artículos **en grande y sin precios** —distinta del ticket de cobro—
 configurada (**mejor esfuerzo**: un fallo de impresión no interrumpe el pedido; sin impresora, solo se
 marca lo enviado). En el editor de comanda, el botón **«🍳 Cocina»** lo dispara.
 
+Cada línea admite una **nota de preparación** (`Nota`, p. ej. «sin cebolla», «poco hecho») que se fija
+con `PUT /comandas/{id}/lineas/{lineaId}/nota` (vacío la borra) y **viaja con el artículo a la comanda
+de cocina**, donde se imprime debajo de la línea. En el editor, el botón **«📝»** de cada línea la edita.
+
 ## API
 
 | Método | Ruta | Auth | Descripción |
@@ -108,6 +112,7 @@ marca lo enviado). En el editor de comanda, el botón **«🍳 Cocina»** lo dis
 | `POST` | `/comandas/{id}/lineas` | permiso `hosteleria.gestionar` | Añade un producto (acumula si se repite). |
 | `PUT` | `/comandas/{id}/lineas/{lineaId}` | permiso `hosteleria.gestionar` | Fija la cantidad de una línea (+/−). |
 | `PUT` | `/comandas/{id}/lineas/{lineaId}/precio` | permiso `hosteleria.gestionar` | Cambia el precio de una línea (hacer precio o invitar con 0). |
+| `PUT` | `/comandas/{id}/lineas/{lineaId}/nota` | permiso `hosteleria.gestionar` | Fija (o borra con vacío) la nota de preparación de una línea; viaja en el envío a cocina. |
 | `DELETE` | `/comandas/{id}/lineas/{lineaId}` | permiso `hosteleria.gestionar` | Quita una línea. |
 | `POST` | `/comandas/{id}/cocina` | permiso `hosteleria.gestionar` | Envía a cocina los artículos nuevos (marca e imprime). |
 | `GET` | `/comandas/{id}/cuenta.escpos` | permiso `hosteleria.gestionar` | Descarga la cuenta previa (pre-ticket, sin valor fiscal) en ESC/POS. |

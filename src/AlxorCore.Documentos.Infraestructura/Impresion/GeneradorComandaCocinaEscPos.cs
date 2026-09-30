@@ -51,6 +51,12 @@ internal sealed class GeneradorComandaCocinaEscPos : IGeneradorComandaCocina
         foreach (var l in datos.Lineas)
         {
             Linea($"{Cantidad(l.Cantidad)} x {l.Descripcion}");
+            if (!string.IsNullOrWhiteSpace(l.Nota))
+            {
+                Bytes(TamanoNormal);
+                Linea($"   > {l.Nota}");
+                Bytes(TamanoAlto);
+            }
         }
 
         Bytes(TamanoNormal); Bytes(NegritaOff);

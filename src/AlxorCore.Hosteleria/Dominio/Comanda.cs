@@ -262,6 +262,24 @@ public sealed class Comanda : RaizAgregadoEmpresa<Guid>
         return Resultado.Ok(linea);
     }
 
+    /// <summary>Fija la nota de preparación de una línea (para cocina). Solo mientras la comanda está abierta.</summary>
+    public Resultado<LineaComanda> CambiarNotaLinea(Guid lineaId, string? nota)
+    {
+        if (Estado != EstadoComanda.Abierta)
+        {
+            return Resultado.Fallo<LineaComanda>(Error.Conflicto("comanda.no_abierta", "Solo se pueden anotar líneas de una comanda abierta."));
+        }
+
+        var linea = _lineas.SingleOrDefault(l => l.Id == lineaId);
+        if (linea is null)
+        {
+            return Resultado.Fallo<LineaComanda>(Error.NoEncontrado("comanda.linea_no_encontrada", "La línea no existe en la comanda."));
+        }
+
+        linea.FijarNota(nota);
+        return Resultado.Ok(linea);
+    }
+
     /// <summary>
     /// Aplica un descuento global a la cuenta, en porcentaje (0–100). Reduce base e IVA por igual y el
     /// ticket lo refleja como descuento por línea. Solo mientras la comanda está abierta.
@@ -303,7 +321,7 @@ public sealed class Comanda : RaizAgregadoEmpresa<Guid>
             var nueva = linea.MarcarEnviadaCocina();
             if (nueva > 0)
             {
-                articulos.Add(new ArticuloCocina(linea.Descripcion, nueva));
+                articulos.Add(new ArticuloCocina(linea.Descripcion, nueva, linea.Nota));
             }
         }
 

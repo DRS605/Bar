@@ -46,6 +46,9 @@ public sealed class LineaComanda : EntidadBase<Guid>
 
     public string Descripcion { get; private set; }
 
+    /// <summary>Nota de preparación para cocina/barra («sin cebolla», «poco hecho»…). Opcional.</summary>
+    public string? Nota { get; private set; }
+
     public decimal Cantidad { get; private set; }
 
     public decimal PrecioUnitario { get; private set; }
@@ -119,5 +122,12 @@ public sealed class LineaComanda : EntidadBase<Guid>
         PrecioUnitario = precioUnitario;
         Base = Redondeo.Dos(Cantidad * PrecioUnitario);
         CuotaIva = Redondeo.Dos(Base * PorcentajeIva / 100m);
+    }
+
+    /// <summary>Fija la nota de preparación de la línea (para cocina). Vacía o nula la borra.</summary>
+    internal void FijarNota(string? nota)
+    {
+        nota = string.IsNullOrWhiteSpace(nota) ? null : nota.Trim();
+        Nota = nota is { Length: > LongitudMaximaDescripcion } ? nota[..LongitudMaximaDescripcion] : nota;
     }
 }

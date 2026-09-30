@@ -25,6 +25,9 @@ public sealed record DatosCantidadLinea(decimal Cantidad);
 /// <summary>Nuevo precio unitario de una línea (hacer precio a mano; 0 para invitar).</summary>
 public sealed record DatosPrecioLinea(decimal Precio);
 
+/// <summary>Nota de preparación de una línea (para cocina; vacía la borra).</summary>
+public sealed record DatosNotaLinea(string? Nota);
+
 /// <summary>Datos para abrir una comanda en una mesa.</summary>
 public sealed record DatosAbrirComanda(Guid MesaId, string? Notas = null);
 
@@ -330,8 +333,41 @@ public sealed class CambiarPrecioLineaComanda
     }
 }
 
-/// <summary>Un artículo que se envía a cocina (cantidad nueva de este envío).</summary>
-public sealed record ArticuloCocinaDto(decimal Cantidad, string Descripcion);
+/// <summary>Caso de uso: fija (o borra) la nota de preparación de una línea, para cocina.</summary>
+public sealed class CambiarNotaLineaComanda
+{
+    private readonly IRepositorioComandas _comandas;
+    private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
+
+    public CambiarNotaLineaComanda(IRepositorioComandas comandas, IUnidadDeTrabajoHosteleria unidadDeTrabajo)
+    {
+        _comandas = comandas;
+        _unidadDeTrabajo = unidadDeTrabajo;
+    }
+
+    public async Task<Resultado<ComandaDto>> EjecutarAsync(Guid comandaId, Guid lineaId, DatosNotaLinea datos, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(datos);
+
+        var comanda = await _comandas.ObtenerPorIdAsync(comandaId, ct).ConfigureAwait(false);
+        if (comanda is null)
+        {
+            return Resultado.Fallo<ComandaDto>(Error.NoEncontrado("comanda.no_encontrada", "La comanda no existe."));
+        }
+
+        var r = comanda.CambiarNotaLinea(lineaId, datos.Nota);
+        if (r.EsFallo)
+        {
+            return Resultado.Fallo<ComandaDto>(r.Error);
+        }
+
+        await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+        return Resultado.Ok(ComandaDto.Desde(comanda));
+    }
+}
+
+/// <summary>Un artículo que se envía a cocina (cantidad nueva de este envío, con su nota).</summary>
+public sealed record ArticuloCocinaDto(decimal Cantidad, string Descripcion, string? Nota = null);
 
 /// <summary>Lo que se manda a cocina/barra al enviar una comanda: mesa, hora y artículos nuevos.</summary>
 public sealed record ComandaCocinaDto(Guid ComandaId, Guid MesaId, DateTimeOffset Hora, IReadOnlyList<ArticuloCocinaDto> Articulos, string? Notas);
@@ -365,7 +401,7 @@ public sealed class EnviarComandaCocina
         }
 
         await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
-        var articulos = r.Valor.Select(a => new ArticuloCocinaDto(a.Cantidad, a.Descripcion)).ToList();
+        var articulos = r.Valor.Select(a => new ArticuloCocinaDto(a.Cantidad, a.Descripcion, a.Nota)).ToList();
         return Resultado.Ok(new ComandaCocinaDto(comanda.Id, comanda.MesaId, _reloj.AhoraUtc, articulos, comanda.Notas));
     }
 }

@@ -377,4 +377,19 @@ public class ComandaTests
         comanda.AgregarLinea(Producto, "Caña", 1m, 1.50m, "IVA10", 10m, Reloj);
         comanda.AplicarDescuento(120m, Reloj).Error.Codigo.Should().Be("comanda.descuento_invalido");
     }
+
+    [Fact]
+    public void La_nota_de_una_linea_viaja_a_cocina()
+    {
+        var comanda = ComandaAbierta();
+        var tortilla = comanda.AgregarLinea(Producto, "Tortilla", 1m, 4.50m, "IVA10", 10m, Reloj).Valor;
+
+        comanda.CambiarNotaLinea(tortilla.Id, "  sin cebolla  ").EsCorrecto.Should().BeTrue();
+        tortilla.Nota.Should().Be("sin cebolla"); // recortada
+
+        comanda.EnviarACocina().Valor.Should().ContainSingle(a => a.Descripcion == "Tortilla" && a.Nota == "sin cebolla");
+
+        comanda.CambiarNotaLinea(tortilla.Id, "   ").EsCorrecto.Should().BeTrue(); // vaciar borra
+        tortilla.Nota.Should().BeNull();
+    }
 }

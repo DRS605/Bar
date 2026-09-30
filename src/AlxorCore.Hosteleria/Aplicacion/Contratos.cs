@@ -34,10 +34,11 @@ public sealed record LineaComandaDto(
     decimal CuotaIva,
     decimal Total,
     decimal CantidadCobrada,
-    decimal CantidadPendienteCobro)
+    decimal CantidadPendienteCobro,
+    string? Nota)
 {
     public static LineaComandaDto Desde(LineaComanda l) =>
-        new(l.Id, l.ProductoId, l.Descripcion, l.Cantidad, l.PrecioUnitario, l.CodigoIva, l.PorcentajeIva, l.Base, l.CuotaIva, l.Total, l.CantidadCobrada, l.CantidadPendienteCobro);
+        new(l.Id, l.ProductoId, l.Descripcion, l.Cantidad, l.PrecioUnitario, l.CodigoIva, l.PorcentajeIva, l.Base, l.CuotaIva, l.Total, l.CantidadCobrada, l.CantidadPendienteCobro, l.Nota);
 }
 
 /// <summary>Vista completa de una comanda con sus líneas.</summary>
