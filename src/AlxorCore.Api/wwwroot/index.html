@@ -375,6 +375,7 @@
     const API = "";
     let token=null, empresa=null, usuario=null, vista="inicio";
     const eur = n => (Number(n)||0).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
+    const esc = s => String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     const fdate = s => { if(!s) return ""; const p=String(s).slice(0,10).split("-"); return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:String(s); };
     const check = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M20 6L9 17l-5-5"/></svg>';
     document.querySelector('.promo ul').innerHTML =
