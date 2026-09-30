@@ -7,6 +7,7 @@ using AlxorCore.Nucleo.Resultados;
 using AlxorCore.Nucleo.Tiempo;
 using AlxorCore.Organizacion.Aplicacion.Puertos;
 using AlxorCore.Tesoreria.Aplicacion;
+using QRCoder;
 
 namespace AlxorCore.Api.Endpoints;
 
@@ -37,6 +38,53 @@ public static class EndpointsHosteleria
 
         mesas.MapDelete("/{id:guid}", DesactivarMesaAsync)
             .WithSummary("Retira (desactiva) una mesa.")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
+        mesas.MapGet("/{id:guid}/qr-carta.svg", QrCartaMesaAsync)
+            .WithSummary("Código QR (SVG) de autopedido de una mesa: enlaza a la carta de esa mesa para pedir.")
+            .RequireAuthorization();
+
+        mesas.MapGet("/{id:guid}/carta-link", CartaLinkMesaAsync)
+            .WithSummary("Enlace (y token) de autopedido de una mesa, para imprimir o compartir el QR.")
+            .RequireAuthorization();
+
+        mesas.MapPost("/{id:guid}/regenerar-token", RegenerarTokenAsync)
+            .WithSummary("Genera un token de carta nuevo para la mesa (invalida sus QR de autopedido ya impresos).")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
+        // Autopedido: pedidos del cliente (pendientes de aceptar) y avisos de mesa.
+        var pedidosWeb = rutas.MapGroup("/pedidos-web").WithTags("Autopedido");
+
+        pedidosWeb.MapGet("", ListarPedidosWebAsync)
+            .WithSummary("Lista los pedidos hechos por los clientes desde el móvil, pendientes de aceptar.")
+            .RequireAuthorization();
+
+        pedidosWeb.MapPost("/{id:guid}/aceptar", AceptarPedidoWebAsync)
+            .WithSummary("Acepta un pedido del cliente: lo añade a la cuenta de la mesa.")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
+        pedidosWeb.MapPost("/{id:guid}/rechazar", RechazarPedidoWebAsync)
+            .WithSummary("Rechaza un pedido del cliente.")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
+        var avisos = rutas.MapGroup("/avisos").WithTags("Autopedido");
+
+        avisos.MapGet("", ListarAvisosAsync)
+            .WithSummary("Lista los avisos de mesa pendientes (llamar al camarero / pedir la cuenta).")
+            .RequireAuthorization();
+
+        avisos.MapPost("/{id:guid}/atender", AtenderAvisoAsync)
+            .WithSummary("Marca un aviso de mesa como atendido.")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
+        var traducciones = rutas.MapGroup("/carta/traducciones").WithTags("Autopedido");
+
+        traducciones.MapGet("", ListarTraduccionesAsync)
+            .WithSummary("Lista las traducciones de la carta (inglés/francés) del local.")
+            .RequireAuthorization();
+
+        traducciones.MapPut("", GuardarTraduccionAsync)
+            .WithSummary("Guarda o borra una traducción de la carta (nombre vacío = volver al español).")
             .RequierePermiso(Permisos.HosteleriaGestionar);
 
         var comandas = rutas.MapGroup("/comandas").WithTags("Comandas");
@@ -137,6 +185,104 @@ public static class EndpointsHosteleria
 
     private static async Task<IResult> DesactivarMesaAsync(Guid id, DesactivarMesa caso, CancellationToken ct) =>
         (await caso.EjecutarAsync(id, ct).ConfigureAwait(false)).ASinContenido();
+
+    private static async Task<IResult> QrCartaMesaAsync(Guid id, IContextoEmpresa contexto, IRepositorioMesas mesas, HttpContext http, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var mesa = await mesas.ObtenerPorIdAsync(id, ct).ConfigureAwait(false);
+        if (mesa is null || mesa.EmpresaId != contexto.EmpresaId.Value)
+        {
+            return Results.NotFound();
+        }
+
+        var url = $"{http.Request.Scheme}://{http.Request.Host}/carta.html?e={contexto.EmpresaId.Value}&m={id}&t={mesa.TokenCarta}";
+        using var generador = new QRCodeGenerator();
+        var datos = generador.CreateQrCode(url, QRCodeGenerator.ECCLevel.M);
+        var svg = new SvgQRCode(datos).GetGraphic(6);
+        return Results.Content(svg, "image/svg+xml");
+    }
+
+    private sealed record CartaLinkDto(string Url, Guid Token);
+
+    private static async Task<IResult> CartaLinkMesaAsync(Guid id, IContextoEmpresa contexto, IRepositorioMesas mesas, HttpContext http, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var mesa = await mesas.ObtenerPorIdAsync(id, ct).ConfigureAwait(false);
+        if (mesa is null || mesa.EmpresaId != contexto.EmpresaId.Value)
+        {
+            return Results.NotFound();
+        }
+
+        var url = $"{http.Request.Scheme}://{http.Request.Host}/carta.html?e={contexto.EmpresaId.Value}&m={id}&t={mesa.TokenCarta}";
+        return Results.Ok(new CartaLinkDto(url, mesa.TokenCarta));
+    }
+
+    private static async Task<IResult> RegenerarTokenAsync(Guid id, RegenerarTokenCartaMesa caso, CancellationToken ct) =>
+        (await caso.EjecutarAsync(id, ct).ConfigureAwait(false)).ASinContenido();
+
+    private static async Task<IResult> ListarPedidosWebAsync(IContextoEmpresa contexto, ListarPedidosWebPendientes caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> AceptarPedidoWebAsync(Guid id, IContextoEmpresa contexto, AceptarPedidoWeb caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return (await caso.EjecutarAsync(contexto.EmpresaId.Value, id, ct).ConfigureAwait(false)).AOk();
+    }
+
+    private static async Task<IResult> RechazarPedidoWebAsync(Guid id, RechazarPedidoWeb caso, CancellationToken ct) =>
+        (await caso.EjecutarAsync(id, ct).ConfigureAwait(false)).ASinContenido();
+
+    private static async Task<IResult> ListarAvisosAsync(IContextoEmpresa contexto, ListarAvisosPendientes caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> AtenderAvisoAsync(Guid id, AtenderAviso caso, CancellationToken ct) =>
+        (await caso.EjecutarAsync(id, ct).ConfigureAwait(false)).ASinContenido();
+
+    private static async Task<IResult> ListarTraduccionesAsync(IContextoEmpresa contexto, ListarTraducciones caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> GuardarTraduccionAsync(DatosTraduccion datos, IContextoEmpresa contexto, GuardarTraduccion caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return (await caso.EjecutarAsync(contexto.EmpresaId.Value, datos, ct).ConfigureAwait(false)).ASinContenido();
+    }
 
     private static async Task<IResult> ListarComandasAsync(IContextoEmpresa contexto, ListarComandasAbiertas caso, CancellationToken ct)
     {

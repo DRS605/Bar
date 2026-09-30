@@ -34,6 +34,15 @@ public static class RegistroServicios
         servicios.AddScoped<RepositorioComandas>();
         servicios.AddScoped<IRepositorioComandas>(sp => sp.GetRequiredService<RepositorioComandas>());
         servicios.AddScoped<IConsultaComandas>(sp => sp.GetRequiredService<RepositorioComandas>());
+        servicios.AddScoped<RepositorioPedidosWeb>();
+        servicios.AddScoped<IRepositorioPedidosWeb>(sp => sp.GetRequiredService<RepositorioPedidosWeb>());
+        servicios.AddScoped<IConsultaPedidosWeb>(sp => sp.GetRequiredService<RepositorioPedidosWeb>());
+        servicios.AddScoped<RepositorioAvisos>();
+        servicios.AddScoped<IRepositorioAvisos>(sp => sp.GetRequiredService<RepositorioAvisos>());
+        servicios.AddScoped<IConsultaAvisos>(sp => sp.GetRequiredService<RepositorioAvisos>());
+        servicios.AddScoped<RepositorioTraducciones>();
+        servicios.AddScoped<IRepositorioTraducciones>(sp => sp.GetRequiredService<RepositorioTraducciones>());
+        servicios.AddScoped<IConsultaTraducciones>(sp => sp.GetRequiredService<RepositorioTraducciones>());
 
         servicios.AddScoped<CrearMesa>();
         servicios.AddScoped<ActualizarMesa>();
@@ -54,6 +63,18 @@ public static class RegistroServicios
         servicios.AddScoped<CobrarComandaParcial>();
         servicios.AddScoped<MoverComanda>();
         servicios.AddScoped<JuntarComandas>();
+
+        // Autopedido por QR (carta interactiva, pedidos del cliente y avisos de mesa).
+        servicios.AddScoped<CrearPedidoWeb>();
+        servicios.AddScoped<ListarPedidosWebPendientes>();
+        servicios.AddScoped<AceptarPedidoWeb>();
+        servicios.AddScoped<RechazarPedidoWeb>();
+        servicios.AddScoped<CrearAvisoMesa>();
+        servicios.AddScoped<ListarAvisosPendientes>();
+        servicios.AddScoped<AtenderAviso>();
+        servicios.AddScoped<ListarTraducciones>();
+        servicios.AddScoped<GuardarTraduccion>();
+        servicios.AddScoped<RegenerarTokenCartaMesa>();
 
         return servicios;
     }

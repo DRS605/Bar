@@ -24,6 +24,12 @@ public sealed class HosteleriaDbContext : DbContextEmpresaBase, IUnidadDeTrabajo
 
     public DbSet<Comanda> Comandas => Set<Comanda>();
 
+    public DbSet<PedidoWeb> PedidosWeb => Set<PedidoWeb>();
+
+    public DbSet<AvisoMesa> Avisos => Set<AvisoMesa>();
+
+    public DbSet<TraduccionCarta> Traducciones => Set<TraduccionCarta>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Esquema);
@@ -47,6 +53,7 @@ internal sealed class ConfiguracionMesa : IEntityTypeConfiguration<Mesa>
         builder.Property(m => m.PosX).HasColumnName("pos_x").IsRequired();
         builder.Property(m => m.PosY).HasColumnName("pos_y").IsRequired();
         builder.Property(m => m.Activa).HasColumnName("activa").IsRequired();
+        builder.Property(m => m.TokenCarta).HasColumnName("token_carta").IsRequired();
         builder.Property(m => m.CreadaEn).HasColumnName("creada_en").IsRequired();
         builder.Property(m => m.ActualizadaEn).HasColumnName("actualizada_en").IsRequired();
 
@@ -191,6 +198,173 @@ internal sealed class RepositorioComandas : IRepositorioComandas, IConsultaComan
             select new ComandaResumen(c.Id, c.MesaId, m != null ? m.Nombre : string.Empty, c.Estado.ToString(), c.AbiertaEn, c.Lineas.Count, c.Total);
 
         return await consulta.ToListAsync(ct).ConfigureAwait(false);
+    }
+}
+
+internal sealed class ConfiguracionPedidoWeb : IEntityTypeConfiguration<PedidoWeb>
+{
+    public void Configure(EntityTypeBuilder<PedidoWeb> builder)
+    {
+        builder.ToTable("pedido_web");
+        builder.HasKey(p => p.Id);
+        builder.Property(p => p.Id).HasColumnName("id");
+        builder.Property(p => p.EmpresaId).HasColumnName("empresa_id").IsRequired();
+        builder.Property(p => p.MesaId).HasColumnName("mesa_id").IsRequired();
+        builder.Property(p => p.Idioma).HasColumnName("idioma").HasMaxLength(2).HasConversion<string>().IsRequired();
+        builder.Property(p => p.Estado).HasColumnName("estado").HasMaxLength(20).HasConversion<string>().IsRequired();
+        builder.Property(p => p.RecibidoEn).HasColumnName("recibido_en").IsRequired();
+        builder.Property(p => p.ResueltoEn).HasColumnName("resuelto_en");
+        builder.Property(p => p.ComandaId).HasColumnName("comanda_id");
+
+        builder.HasIndex(p => new { p.EmpresaId, p.Estado, p.RecibidoEn }).HasDatabaseName("ix_pedido_web_empresa_estado");
+        builder.Ignore(p => p.EventosDominio);
+
+        builder.OwnsMany(p => p.Lineas, linea =>
+        {
+            linea.ToTable("linea_pedido_web");
+            linea.WithOwner().HasForeignKey("PedidoWebId");
+            linea.HasKey(l => l.Id);
+            linea.Property(l => l.Id).HasColumnName("id").ValueGeneratedNever();
+            linea.Property(l => l.PedidoWebId).HasColumnName("pedido_web_id").IsRequired();
+            linea.Property(l => l.EmpresaId).HasColumnName("empresa_id").IsRequired();
+            linea.Property(l => l.ProductoId).HasColumnName("producto_id").IsRequired();
+            linea.Property(l => l.Descripcion).HasColumnName("descripcion").HasMaxLength(LineaPedidoWeb.LongitudMaximaNota).IsRequired();
+            linea.Property(l => l.Cantidad).HasColumnName("cantidad").HasColumnType("numeric(14,3)").IsRequired();
+            linea.Property(l => l.Nota).HasColumnName("nota").HasMaxLength(LineaPedidoWeb.LongitudMaximaNota);
+            linea.HasIndex("PedidoWebId").HasDatabaseName("ix_linea_pedido_web_pedido");
+        });
+    }
+}
+
+internal sealed class ConfiguracionAvisoMesa : IEntityTypeConfiguration<AvisoMesa>
+{
+    public void Configure(EntityTypeBuilder<AvisoMesa> builder)
+    {
+        builder.ToTable("aviso_mesa");
+        builder.HasKey(a => a.Id);
+        builder.Property(a => a.Id).HasColumnName("id");
+        builder.Property(a => a.EmpresaId).HasColumnName("empresa_id").IsRequired();
+        builder.Property(a => a.MesaId).HasColumnName("mesa_id").IsRequired();
+        builder.Property(a => a.Tipo).HasColumnName("tipo").HasMaxLength(20).HasConversion<string>().IsRequired();
+        builder.Property(a => a.RecibidoEn).HasColumnName("recibido_en").IsRequired();
+        builder.Property(a => a.AtendidoEn).HasColumnName("atendido_en");
+
+        builder.HasIndex(a => new { a.EmpresaId, a.AtendidoEn }).HasDatabaseName("ix_aviso_mesa_empresa_atendido");
+        builder.Ignore(a => a.Pendiente);
+        builder.Ignore(a => a.EventosDominio);
+    }
+}
+
+internal sealed class ConfiguracionTraduccionCarta : IEntityTypeConfiguration<TraduccionCarta>
+{
+    public void Configure(EntityTypeBuilder<TraduccionCarta> builder)
+    {
+        builder.ToTable("traduccion_carta");
+        builder.HasKey(t => t.Id);
+        builder.Property(t => t.Id).HasColumnName("id");
+        builder.Property(t => t.EmpresaId).HasColumnName("empresa_id").IsRequired();
+        builder.Property(t => t.Ambito).HasColumnName("ambito").HasMaxLength(20).HasConversion<string>().IsRequired();
+        builder.Property(t => t.Clave).HasColumnName("clave").HasMaxLength(TraduccionCarta.LongitudMaximaClave).IsRequired();
+        builder.Property(t => t.Idioma).HasColumnName("idioma").HasMaxLength(2).HasConversion<string>().IsRequired();
+        builder.Property(t => t.Nombre).HasColumnName("nombre").HasMaxLength(TraduccionCarta.LongitudMaximaNombre).IsRequired();
+        builder.Property(t => t.Descripcion).HasColumnName("descripcion").HasMaxLength(TraduccionCarta.LongitudMaximaDescripcion);
+        builder.Property(t => t.ActualizadaEn).HasColumnName("actualizada_en").IsRequired();
+
+        builder.HasIndex(t => new { t.EmpresaId, t.Ambito, t.Clave, t.Idioma }).IsUnique().HasDatabaseName("ux_traduccion_carta");
+        builder.Ignore(t => t.EventosDominio);
+    }
+}
+
+internal sealed class RepositorioPedidosWeb : IRepositorioPedidosWeb, IConsultaPedidosWeb
+{
+    private readonly HosteleriaDbContext _contexto;
+
+    public RepositorioPedidosWeb(HosteleriaDbContext contexto) => _contexto = contexto;
+
+    public Task<PedidoWeb?> ObtenerPorIdAsync(Guid id, CancellationToken ct = default) =>
+        _contexto.PedidosWeb.SingleOrDefaultAsync(p => p.Id == id, ct);
+
+    public void Agregar(PedidoWeb pedido) => _contexto.PedidosWeb.Add(pedido);
+
+    public async Task<IReadOnlyList<PedidoWebResumen>> ListarPendientesAsync(Guid empresaId, CancellationToken ct = default)
+    {
+        var pedidos = await _contexto.PedidosWeb
+            .Where(p => p.EmpresaId == empresaId && p.Estado == EstadoPedidoWeb.Pendiente)
+            .OrderBy(p => p.RecibidoEn)
+            .ToListAsync(ct).ConfigureAwait(false);
+
+        if (pedidos.Count == 0)
+        {
+            return Array.Empty<PedidoWebResumen>();
+        }
+
+        var mesaIds = pedidos.Select(p => p.MesaId).Distinct().ToList();
+        var nombres = await _contexto.Mesas
+            .Where(m => mesaIds.Contains(m.Id))
+            .Select(m => new { m.Id, m.Nombre })
+            .ToListAsync(ct).ConfigureAwait(false);
+        var nombrePorMesa = nombres.ToDictionary(x => x.Id, x => x.Nombre);
+
+        return pedidos.Select(p => new PedidoWebResumen(
+            p.Id, p.MesaId, nombrePorMesa.TryGetValue(p.MesaId, out var n) ? n : string.Empty,
+            p.Idioma.ToString(), p.RecibidoEn,
+            p.Lineas.Select(l => new LineaPedidoWebResumen(l.ProductoId, l.Descripcion, l.Cantidad, l.Nota)).ToList())).ToList();
+    }
+}
+
+internal sealed class RepositorioAvisos : IRepositorioAvisos, IConsultaAvisos
+{
+    private readonly HosteleriaDbContext _contexto;
+
+    public RepositorioAvisos(HosteleriaDbContext contexto) => _contexto = contexto;
+
+    public Task<AvisoMesa?> ObtenerPorIdAsync(Guid id, CancellationToken ct = default) =>
+        _contexto.Avisos.SingleOrDefaultAsync(a => a.Id == id, ct);
+
+    public void Agregar(AvisoMesa aviso) => _contexto.Avisos.Add(aviso);
+
+    public async Task<IReadOnlyList<AvisoMesaDto>> ListarPendientesAsync(Guid empresaId, CancellationToken ct = default)
+    {
+        var consulta =
+            from a in _contexto.Avisos
+            where a.EmpresaId == empresaId && a.AtendidoEn == null
+            join m in _contexto.Mesas on a.MesaId equals m.Id into ms
+            from m in ms.DefaultIfEmpty()
+            orderby a.RecibidoEn
+            select new AvisoMesaDto(a.Id, a.MesaId, m != null ? m.Nombre : string.Empty, a.Tipo.ToString(), a.RecibidoEn);
+
+        return await consulta.ToListAsync(ct).ConfigureAwait(false);
+    }
+}
+
+internal sealed class RepositorioTraducciones : IRepositorioTraducciones, IConsultaTraducciones
+{
+    private readonly HosteleriaDbContext _contexto;
+
+    public RepositorioTraducciones(HosteleriaDbContext contexto) => _contexto = contexto;
+
+    public Task<TraduccionCarta?> ObtenerAsync(Guid empresaId, AmbitoTraduccion ambito, string clave, IdiomaCarta idioma, CancellationToken ct = default) =>
+        _contexto.Traducciones.SingleOrDefaultAsync(
+            t => t.EmpresaId == empresaId && t.Ambito == ambito && t.Clave == clave && t.Idioma == idioma, ct);
+
+    public void Agregar(TraduccionCarta traduccion) => _contexto.Traducciones.Add(traduccion);
+
+    public void Quitar(TraduccionCarta traduccion) => _contexto.Traducciones.Remove(traduccion);
+
+    public async Task<IReadOnlyList<TraduccionCartaDto>> ListarAsync(Guid empresaId, CancellationToken ct = default)
+    {
+        var lista = await _contexto.Traducciones
+            .Where(t => t.EmpresaId == empresaId)
+            .ToListAsync(ct).ConfigureAwait(false);
+        return lista.Select(TraduccionCartaDto.Desde).ToList();
+    }
+
+    public async Task<IReadOnlyList<TraduccionCartaDto>> ListarPorIdiomaAsync(Guid empresaId, IdiomaCarta idioma, CancellationToken ct = default)
+    {
+        var lista = await _contexto.Traducciones
+            .Where(t => t.EmpresaId == empresaId && t.Idioma == idioma)
+            .ToListAsync(ct).ConfigureAwait(false);
+        return lista.Select(TraduccionCartaDto.Desde).ToList();
     }
 }
 

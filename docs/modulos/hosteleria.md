@@ -99,6 +99,33 @@ Cada línea admite una **nota de preparación** (`Nota`, p. ej. «sin cebolla»,
 con `PUT /comandas/{id}/lineas/{lineaId}/nota` (vacío la borra) y **viaja con el artículo a la comanda
 de cocina**, donde se imprime debajo de la línea. En el editor, el botón **«📝»** de cada línea la edita.
 
+## Autopedido por QR (carta interactiva, estilo Qamarero)
+
+El cliente escanea el **QR de su mesa**, ve la carta **en su idioma** (español, inglés o francés),
+**pide desde el móvil** y puede **avisar al camarero**. No hay pago online: se paga al final con el
+camarero. El pedido **no toca la cuenta** hasta que un camarero lo **acepta**.
+
+- **QR por mesa.** Cada `Mesa` tiene un `TokenCarta` (se genera al crearla). El QR
+  (`GET /mesas/{id}/qr-carta.svg`) y el enlace (`GET /mesas/{id}/carta-link`) llevan `e` (empresa),
+  `m` (mesa) y `t` (token). Un pedido/aviso anónimo solo se acepta si el token coincide, así no se
+  puede pedir a otra mesa. `POST /mesas/{id}/regenerar-token` invalida los QR ya impresos.
+- **Pedido del cliente** (`PedidoWeb`, anónimo): `POST /carta/{empresaId}/mesa/{mesaId}/pedido` con el
+  token, el idioma y los artículos. Se valida que la mesa existe, está activa y que el token coincide,
+  y que los productos son del catálogo del local y están activos. Queda **pendiente**.
+- **El camarero acepta o rechaza.** `GET /pedidos-web` lista los pendientes (con el nombre de la mesa
+  y las líneas). `POST /pedidos-web/{id}/aceptar` abre la comanda de la mesa si estaba libre, **añade
+  las líneas** (con la nota del cliente) y marca el pedido como aceptado; no lo manda a cocina (eso lo
+  decide el camarero con el botón de siempre). `POST /pedidos-web/{id}/rechazar` lo descarta.
+- **Avisos de mesa** (`AvisoMesa`, anónimo): `POST /carta/{empresaId}/mesa/{mesaId}/aviso` con tipo
+  `LlamarCamarero` o `PedirCuenta`. `GET /avisos` los lista pendientes y `POST /avisos/{id}/atender`
+  los cierra.
+- **Carta multiidioma.** `GET /carta/{empresaId}/datos?idioma=es|en|fr` devuelve categorías, artículos
+  (con `id`, nombre, descripción y precio con IVA incluido). El español es la base (del catálogo); las
+  traducciones a inglés/francés se guardan en `TraduccionCarta` (nombre/descripción de producto y
+  nombre de categoría) y se gestionan con `GET/PUT /carta/traducciones` (nombre vacío borra la
+  traducción). En la interfaz, «Carta con QR» trae el editor de idiomas y Barra/Salón muestra los
+  pedidos por confirmar y los avisos, y el botón **«📱 QR»** de cada mesa.
+
 ## API
 
 | Método | Ruta | Auth | Descripción |
@@ -108,6 +135,9 @@ de cocina**, donde se imprime debajo de la línea. En el editor, el botón **«�
 | `PUT` | `/mesas/{id}` | permiso `hosteleria.gestionar` | Actualiza una mesa (incluida su forma). |
 | `PUT` | `/mesas/{id}/posicion` | permiso `hosteleria.gestionar` | Recoloca una mesa en el plano. |
 | `DELETE` | `/mesas/{id}` | permiso `hosteleria.gestionar` | Retira (desactiva) una mesa. **204** |
+| `GET` | `/mesas/{id}/qr-carta.svg` | JWT + empresa | QR de autopedido de la mesa (SVG). |
+| `GET` | `/mesas/{id}/carta-link` | JWT + empresa | Enlace y token de autopedido de la mesa. |
+| `POST` | `/mesas/{id}/regenerar-token` | permiso `hosteleria.gestionar` | Genera un token nuevo (invalida los QR impresos). **204** |
 | `GET` | `/comandas` | JWT + empresa | Comandas abiertas de la empresa. |
 | `GET` | `/comandas/{id}` | JWT + empresa | Comanda con sus líneas. |
 | `POST` | `/comandas` | permiso `hosteleria.gestionar` | Abre una comanda en una mesa. **201** |
@@ -124,6 +154,16 @@ de cocina**, donde se imprime debajo de la línea. En el editor, el botón **«�
 | `POST` | `/comandas/{id}/cobrar` | permiso `hosteleria.gestionar` | Cobra emitiendo el ticket. |
 | `POST` | `/comandas/{id}/cobrar-parcial` | permiso `hosteleria.gestionar` | Reparte la cuenta: cobra los artículos indicados con su ticket; cierra la mesa al saldar lo último. |
 | `POST` | `/comandas/{id}/anular` | permiso `hosteleria.gestionar` | Anula la comanda. **204** |
+| `GET` | `/carta/{empresaId}/datos?idioma=` | anónimo | Carta pública en un idioma (categorías, artículos, precios, descripciones). |
+| `POST` | `/carta/{empresaId}/mesa/{mesaId}/pedido` | anónimo + token | El cliente envía un pedido desde la mesa. |
+| `POST` | `/carta/{empresaId}/mesa/{mesaId}/aviso` | anónimo + token | El cliente avisa (llamar al camarero / pedir la cuenta). **204** |
+| `GET` | `/pedidos-web` | JWT + empresa | Pedidos de clientes pendientes de aceptar. |
+| `POST` | `/pedidos-web/{id}/aceptar` | permiso `hosteleria.gestionar` | Acepta el pedido: lo añade a la cuenta de la mesa. |
+| `POST` | `/pedidos-web/{id}/rechazar` | permiso `hosteleria.gestionar` | Rechaza el pedido. **204** |
+| `GET` | `/avisos` | JWT + empresa | Avisos de mesa pendientes. |
+| `POST` | `/avisos/{id}/atender` | permiso `hosteleria.gestionar` | Marca un aviso como atendido. **204** |
+| `GET` | `/carta/traducciones` | JWT + empresa | Traducciones de la carta del local. |
+| `PUT` | `/carta/traducciones` | permiso `hosteleria.gestionar` | Guarda o borra una traducción. **204** |
 
 El permiso **`hosteleria.gestionar`** lo tienen los roles *Propietario* y *Usuario*.
 

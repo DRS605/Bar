@@ -114,3 +114,76 @@ public interface IConsultaComandas
 
 /// <summary>Unidad de trabajo del módulo Hostelería.</summary>
 public interface IUnidadDeTrabajoHosteleria : IUnidadDeTrabajo;
+
+// ---------------------------------------------------------------------------
+// Autopedido por QR: carta interactiva, pedidos del cliente y avisos de mesa.
+// ---------------------------------------------------------------------------
+
+/// <summary>Línea de un pedido web tal como llega del cliente (resumen para el camarero).</summary>
+public sealed record LineaPedidoWebResumen(Guid ProductoId, string Descripcion, decimal Cantidad, string? Nota);
+
+/// <summary>Pedido hecho por el cliente desde la mesa, pendiente de que el camarero lo acepte.</summary>
+public sealed record PedidoWebResumen(
+    Guid Id,
+    Guid MesaId,
+    string MesaNombre,
+    string Idioma,
+    DateTimeOffset RecibidoEn,
+    IReadOnlyList<LineaPedidoWebResumen> Lineas);
+
+/// <summary>Aviso pendiente lanzado por un cliente desde una mesa.</summary>
+public sealed record AvisoMesaDto(Guid Id, Guid MesaId, string MesaNombre, string Tipo, DateTimeOffset RecibidoEn);
+
+/// <summary>Traducción de un texto de la carta a un idioma.</summary>
+public sealed record TraduccionCartaDto(string Ambito, string Clave, string Idioma, string Nombre, string? Descripcion)
+{
+    public static TraduccionCartaDto Desde(TraduccionCarta t) =>
+        new(t.Ambito.ToString(), t.Clave, t.Idioma.ToString(), t.Nombre, t.Descripcion);
+}
+
+/// <summary>Repositorio de pedidos web (autopedido).</summary>
+public interface IRepositorioPedidosWeb
+{
+    Task<PedidoWeb?> ObtenerPorIdAsync(Guid id, CancellationToken ct = default);
+
+    void Agregar(PedidoWeb pedido);
+}
+
+/// <summary>Consultas de lectura de pedidos web.</summary>
+public interface IConsultaPedidosWeb
+{
+    Task<IReadOnlyList<PedidoWebResumen>> ListarPendientesAsync(Guid empresaId, CancellationToken ct = default);
+}
+
+/// <summary>Repositorio de avisos de mesa.</summary>
+public interface IRepositorioAvisos
+{
+    Task<AvisoMesa?> ObtenerPorIdAsync(Guid id, CancellationToken ct = default);
+
+    void Agregar(AvisoMesa aviso);
+}
+
+/// <summary>Consultas de lectura de avisos de mesa.</summary>
+public interface IConsultaAvisos
+{
+    Task<IReadOnlyList<AvisoMesaDto>> ListarPendientesAsync(Guid empresaId, CancellationToken ct = default);
+}
+
+/// <summary>Repositorio de traducciones de la carta.</summary>
+public interface IRepositorioTraducciones
+{
+    Task<TraduccionCarta?> ObtenerAsync(Guid empresaId, AmbitoTraduccion ambito, string clave, IdiomaCarta idioma, CancellationToken ct = default);
+
+    void Agregar(TraduccionCarta traduccion);
+
+    void Quitar(TraduccionCarta traduccion);
+}
+
+/// <summary>Consultas de lectura de traducciones de la carta.</summary>
+public interface IConsultaTraducciones
+{
+    Task<IReadOnlyList<TraduccionCartaDto>> ListarAsync(Guid empresaId, CancellationToken ct = default);
+
+    /// <summary>Traducciones de un idioma concreto (para pintar la carta pública).</summary>
+    Task<IReadOnlyList<TraduccionCartaDto>> ListarPorIdiomaAsync(Guid empresaId, IdiomaCarta idioma, CancellationToken ct = default);
+}

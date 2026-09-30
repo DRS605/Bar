@@ -5,52 +5,204 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Carta</title>
 <style>
-  :root{ --ink:#17251e; --muted:#5f7168; --line:#e6ede9; --bg:#f4f6f4; --surface:#fff; --accent:#1f7a5a; --copper:#c67b3a; --display:"Georgia","Times New Roman",serif; }
+  :root{ --ink:#17251e; --muted:#5f7168; --line:#e6ede9; --bg:#f4f6f4; --surface:#fff; --accent:#1f7a5a; --accent2:#14563e; --copper:#c67b3a; --display:"Georgia","Times New Roman",serif; }
   *{ box-sizing:border-box; }
-  body{ margin:0; background:var(--bg); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
-  .wrap{ max-width:560px; margin:0 auto; padding:0 18px 48px; }
-  header{ text-align:center; padding:34px 18px 22px; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  .wrap{ max-width:560px; margin:0 auto; padding:0 18px 120px; }
+  header{ text-align:center; padding:30px 18px 14px; }
   header .eyebrow{ font-size:11.5px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--copper); }
-  header h1{ font-family:var(--display); font-weight:600; font-size:30px; margin:8px 0 2px; letter-spacing:-.01em; }
-  header .sub{ color:var(--muted); font-size:13.5px; }
-  .cat{ margin-top:26px; }
+  header h1{ font-family:var(--display); font-weight:600; font-size:29px; margin:8px 0 2px; letter-spacing:-.01em; }
+  header .sub{ color:var(--muted); font-size:13px; }
+  .langs{ display:flex; gap:7px; justify-content:center; margin:16px 0 4px; }
+  .langs button{ border:1px solid var(--line); background:var(--surface); color:var(--muted); border-radius:999px; padding:6px 14px; font-size:13px; font-weight:700; cursor:pointer; }
+  .langs button.on{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .mesa-chip{ display:inline-block; margin:8px auto 0; background:#eaf5ef; color:var(--accent2); border:1px solid #cfe6da; border-radius:999px; padding:4px 12px; font-size:12.5px; font-weight:700; }
+  .cat{ margin-top:24px; }
   .cat h2{ font-family:var(--display); font-weight:600; font-size:20px; margin:0 0 4px; color:var(--accent); }
-  .cat .rule{ height:2px; background:linear-gradient(90deg,var(--accent),transparent); border-radius:2px; margin-bottom:6px; }
-  .item{ display:flex; align-items:baseline; gap:10px; padding:11px 0; border-bottom:1px solid var(--line); }
-  .item .n{ flex:1; font-size:15.5px; }
-  .item .dots{ flex:1; border-bottom:1px dotted #c3d0c9; transform:translateY(-4px); min-width:16px; }
-  .item .p{ font-weight:700; font-size:15.5px; white-space:nowrap; }
-  footer{ text-align:center; color:var(--muted); font-size:12px; margin-top:34px; }
+  .cat .rule{ height:2px; background:linear-gradient(90deg,var(--accent),transparent); border-radius:2px; margin-bottom:4px; }
+  .item{ display:flex; align-items:flex-start; gap:12px; padding:13px 0; border-bottom:1px solid var(--line); }
+  .item .info{ flex:1; min-width:0; }
+  .item .n{ font-size:15.5px; font-weight:600; }
+  .item .d{ font-size:12.5px; color:var(--muted); margin-top:2px; line-height:1.4; }
+  .item .right{ display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+  .item .p{ font-weight:700; font-size:15px; white-space:nowrap; }
+  .add{ width:34px; height:34px; border-radius:10px; border:none; background:var(--accent); color:#fff; font-size:22px; line-height:1; cursor:pointer; box-shadow:0 3px 8px rgba(31,122,90,.28); }
+  .add:active{ transform:scale(.92); }
+  .qty{ display:inline-flex; align-items:center; gap:0; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .qty button{ width:32px; height:32px; border:0; background:var(--surface); color:var(--ink); font-size:18px; cursor:pointer; }
+  .qty span{ min-width:26px; text-align:center; font-weight:700; font-size:14px; }
+  footer{ text-align:center; color:var(--muted); font-size:12px; margin-top:30px; }
   .estado{ text-align:center; color:var(--muted); padding:60px 20px; }
+  .avisos{ display:flex; gap:10px; margin:22px 0 4px; }
+  .avisos button{ flex:1; border:1px solid var(--line); background:var(--surface); color:var(--accent2); border-radius:12px; padding:12px; font-size:14px; font-weight:700; cursor:pointer; }
+  .avisos button:active{ background:#eaf5ef; }
+  /* Barra flotante del carrito */
+  .cartbar{ position:fixed; left:0; right:0; bottom:0; z-index:40; display:none; padding:12px 16px calc(12px + env(safe-area-inset-bottom)); background:linear-gradient(transparent, var(--bg) 22%); }
+  .cartbar .inner{ max-width:560px; margin:0 auto; }
+  .cartbar button{ width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; border:none; background:var(--accent); color:#fff; border-radius:14px; padding:15px 18px; font-size:16px; font-weight:750; cursor:pointer; box-shadow:0 10px 26px rgba(20,86,62,.32); }
+  .cartbar .badge{ background:rgba(255,255,255,.24); border-radius:999px; padding:2px 10px; font-size:14px; }
+  /* Hoja del pedido */
+  .sheet-bg{ position:fixed; inset:0; background:rgba(10,20,16,.5); z-index:50; display:none; }
+  .sheet{ position:fixed; left:0; right:0; bottom:0; z-index:51; background:var(--surface); border-radius:20px 20px 0 0; max-width:560px; margin:0 auto; max-height:86vh; display:none; flex-direction:column; }
+  .sheet-head{ padding:18px 20px 10px; font-family:var(--display); font-size:20px; font-weight:600; display:flex; justify-content:space-between; align-items:center; }
+  .sheet-head .x{ border:none; background:none; font-size:24px; color:var(--muted); cursor:pointer; }
+  .sheet-body{ padding:0 20px; overflow:auto; }
+  .cline{ padding:12px 0; border-bottom:1px solid var(--line); }
+  .cline .top{ display:flex; align-items:center; gap:10px; }
+  .cline .cn{ flex:1; font-weight:600; font-size:15px; }
+  .cline .cp{ font-weight:700; white-space:nowrap; }
+  .cline input{ width:100%; margin-top:8px; border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:13.5px; background:var(--bg); color:var(--ink); }
+  .sheet-foot{ padding:14px 20px calc(18px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); }
+  .sheet-foot .tot{ display:flex; justify-content:space-between; font-size:18px; font-weight:750; margin-bottom:12px; }
+  .send{ width:100%; border:none; background:var(--accent); color:#fff; border-radius:14px; padding:15px; font-size:16px; font-weight:750; cursor:pointer; }
+  .send:disabled{ opacity:.5; }
+  .toast{ position:fixed; left:50%; bottom:26px; transform:translateX(-50%); background:var(--accent2); color:#fff; padding:13px 20px; border-radius:12px; font-weight:600; font-size:14px; z-index:60; box-shadow:0 10px 30px rgba(0,0,0,.28); max-width:90%; text-align:center; }
+  .ok-splash{ text-align:center; padding:50px 24px; }
+  .ok-splash .circ{ width:72px; height:72px; border-radius:50%; background:#eaf5ef; color:var(--accent); display:grid; place-items:center; margin:0 auto 18px; font-size:38px; }
   @media (prefers-color-scheme: dark){
-    :root{ --ink:#e9f1ec; --muted:#9fb2a8; --line:#26332c; --bg:#121a16; --surface:#18211c; --accent:#4fb488; }
+    :root{ --ink:#e9f1ec; --muted:#9fb2a8; --line:#26332c; --bg:#121a16; --surface:#18211c; --accent:#4fb488; --accent2:#8ad9b4; }
+    .mesa-chip{ background:#17271f; border-color:#26332c; }
   }
 </style>
 </head>
 <body>
   <div class="wrap" id="wrap"><div class="estado">Cargando la carta…</div></div>
+  <div class="cartbar" id="cartbar"><div class="inner"><button onclick="abrirPedido()"><span id="cartTxt"></span><span class="badge" id="cartTot"></span></button></div></div>
+  <div class="sheet-bg" id="sheetBg" onclick="cerrarPedido()"></div>
+  <div class="sheet" id="sheet">
+    <div class="sheet-head"><span id="sheetTitle"></span><button class="x" onclick="cerrarPedido()">×</button></div>
+    <div class="sheet-body" id="sheetBody"></div>
+    <div class="sheet-foot" id="sheetFoot"></div>
+  </div>
 <script>
-  const eur = n => (Number(n)||0).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
-  const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-  const id = new URLSearchParams(location.search).get("e");
+  const P = new URLSearchParams(location.search);
+  const E = P.get("e"), M = P.get("m"), TK = P.get("t");
+  const pedirActivo = !!(E && M && TK);
   const wrap = document.getElementById("wrap");
-  (async () => {
-    if(!id){ wrap.innerHTML = '<div class="estado">Carta no encontrada.</div>'; return; }
+
+  const STR = {
+    es:{ carta:"Carta", iva:"Precios con IVA incluido", pedido:"Tu pedido", vacio:"Aún no has añadido nada.", enviar:"Enviar pedido", enviando:"Enviando…", enviado:"¡Pedido enviado!", enviadoSub:"El camarero lo confirmará enseguida.", nota:"Nota para cocina (opcional)", llamar:"Llamar al camarero", cuenta:"Pedir la cuenta", avisado:"Aviso enviado, ahora te atienden.", total:"Total", mesa:"Mesa", ver:"Ver pedido", art:"artículo", arts:"artículos", errCarga:"No se pudo cargar la carta.", errEnvio:"No se pudo enviar. Inténtalo de nuevo.", sinCarta:"La carta aún no está disponible.", seguir:"Seguir pidiendo" },
+    en:{ carta:"Menu", iva:"Prices include VAT", pedido:"Your order", vacio:"You haven't added anything yet.", enviar:"Send order", enviando:"Sending…", enviado:"Order sent!", enviadoSub:"The waiter will confirm it shortly.", nota:"Note for the kitchen (optional)", llamar:"Call the waiter", cuenta:"Ask for the bill", avisado:"Sent, the waiter is on the way.", total:"Total", mesa:"Table", ver:"View order", art:"item", arts:"items", errCarga:"Couldn't load the menu.", errEnvio:"Couldn't send. Please try again.", sinCarta:"The menu isn't available yet.", seguir:"Keep ordering" },
+    fr:{ carta:"Carte", iva:"Prix TVA comprise", pedido:"Votre commande", vacio:"Vous n'avez rien ajouté.", enviar:"Envoyer la commande", enviando:"Envoi…", enviado:"Commande envoyée !", enviadoSub:"Le serveur va la confirmer.", nota:"Note pour la cuisine (facultatif)", llamar:"Appeler le serveur", cuenta:"Demander l'addition", avisado:"Envoyé, le serveur arrive.", total:"Total", mesa:"Table", ver:"Voir la commande", art:"article", arts:"articles", errCarga:"Impossible de charger la carte.", errEnvio:"Envoi impossible. Réessayez.", sinCarta:"La carte n'est pas encore disponible.", seguir:"Continuer" },
+  };
+  const LANGS = [["es","ES"],["en","EN"],["fr","FR"]];
+  let lang = (()=>{ try{ return localStorage.getItem("bq_carta_lang"); }catch{} })()
+    || (P.get("l")) || (navigator.language||"es").slice(0,2).toLowerCase();
+  if(!STR[lang]) lang = "es";
+  let t = STR[lang];
+
+  let carta = null;                 // datos de la carta
+  const cart = new Map();           // id -> {id, nombre, precio, cantidad, nota}
+  let mesaNombre = "";
+
+  const eur = n => (Number(n)||0).toLocaleString(lang==="es"?"es-ES":lang==="fr"?"fr-FR":"en-GB",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
+  const esc = s => String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+  function toast(msg){ const el=document.createElement("div"); el.className="toast"; el.textContent=msg; document.body.appendChild(el); setTimeout(()=>el.remove(),2600); }
+
+  async function cargar(){
+    if(!E){ wrap.innerHTML = '<div class="estado">Carta no encontrada.</div>'; return; }
     try{
-      const r = await fetch(`/carta/${id}/datos`);
+      const r = await fetch(`/carta/${E}/datos?idioma=${lang}`);
       if(!r.ok) throw new Error();
-      const c = await r.json();
-      document.title = c.local ? `Carta · ${c.local}` : "Carta";
-      if(!c.categorias || !c.categorias.length){ wrap.innerHTML = `<header><h1>${esc(c.local||"Carta")}</h1></header><div class="estado">La carta aún no está disponible.</div>`; return; }
-      const cats = c.categorias.map(cat => `
-        <section class="cat"><h2>${esc(cat.nombre)}</h2><div class="rule"></div>
-          ${cat.items.map(it => `<div class="item"><span class="n">${esc(it.nombre)}</span><span class="dots"></span><span class="p">${eur(it.precio)}</span></div>`).join("")}
-        </section>`).join("");
-      wrap.innerHTML = `<header><div class="eyebrow">Carta</div><h1>${esc(c.local||"")}</h1><div class="sub">Precios con IVA incluido</div></header>${cats}<footer>Bar Query</footer>`;
-    }catch(e){
-      wrap.innerHTML = '<div class="estado">No se pudo cargar la carta. Inténtalo de nuevo.</div>';
-    }
-  })();
+      carta = await r.json();
+      document.title = carta.local ? `${t.carta} · ${carta.local}` : t.carta;
+      pintar();
+    }catch(e){ wrap.innerHTML = `<div class="estado">${esc(t.errCarga)}</div>`; }
+  }
+
+  function pintar(){
+    t = STR[lang];
+    const langBtns = LANGS.map(([code,lbl])=>`<button class="${code===lang?"on":""}" onclick="setLang('${code}')">${lbl}</button>`).join("");
+    const head = `<header>
+        <div class="eyebrow">${esc(t.carta)}</div>
+        <h1>${esc(carta.local||"")}</h1>
+        <div class="sub">${esc(t.iva)}</div>
+        ${mesaNombre?`<div class="mesa-chip">${esc(t.mesa)} · ${esc(mesaNombre)}</div>`:""}
+        <div class="langs">${langBtns}</div>
+      </header>`;
+    if(!carta.categorias || !carta.categorias.length){ wrap.innerHTML = head + `<div class="estado">${esc(t.sinCarta)}</div>`; sincronizarBarra(); return; }
+    const avisos = pedirActivo ? `<div class="avisos"><button onclick="avisar('LlamarCamarero')">🙋 ${esc(t.llamar)}</button><button onclick="avisar('PedirCuenta')">🧾 ${esc(t.cuenta)}</button></div>` : "";
+    const cats = carta.categorias.map(cat=>`
+      <section class="cat"><h2>${esc(cat.nombre)}</h2><div class="rule"></div>
+        ${cat.items.map(it=>fila(it)).join("")}
+      </section>`).join("");
+    wrap.innerHTML = head + avisos + cats + `<footer>Bar Query</footer>`;
+    sincronizarBarra();
+  }
+
+  function fila(it){
+    const ctl = pedirActivo ? control(it) : `<span class="p">${eur(it.precio)}</span>`;
+    return `<div class="item" id="it_${it.id}">
+      <div class="info"><div class="n">${esc(it.nombre)}</div>${it.descripcion?`<div class="d">${esc(it.descripcion)}</div>`:""}<div class="d" style="margin-top:4px;font-weight:700;color:var(--ink)">${eur(it.precio)}</div></div>
+      <div class="right">${ctl}</div></div>`;
+  }
+  function control(it){
+    const c = cart.get(it.id);
+    if(!c) return `<button class="add" onclick='addItem(${JSON.stringify(it).replace(/'/g,"&#39;")})'>+</button>`;
+    return `<div class="qty"><button onclick="menos('${it.id}')">−</button><span>${c.cantidad}</span><button onclick="mas('${it.id}')">+</button></div>`;
+  }
+  function repintarItem(it){ const n=document.getElementById("it_"+it.id); if(n){ n.querySelector(".right").innerHTML = control(it); } }
+
+  window.addItem = it => { cart.set(it.id, {id:it.id, nombre:it.nombre, precio:it.precio, cantidad:1, nota:""}); repintarItem(it); sincronizarBarra(); };
+  window.mas = id => { const c=cart.get(id); if(c){ c.cantidad++; repintarItem(itDe(id)); sincronizarBarra(); } };
+  window.menos = id => { const c=cart.get(id); if(!c) return; c.cantidad--; if(c.cantidad<=0) cart.delete(id); repintarItem(itDe(id)); sincronizarBarra(); if(!cart.size && document.getElementById("sheet").style.display==="flex") pintarPedido(); else if(document.getElementById("sheet").style.display==="flex") pintarPedido(); };
+  function itDe(id){ for(const cat of (carta.categorias||[])) for(const it of cat.items) if(it.id===id) return it; return {id}; }
+
+  function totalCent(){ let c=0; for(const l of cart.values()) c += Math.round(l.precio*100)*l.cantidad; return c; }
+  function unidades(){ let n=0; for(const l of cart.values()) n+=l.cantidad; return n; }
+
+  function sincronizarBarra(){
+    const bar=document.getElementById("cartbar"); const n=unidades();
+    if(!pedirActivo || n===0){ bar.style.display="none"; return; }
+    bar.style.display="block";
+    document.getElementById("cartTxt").textContent = `${t.ver} · ${n} ${n===1?t.art:t.arts}`;
+    document.getElementById("cartTot").textContent = eur(totalCent()/100);
+  }
+
+  window.setLang = code => { if(code===lang) return; lang=code; try{ localStorage.setItem("bq_carta_lang",code); }catch{} cargar(); };
+
+  window.abrirPedido = () => { pintarPedido(); document.getElementById("sheetBg").style.display="block"; document.getElementById("sheet").style.display="flex"; };
+  window.cerrarPedido = () => { document.getElementById("sheetBg").style.display="none"; document.getElementById("sheet").style.display="none"; };
+
+  function pintarPedido(){
+    document.getElementById("sheetTitle").textContent = t.pedido;
+    const body=document.getElementById("sheetBody"), foot=document.getElementById("sheetFoot");
+    if(!cart.size){ body.innerHTML = `<div class="estado">${esc(t.vacio)}</div>`; foot.innerHTML=""; return; }
+    body.innerHTML = [...cart.values()].map(l=>`
+      <div class="cline">
+        <div class="top"><span class="cn">${esc(l.nombre)}</span>
+          <div class="qty"><button onclick="menos('${l.id}')">−</button><span>${l.cantidad}</span><button onclick="mas('${l.id}')">+</button></div>
+          <span class="cp">${eur(l.precio*l.cantidad)}</span></div>
+        <input type="text" placeholder="${esc(t.nota)}" value="${esc(l.nota)}" oninput="setNota('${l.id}',this.value)">
+      </div>`).join("");
+    foot.innerHTML = `<div class="tot"><span>${esc(t.total)}</span><span>${eur(totalCent()/100)}</span></div>
+      <button class="send" id="sendBtn" onclick="enviar()">${esc(t.enviar)}</button>`;
+  }
+  window.setNota = (id,v) => { const c=cart.get(id); if(c) c.nota=v; };
+
+  window.enviar = async () => {
+    if(!cart.size) return;
+    const btn=document.getElementById("sendBtn"); if(btn){ btn.disabled=true; btn.textContent=t.enviando; }
+    const items=[...cart.values()].map(l=>({productoId:l.id, cantidad:l.cantidad, nota:l.nota||null}));
+    try{
+      const r=await fetch(`/carta/${E}/mesa/${M}/pedido`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:TK,idioma:lang,items})});
+      if(!r.ok) throw new Error();
+      cart.clear(); sincronizarBarra();
+      document.getElementById("sheetBody").innerHTML = `<div class="ok-splash"><div class="circ">✓</div><h2 style="font-family:var(--display);margin:0 0 6px">${esc(t.enviado)}</h2><p style="color:var(--muted);margin:0">${esc(t.enviadoSub)}</p></div>`;
+      document.getElementById("sheetFoot").innerHTML = `<button class="send" onclick="cerrarPedido()">${esc(t.seguir)}</button>`;
+    }catch(e){ if(btn){ btn.disabled=false; btn.textContent=t.enviar; } toast(t.errEnvio); }
+  };
+
+  window.avisar = async tipo => {
+    try{
+      const r=await fetch(`/carta/${E}/mesa/${M}/aviso`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({token:TK,tipo})});
+      if(!r.ok) throw new Error();
+      toast(t.avisado);
+    }catch(e){ toast(t.errEnvio); }
+  };
+
+  cargar();
 </script>
 </body>
 </html>

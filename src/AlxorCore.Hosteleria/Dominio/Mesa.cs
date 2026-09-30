@@ -48,6 +48,7 @@ public sealed class Mesa : RaizAgregadoEmpresa<Guid>
         PosX = Acotar(posX);
         PosY = Acotar(posY);
         Activa = true;
+        TokenCarta = Guid.NewGuid();
         CreadaEn = ahora;
         ActualizadaEn = ahora;
     }
@@ -72,6 +73,12 @@ public sealed class Mesa : RaizAgregadoEmpresa<Guid>
 
     /// <summary>Si la mesa está en uso. Las mesas que se retiran se desactivan (no se borran).</summary>
     public bool Activa { get; private set; }
+
+    /// <summary>
+    /// Token del QR de autopedido de la mesa: el código QR de la mesa lleva este valor y el pedido
+    /// anónimo del cliente solo se acepta si coincide. Regenerarlo invalida los QR ya impresos.
+    /// </summary>
+    public Guid TokenCarta { get; private set; }
 
     public DateTimeOffset CreadaEn { get; private set; }
 
@@ -114,6 +121,14 @@ public sealed class Mesa : RaizAgregadoEmpresa<Guid>
         ArgumentNullException.ThrowIfNull(reloj);
         PosX = Acotar(posX);
         PosY = Acotar(posY);
+        ActualizadaEn = reloj.AhoraUtc;
+    }
+
+    /// <summary>Genera un token de carta nuevo (invalida los QR de autopedido ya impresos de la mesa).</summary>
+    public void RegenerarTokenCarta(IReloj reloj)
+    {
+        ArgumentNullException.ThrowIfNull(reloj);
+        TokenCarta = Guid.NewGuid();
         ActualizadaEn = reloj.AhoraUtc;
     }
 

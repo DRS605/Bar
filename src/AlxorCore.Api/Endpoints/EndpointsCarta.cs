@@ -1,20 +1,24 @@
+using AlxorCore.Api.Comun;
 using AlxorCore.Catalogo.Aplicacion;
+using AlxorCore.Hosteleria.Aplicacion;
 using AlxorCore.Nucleo.Multiempresa;
+using AlxorCore.Nucleo.Resultados;
 using AlxorCore.Organizacion.Aplicacion.Puertos;
 using QRCoder;
 
 namespace AlxorCore.Api.Endpoints;
 
 /// <summary>
-/// Carta pública (solo lectura) de un local y su código QR. Son endpoints <b>anónimos</b>: el cliente
-/// del bar escanea el QR y ve la carta sin cuenta. La lectura se acota al local indicado en la URL
-/// (fijando el contexto de empresa) y solo expone lo que ya es público: nombre, categoría y precio.
+/// Carta pública y <b>autopedido</b> de un local (estilo Qamarero). Son endpoints <b>anónimos</b>: el
+/// cliente escanea el QR de su mesa, ve la carta en su idioma (español/inglés/francés), pide desde el
+/// móvil y puede avisar al camarero. El pedido no toca la cuenta hasta que el camarero lo acepta, y no
+/// hay pago online (se paga al final con el camarero). La lectura se acota al local de la URL.
 /// </summary>
 public static class EndpointsCarta
 {
-    public sealed record CartaItemDto(string Nombre, decimal Precio);
+    public sealed record CartaItemDto(Guid Id, string Nombre, string? Descripcion, decimal Precio);
     public sealed record CartaCategoriaDto(string Nombre, IReadOnlyList<CartaItemDto> Items);
-    public sealed record CartaPublicaDto(string Local, IReadOnlyList<CartaCategoriaDto> Categorias);
+    public sealed record CartaPublicaDto(string Local, string Idioma, IReadOnlyList<CartaCategoriaDto> Categorias);
 
     public static IEndpointRouteBuilder MapearCarta(this IEndpointRouteBuilder rutas)
     {
@@ -23,18 +27,27 @@ public static class EndpointsCarta
         var carta = rutas.MapGroup("/carta").WithTags("Carta pública");
 
         carta.MapGet("/{empresaId:guid}/datos", DatosAsync)
-            .WithSummary("Carta pública (solo lectura) de un local: categorías, artículos y precios.")
+            .WithSummary("Carta pública de un local en un idioma: categorías, artículos, precios y descripciones.")
             .AllowAnonymous();
 
         carta.MapGet("/{empresaId:guid}/qr.svg", Qr)
             .WithSummary("Código QR (SVG) que enlaza a la carta pública del local.")
             .AllowAnonymous();
 
+        carta.MapPost("/{empresaId:guid}/mesa/{mesaId:guid}/pedido", PedirAsync)
+            .WithSummary("El cliente envía un pedido desde la mesa (requiere el token del QR de la mesa).")
+            .AllowAnonymous();
+
+        carta.MapPost("/{empresaId:guid}/mesa/{mesaId:guid}/aviso", AvisarAsync)
+            .WithSummary("El cliente avisa desde la mesa: llamar al camarero o pedir la cuenta.")
+            .AllowAnonymous();
+
         return rutas;
     }
 
     private static async Task<IResult> DatosAsync(
-        Guid empresaId, IContextoEmpresaMutable contexto, IConsultaProductos productos, IConsultaEmpresas empresas, CancellationToken ct)
+        Guid empresaId, string? idioma, IContextoEmpresaMutable contexto,
+        IConsultaProductos productos, IConsultaEmpresas empresas, IConsultaTraducciones traducciones, CancellationToken ct)
     {
         // Lectura pública acotada a este local (el filtro de empresa y la RLS usan la empresa fijada).
         contexto.Fijar(empresaId);
@@ -45,19 +58,30 @@ public static class EndpointsCarta
             return Results.NotFound();
         }
 
+        var idi = Autopedido.IdiomaDe(idioma);
+        var trads = await traducciones.ListarPorIdiomaAsync(empresaId, idi, ct).ConfigureAwait(false);
+        var trProducto = trads.Where(t => t.Ambito == nameof(Hosteleria.Dominio.AmbitoTraduccion.Producto))
+            .ToDictionary(t => t.Clave, StringComparer.OrdinalIgnoreCase);
+        var trCategoria = trads.Where(t => t.Ambito == nameof(Hosteleria.Dominio.AmbitoTraduccion.Categoria))
+            .ToDictionary(t => t.Clave, t => t.Nombre, StringComparer.OrdinalIgnoreCase);
+
         var lista = await productos.ListarAsync(empresaId, incluirInactivos: false, ct).ConfigureAwait(false);
         var categorias = lista
             .Where(p => p.PrecioUnitario > 0)
             .GroupBy(p => string.IsNullOrWhiteSpace(p.Categoria) ? "Otros" : p.Categoria!)
             .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
             .Select(g => new CartaCategoriaDto(
-                g.Key,
+                trCategoria.TryGetValue(g.Key, out var cat) ? cat : g.Key,
                 g.OrderBy(p => p.Nombre, StringComparer.OrdinalIgnoreCase)
-                    .Select(p => new CartaItemDto(p.Nombre, p.PrecioUnitario))
+                    .Select(p =>
+                    {
+                        trProducto.TryGetValue(p.Id.ToString(), out var t);
+                        return new CartaItemDto(p.Id, t?.Nombre ?? p.Nombre, t?.Descripcion, p.PrecioUnitario);
+                    })
                     .ToList()))
             .ToList();
 
-        return Results.Ok(new CartaPublicaDto(empresa.RazonSocial, categorias));
+        return Results.Ok(new CartaPublicaDto(empresa.RazonSocial, Autopedido.CodigoDe(idi), categorias));
     }
 
     private static IResult Qr(Guid empresaId, HttpContext http)
@@ -67,5 +91,20 @@ public static class EndpointsCarta
         var datos = generador.CreateQrCode(url, QRCodeGenerator.ECCLevel.M);
         var svg = new SvgQRCode(datos).GetGraphic(6);
         return Results.Content(svg, "image/svg+xml");
+    }
+
+    private static async Task<IResult> PedirAsync(
+        Guid empresaId, Guid mesaId, DatosPedidoWeb datos, IContextoEmpresaMutable contexto, CrearPedidoWeb caso, CancellationToken ct)
+    {
+        contexto.Fijar(empresaId);
+        var r = await caso.EjecutarAsync(empresaId, mesaId, datos, ct).ConfigureAwait(false);
+        return r.EsCorrecto ? Results.Ok(r.Valor) : ResultadosHttp.AProblema(r.Error);
+    }
+
+    private static async Task<IResult> AvisarAsync(
+        Guid empresaId, Guid mesaId, DatosAvisoMesa datos, IContextoEmpresaMutable contexto, CrearAvisoMesa caso, CancellationToken ct)
+    {
+        contexto.Fijar(empresaId);
+        return (await caso.EjecutarAsync(empresaId, mesaId, datos, ct).ConfigureAwait(false)).ASinContenido();
     }
 }

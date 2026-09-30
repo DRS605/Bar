@@ -594,21 +594,48 @@
     }
 
     function cartaUrlPublica(){ return `${location.origin}/carta.html?e=${empresa.id}`; }
-    function vCartaQr(){
+    let cartaIdiomaEdit="en", cartaTrads={}, cartaProds=[];
+    async function vCartaQr(){
+      view('<div class="muted">Cargando…</div>');
       const url=cartaUrlPublica(), qr=`/carta/${empresa.id}/qr.svg`;
+      try{ [cartaProds,cartaTrads]=await Promise.all([api("/productos").catch(()=>[]),cartaCargarTrads()]); }catch{ cartaProds=[];cartaTrads={}; }
       const cuerpo=`<div style="display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start">
         <div style="text-align:center">
           <div style="background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;display:inline-block"><img src="${qr}" alt="QR de la carta" style="width:200px;height:200px;display:block"/></div>
           <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn small" onclick="cartaCartel()">🖨️ Imprimir cartel</button><a class="btn small ghost" href="${url}" target="_blank">Ver carta</a></div>
         </div>
         <div style="flex:1;min-width:250px">
-          <p class="muted" style="margin:0 0 12px">Tus clientes escanean este QR y ven tu carta en el móvil —artículos y precios por categorías—. Se <strong>actualiza sola</strong> cuando cambias los productos: no hay que reimprimir nada.</p>
-          <label>Enlace de la carta</label>
+          <p class="muted" style="margin:0 0 12px">Tus clientes escanean este QR y ven tu carta en el móvil —por categorías, en su idioma—. Con el <strong>QR por mesa</strong> (botón «📱 QR» en Barra/Salón) además pueden <strong>pedir desde el móvil</strong>: el pedido te llega para confirmarlo. Se actualiza sola al cambiar los productos.</p>
+          <label>Enlace de la carta (general)</label>
           <div style="display:flex;gap:8px"><input id="cartaUrl" value="${url}" readonly style="flex:1"/><button class="btn small secondary" onclick="cartaCopiar()">Copiar</button></div>
-          <p class="muted" style="font-size:12px;margin-top:14px">Imprime el cartel y ponlo en las mesas o en la barra. Nota: el QR abre esta misma instalación; para que los clientes lo abran con sus datos móviles hará falta una dirección pública (te ayudo cuando llegue el momento).</p>
         </div></div>`;
-      view(panel("Carta con QR",cuerpo));
+      view(panel("Carta con QR",cuerpo)+`<div class="panel" id="cartaTradPanel" style="margin-top:18px">${cartaTradPanel()}</div>`);
     }
+    async function cartaCargarTrads(){
+      const lista=await api("/carta/traducciones").catch(()=>[]); const map={};
+      for(const t of lista) map[`${t.ambito}|${t.clave}|${String(t.idioma).toLowerCase()}`]=t;
+      return map;
+    }
+    function cartaTradVal(ambito,clave,campo){ const t=cartaTrads[`${ambito}|${clave}|${cartaIdiomaEdit}`]; return t?(campo==="d"?(t.descripcion||""):(t.nombre||"")):""; }
+    function cartaTradPanel(){
+      const cats=[...new Set(cartaProds.filter(p=>p.precioUnitario>0).map(p=>(p.categoria&&p.categoria.trim())||"Otros"))];
+      const seg=(c,l)=>`<button class="hos-cat${cartaIdiomaEdit===c?" on":""}" onclick="cartaSetIdioma('${c}')">${l}</button>`;
+      const catRows=cats.filter(c=>c!=="Otros").map(c=>`<tr><td><span class="pill part">Categoría</span> <strong>${esc(c)}</strong></td>
+        <td><input value="${esc(cartaTradVal("Categoria",c,"n"))}" placeholder="${esc(c)}" onchange="cartaGuardarTrad('Categoria','${esc(c).replace(/'/g,"&#39;")}',this.value,'')"/></td><td></td></tr>`).join("");
+      const prodRows=cartaProds.filter(p=>p.precioUnitario>0).map(p=>`<tr><td><strong>${esc(p.nombre)}</strong><br><small class="muted">${eur(p.precioUnitario)}</small></td>
+        <td><input id="tn_${p.id}" value="${esc(cartaTradVal("Producto",p.id,"n"))}" placeholder="${esc(p.nombre)}" onchange="cartaGuardarProd('${p.id}')"/></td>
+        <td><input id="td_${p.id}" value="${esc(cartaTradVal("Producto",p.id,"d"))}" placeholder="Descripción (opcional)" onchange="cartaGuardarProd('${p.id}')"/></td></tr>`).join("");
+      return `<div class="panel-head"><h2>Carta en varios idiomas</h2><div class="hos-cats" style="margin:0">${seg("en","🇬🇧 Inglés")}${seg("fr","🇫🇷 Francés")}</div></div>
+        <div style="padding:8px 20px 16px"><p class="muted" style="font-size:12.5px">El español es la base (del catálogo). Escribe aquí el nombre y la descripción en ${cartaIdiomaEdit==="en"?"inglés":"francés"}; se guardan solos. Deja un campo vacío para volver al español.</p>
+        <table><thead><tr><th>Artículo (español)</th><th>Nombre traducido</th><th>Descripción traducida</th></tr></thead>
+        <tbody>${catRows}${prodRows||`<tr><td colspan="3" class="muted">Crea artículos con precio para traducir la carta.</td></tr>`}</tbody></table></div>`;
+    }
+    function cartaSetIdioma(c){ cartaIdiomaEdit=c; const p=document.getElementById("cartaTradPanel"); if(p) p.innerHTML=cartaTradPanel(); }
+    async function cartaGuardarTrad(ambito,clave,nombre,descripcion){
+      try{ await api("/carta/traducciones",{method:"PUT",body:JSON.stringify({ambito,clave,idioma:cartaIdiomaEdit,nombre:nombre||null,descripcion:descripcion||null})});
+        cartaTrads=await cartaCargarTrads(); toast("Traducción guardada","ok"); }catch(e){ toast(e.message,"err"); }
+    }
+    function cartaGuardarProd(id){ const n=document.getElementById("tn_"+id),d=document.getElementById("td_"+id); cartaGuardarTrad("Producto",id,n?n.value:"",d?d.value:""); }
     function cartaCopiar(){ const i=document.getElementById("cartaUrl"); if(!i)return; i.select(); try{ document.execCommand("copy"); toast("Enlace copiado","ok"); }catch{ toast("Copia el enlace a mano","err"); } }
     function cartaCartel(){
       const url=cartaUrlPublica(), qr=`${location.origin}/carta/${empresa.id}/qr.svg`;
@@ -902,12 +929,76 @@
         const estado=libre?'<span class="pill ok">Libre</span>':`<span class="pill wait">Ocupada · ${eur(m.totalComandaAbierta)}</span>`;
         const accion=libre?`<button class="btn small" onclick="hosAbrir('${m.id}')">Abrir comanda</button>`:`<button class="btn small" onclick="hosVerComanda('${m.comandaAbiertaId}')">Ver cuenta →</button>`;
         return `<div class="panel" style="margin:0"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div><strong style="font-size:15px">${m.nombre}</strong><br><small class="muted">${m.zona||"—"} · ${m.capacidad||0} pax</small></div>${estado}</div>
-          <div style="margin-top:14px;display:flex;gap:8px"><button class="btn small ghost" onclick="hosEditarMesa('${m.id}')">Editar</button>${accion}</div></div>`;
+          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn small ghost" onclick="hosEditarMesa('${m.id}')">Editar</button><button class="btn small ghost" onclick="hosQrMesa('${m.id}','${(m.nombre||"").replace(/'/g,"")}')">📱 QR</button>${accion}</div></div>`;
       };
       const grid=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px">${mesas.map(card).join("")}</div>`;
-      view(panel("Mesas y barra",grid,nueva));
+      view(panel("Mesas y barra",`<div id="hosBanner"></div>`+grid,nueva));
+      hosBanner();
+      hosIniciarSondeo();
     }
     function hosRefrescar(){ (vista==="plano"?vPlano:vHosteleria)(); }
+
+    // ---- Autopedido: pedidos del cliente por confirmar + avisos de mesa ----
+    let hosSondeo=null;
+    function hosIniciarSondeo(){ if(hosSondeo) return; hosSondeo=setInterval(()=>{ if(vista==="hosteleria") hosBanner(); else if(vista!=="plano"){ clearInterval(hosSondeo); hosSondeo=null; } }, 12000); }
+    async function hosBanner(){
+      const cont=document.getElementById("hosBanner"); if(!cont) return;
+      let pedidos=[],avisos=[];
+      try{ [pedidos,avisos]=await Promise.all([api("/pedidos-web").catch(()=>[]),api("/avisos").catch(()=>[])]); }catch{ return; }
+      if(!document.getElementById("hosBanner")) return;
+      let html="";
+      if(avisos.length){
+        html+=`<div class="panel" style="margin:0 0 14px;border-color:#f2ddba;background:#fdf7ec"><div style="padding:14px 18px">
+          <strong style="color:#7a5a12">🔔 Avisos de mesa (${avisos.length})</strong>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+          ${avisos.map(a=>`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+            <span>${a.tipo==="PedirCuenta"?"🧾":"🙋"} <strong>${esc(a.mesaNombre||"Mesa")}</strong> · ${a.tipo==="PedirCuenta"?"pide la cuenta":"llama al camarero"}</span>
+            <button class="btn small ghost" onclick="hosAtenderAviso('${a.id}')">Hecho</button></div>`).join("")}
+          </div></div></div>`;
+      }
+      if(pedidos.length){
+        html+=`<div class="panel" style="margin:0 0 14px;border-color:#bfe6d0;background:#eef8f1"><div style="padding:14px 18px">
+          <strong style="color:#14563e">🛎️ Pedidos por confirmar (${pedidos.length})</strong>
+          <div style="display:flex;flex-direction:column;gap:12px;margin-top:10px">
+          ${pedidos.map(p=>`<div style="border:1px solid #cfe6da;border-radius:12px;padding:11px 13px;background:#fff">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><strong>${esc(p.mesaNombre||"Mesa")}</strong><small class="muted">${p.idioma?String(p.idioma).toLowerCase():""}</small></div>
+            <div style="margin:8px 0;font-size:13.5px">${p.lineas.map(l=>`${numCant(l.cantidad)}× ${esc(l.descripcion)}${l.nota?` <span style="color:var(--copper)">📝 ${esc(l.nota)}</span>`:""}`).join("<br>")}</div>
+            <div style="display:flex;gap:8px"><button class="btn small" onclick="hosAceptarPedido('${p.id}')">Aceptar</button><button class="btn small secondary" onclick="hosRechazarPedido('${p.id}')">Rechazar</button></div>
+          </div>`).join("")}
+          </div></div></div>`;
+      }
+      cont.innerHTML=html;
+    }
+    async function hosAceptarPedido(id){ try{ await api("/pedidos-web/"+id+"/aceptar",{method:"POST",body:"{}"}); toast("Pedido añadido a la cuenta","ok"); vHosteleria(); }catch(e){ toast(e.message,"err"); } }
+    async function hosRechazarPedido(id){ try{ await api("/pedidos-web/"+id+"/rechazar",{method:"POST",body:"{}"}); toast("Pedido rechazado","ok"); hosBanner(); }catch(e){ toast(e.message,"err"); } }
+    async function hosAtenderAviso(id){ try{ await api("/avisos/"+id+"/atender",{method:"POST",body:"{}"}); hosBanner(); }catch(e){ toast(e.message,"err"); } }
+    async function hosQrMesa(id,nombre){
+      try{
+        const link=await api("/mesas/"+id+"/carta-link");
+        abrir("QR de autopedido · "+(nombre||"mesa"),
+          `<p class="muted" style="margin-top:0;font-size:13px">Pega este QR en la mesa. El cliente lo escanea, ve la carta en su idioma y pide desde el móvil; el pedido te llega aquí para confirmarlo.</p>
+           <div style="text-align:center;margin:6px 0 12px"><img src="/mesas/${id}/qr-carta.svg" alt="QR" style="width:210px;height:210px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:8px"/></div>
+           <label>Enlace</label><input id="qr_link" value="${esc(link.url)}" readonly onclick="this.select()"/>
+           <div style="display:flex;gap:8px;margin-top:12px">
+             <button class="btn small ghost" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('qr_link').value);toast('Enlace copiado','ok')">Copiar enlace</button>
+             <button class="btn small ghost" onclick="hosImprimirQr('${id}','${(nombre||'').replace(/'/g,'')}')">Imprimir</button>
+             <button class="btn small secondary" onclick="hosRegenerarQr('${id}')">Regenerar</button>
+           </div>`, null);
+        const ok=document.getElementById("modalOk"); if(ok) ok.style.display="none";
+      }catch(e){ toast(e.message,"err"); }
+    }
+    function hosImprimirQr(id,nombre){
+      const w=window.open("","_blank","width=420,height=560"); if(!w){ toast("Permite las ventanas emergentes para imprimir","err"); return; }
+      w.document.write(`<html><head><title>QR ${nombre}</title></head><body style="text-align:center;font-family:Georgia,serif;padding:30px">
+        <h2>${esc(empresa?.razonSocial||"")}</h2><h3>${esc(nombre||"")}</h3>
+        <p>Escanea para ver la carta y pedir</p>
+        <img src="/mesas/${id}/qr-carta.svg" style="width:320px;height:320px"/>
+        <p style="color:#666;font-size:12px">Bar Query</p>
+        <script>setTimeout(()=>{window.print();},400);<\/script></body></html>`);
+      w.document.close();
+    }
+    async function hosRegenerarQr(id){ if(!confirm("Se generará un QR nuevo y los anteriores dejarán de funcionar. ¿Seguir?")) return;
+      try{ await api("/mesas/"+id+"/regenerar-token",{method:"POST",body:"{}"}); cerrarModal(); toast("QR regenerado","ok"); }catch(e){ toast(e.message,"err"); } }
     function hosNuevaMesa(m){ const e=!!m; const forma=e?(m.forma||"Cuadrada"):"Cuadrada";
       const opt=(v,t)=>`<option value="${v}" ${forma===v?"selected":""}>${t}</option>`;
       abrir(e?"Editar mesa":"Nueva mesa",
