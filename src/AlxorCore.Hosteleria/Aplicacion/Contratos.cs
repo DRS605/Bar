@@ -212,3 +212,17 @@ public interface IConsultaFichasCarta
 
     Task<FotoProducto?> ObtenerFotoAsync(Guid empresaId, Guid productoId, CancellationToken ct = default);
 }
+
+/// <summary>Configuración de la carta pública (tema visual).</summary>
+public sealed record ConfiguracionCartaDto(string Tema)
+{
+    public static ConfiguracionCartaDto Desde(ConfiguracionCarta c) => new(c.Tema);
+}
+
+/// <summary>Repositorio/consulta de la configuración de carta de la empresa.</summary>
+public interface IRepositorioConfiguracionCarta
+{
+    Task<ConfiguracionCarta?> ObtenerAsync(Guid empresaId, CancellationToken ct = default);
+
+    void Agregar(ConfiguracionCarta configuracion);
+}

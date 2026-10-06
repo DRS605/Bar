@@ -21,7 +21,8 @@ public sealed class AutopedidoEndpointsTests : IClassFixture<FabricaApiPruebas>
     private sealed record CartaItem(Guid Id, string Nombre, string? Descripcion, decimal Precio, List<string> Alergenos, bool Recomendado, bool Picante, bool Agotado, string? Foto);
     private sealed record FichaResp(Guid ProductoId, List<string> Alergenos, bool Recomendado, bool Picante, bool Agotado, bool TieneFoto);
     private sealed record CartaCategoria(string Nombre, List<CartaItem> Items);
-    private sealed record CartaResp(string Local, string Idioma, List<CartaCategoria> Categorias);
+    private sealed record CartaResp(string Local, string Idioma, string Tema, List<CartaCategoria> Categorias);
+    private sealed record ConfigResp(string Tema);
     private sealed record PedidoCreadoResp(Guid Id, int NumeroLineas);
     private sealed record LineaPedidoResp(Guid ProductoId, string Descripcion, decimal Cantidad, string? Nota);
     private sealed record PedidoPendienteResp(Guid Id, Guid MesaId, string MesaNombre, string Idioma, List<LineaPedidoResp> Lineas);
@@ -224,6 +225,28 @@ public sealed class AutopedidoEndpointsTests : IClassFixture<FabricaApiPruebas>
         // Quitar la foto la elimina.
         (await cliente.PutAsJsonAsync($"/carta/fichas/{producto.Id}", new { Alergenos = new[] { "Gluten", "Huevos" }, QuitarFoto = true })).StatusCode.Should().Be(HttpStatusCode.NoContent);
         (await anon.GetAsync(new Uri($"/carta/{empresaId}/producto/{producto.Id}/foto", UriKind.Relative))).StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task El_tema_de_la_carta_se_configura_y_la_carta_lo_refleja()
+    {
+        var (cliente, empresaId) = await Ayudas.ConEmpresaAsync(_fabrica);
+        await CrearProductoAsync(cliente, "Caña", 1.50m, "Cervezas");
+        var anon = _fabrica.CreateClient();
+
+        // Por defecto, verde.
+        (await cliente.GetFromJsonAsync<ConfigResp>("/carta/configuracion"))!.Tema.Should().Be("verde");
+        (await anon.GetFromJsonAsync<CartaResp>($"/carta/{empresaId}/datos?idioma=es"))!.Tema.Should().Be("verde");
+
+        // Cambiar a «noche».
+        var put = await cliente.PutAsJsonAsync("/carta/configuracion", new { Tema = "noche" });
+        put.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await put.Content.ReadFromJsonAsync<ConfigResp>())!.Tema.Should().Be("noche");
+        (await anon.GetFromJsonAsync<CartaResp>($"/carta/{empresaId}/datos?idioma=es"))!.Tema.Should().Be("noche");
+
+        // Un tema no válido cae a «verde».
+        await cliente.PutAsJsonAsync("/carta/configuracion", new { Tema = "inexistente" });
+        (await cliente.GetFromJsonAsync<ConfigResp>("/carta/configuracion"))!.Tema.Should().Be("verde");
     }
 
     [Fact]

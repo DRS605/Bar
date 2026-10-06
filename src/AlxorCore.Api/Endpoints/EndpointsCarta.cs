@@ -18,7 +18,7 @@ public static class EndpointsCarta
 {
     public sealed record CartaItemDto(Guid Id, string Nombre, string? Descripcion, decimal Precio, IReadOnlyList<string> Alergenos, bool Recomendado, bool Picante, bool Agotado, string? Foto);
     public sealed record CartaCategoriaDto(string Nombre, IReadOnlyList<CartaItemDto> Items);
-    public sealed record CartaPublicaDto(string Local, string Idioma, IReadOnlyList<CartaCategoriaDto> Categorias);
+    public sealed record CartaPublicaDto(string Local, string Idioma, string Tema, IReadOnlyList<CartaCategoriaDto> Categorias);
 
     public static IEndpointRouteBuilder MapearCarta(this IEndpointRouteBuilder rutas)
     {
@@ -52,7 +52,7 @@ public static class EndpointsCarta
     private static async Task<IResult> DatosAsync(
         Guid empresaId, string? idioma, IContextoEmpresaMutable contexto,
         IConsultaProductos productos, IConsultaEmpresas empresas, IConsultaTraducciones traducciones,
-        IConsultaFichasCarta fichas, CancellationToken ct)
+        IConsultaFichasCarta fichas, ObtenerConfiguracionCarta configuracion, CancellationToken ct)
     {
         // Lectura pública acotada a este local (el filtro de empresa y la RLS usan la empresa fijada).
         contexto.Fijar(empresaId);
@@ -92,7 +92,8 @@ public static class EndpointsCarta
                     .ToList()))
             .ToList();
 
-        return Results.Ok(new CartaPublicaDto(empresa.RazonSocial, Autopedido.CodigoDe(idi), categorias));
+        var cfg = await configuracion.EjecutarAsync(empresaId, ct).ConfigureAwait(false);
+        return Results.Ok(new CartaPublicaDto(empresa.RazonSocial, Autopedido.CodigoDe(idi), cfg.Tema, categorias));
     }
 
     private static IResult Qr(Guid empresaId, HttpContext http)

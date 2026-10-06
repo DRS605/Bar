@@ -5,73 +5,120 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Carta</title>
 <style>
-  :root{ --ink:#17251e; --muted:#5f7168; --line:#e6ede9; --bg:#f4f6f4; --surface:#fff; --accent:#1f7a5a; --accent2:#14563e; --copper:#c67b3a; --display:"Georgia","Times New Roman",serif; }
+  /* ---- Temas de la carta (el bar elige el suyo) ---- */
+  :root, [data-tema="verde"]{
+    --ink:#17251e; --muted:#5f7168; --line:#e6ede9; --bg:#f4f6f4; --surface:#ffffff;
+    --accent:#1f7a5a; --accent2:#14563e; --chip:#2f8a66;
+    --hero:linear-gradient(135deg,#24946c,#12563d); --hero-ink:#ffffff;
+    --display:"Georgia","Times New Roman",serif; --radius:18px;
+  }
+  [data-tema="noche"]{
+    --ink:#f1ece2; --muted:#a79c88; --line:#322d24; --bg:#14120e; --surface:#1f1c16;
+    --accent:#d7a94a; --accent2:#e6c173; --chip:#c69a3f;
+    --hero:linear-gradient(135deg,#272118,#17130d); --hero-ink:#e6c173;
+    --display:"Georgia","Times New Roman",serif; --radius:18px;
+  }
+  [data-tema="terracota"]{
+    --ink:#3e2b20; --muted:#8a7566; --line:#efe1d3; --bg:#fbf4ec; --surface:#ffffff;
+    --accent:#c15b32; --accent2:#9c3f1d; --chip:#b4663b;
+    --hero:linear-gradient(135deg,#d2683a,#9c3f1d); --hero-ink:#fff6ef;
+    --display:"Georgia","Times New Roman",serif; --radius:18px;
+  }
+  [data-tema="marino"]{
+    --ink:#11303f; --muted:#5d7585; --line:#dce7ef; --bg:#eef3f7; --surface:#ffffff;
+    --accent:#1f7a95; --accent2:#134b5c; --chip:#2b86a0;
+    --hero:linear-gradient(135deg,#2a8ba7,#113f4f); --hero-ink:#f0f8fb;
+    --display:"Georgia","Times New Roman",serif; --radius:18px;
+  }
+  [data-tema="vino"]{
+    --ink:#3a1620; --muted:#8a6670; --line:#ecdcdf; --bg:#f7f0f1; --surface:#ffffff;
+    --accent:#8a2437; --accent2:#5e1826; --chip:#9c3346;
+    --hero:linear-gradient(135deg,#9a2a3e,#5e1826); --hero-ink:#fbeef0;
+    --display:"Georgia","Times New Roman",serif; --radius:18px;
+  }
+  [data-tema="minimal"]{
+    --ink:#161616; --muted:#8a8a8a; --line:#ececec; --bg:#ffffff; --surface:#ffffff;
+    --accent:#161616; --accent2:#000000; --chip:#555555;
+    --hero:#161616; --hero-ink:#ffffff;
+    --display:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif; --radius:12px;
+  }
+
   *{ box-sizing:border-box; }
-  body{ margin:0; background:var(--bg); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
-  .wrap{ max-width:560px; margin:0 auto; padding:0 18px 120px; }
-  header{ text-align:center; padding:30px 18px 14px; }
-  header .eyebrow{ font-size:11.5px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--copper); }
-  header h1{ font-family:var(--display); font-weight:600; font-size:29px; margin:8px 0 2px; letter-spacing:-.01em; }
-  header .sub{ color:var(--muted); font-size:13px; }
-  .langs{ display:flex; gap:7px; justify-content:center; margin:16px 0 4px; }
-  .langs button{ border:1px solid var(--line); background:var(--surface); color:var(--muted); border-radius:999px; padding:6px 14px; font-size:13px; font-weight:700; cursor:pointer; }
-  .langs button.on{ background:var(--accent); border-color:var(--accent); color:#fff; }
-  .mesa-chip{ display:inline-block; margin:8px auto 0; background:#eaf5ef; color:var(--accent2); border:1px solid #cfe6da; border-radius:999px; padding:4px 12px; font-size:12.5px; font-weight:700; }
-  .cat{ margin-top:24px; }
-  .cat h2{ font-family:var(--display); font-weight:600; font-size:20px; margin:0 0 4px; color:var(--accent); }
-  .cat .rule{ height:2px; background:linear-gradient(90deg,var(--accent),transparent); border-radius:2px; margin-bottom:4px; }
-  .item{ display:flex; align-items:flex-start; gap:12px; padding:13px 0; border-bottom:1px solid var(--line); }
+  body{ margin:0; background:var(--bg); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; transition:background .25s,color .25s; }
+  .wrap{ max-width:560px; margin:0 auto; padding:16px 16px 120px; }
+
+  /* Hero */
+  header{ position:relative; overflow:hidden; text-align:center; background:var(--hero); color:var(--hero-ink);
+    border-radius:var(--radius); padding:30px 22px 22px; box-shadow:0 14px 34px rgba(0,0,0,.14); }
+  header::after{ content:""; position:absolute; right:-40px; top:-40px; width:150px; height:150px; border-radius:50%; background:rgba(255,255,255,.08); }
+  header .eyebrow{ position:relative; font-size:11px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; opacity:.8; }
+  header h1{ position:relative; font-family:var(--display); font-weight:600; font-size:30px; line-height:1.1; margin:9px 0 3px; letter-spacing:-.01em; }
+  header .sub{ position:relative; font-size:12.5px; opacity:.82; }
+  .mesa-chip{ position:relative; display:inline-block; margin-top:12px; background:rgba(255,255,255,.18); color:var(--hero-ink); border:1px solid rgba(255,255,255,.3); border-radius:999px; padding:4px 13px; font-size:12.5px; font-weight:700; }
+  .langs{ position:relative; display:flex; gap:7px; justify-content:center; margin:16px 0 0; }
+  .langs button{ border:1px solid rgba(255,255,255,.4); background:rgba(255,255,255,.12); color:var(--hero-ink); border-radius:999px; padding:6px 15px; font-size:13px; font-weight:800; cursor:pointer; backdrop-filter:blur(2px); }
+  .langs button.on{ background:var(--hero-ink); border-color:var(--hero-ink); color:var(--accent2); }
+
+  .avisos{ display:flex; gap:10px; margin:16px 0 0; }
+  .avisos button{ flex:1; border:1px solid var(--line); background:var(--surface); color:var(--accent2); border-radius:14px; padding:13px; font-size:14px; font-weight:700; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.04); }
+  .avisos button:active{ transform:scale(.98); }
+
+  /* Categorías como tarjetas */
+  .cat{ margin-top:18px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:6px 16px 4px; box-shadow:0 2px 10px rgba(0,0,0,.04); }
+  .cat h2{ font-family:var(--display); font-weight:600; font-size:20px; margin:16px 0 2px; color:var(--accent); display:flex; align-items:center; gap:10px; }
+  .cat h2::after{ content:""; flex:1; height:1px; background:linear-gradient(90deg,var(--line),transparent); }
+  .item{ display:flex; align-items:flex-start; gap:13px; padding:14px 0; border-top:1px solid var(--line); }
+  .item:first-of-type{ border-top:none; }
   .item.ago{ opacity:.5; }
   .item.ago .foto{ filter:grayscale(1); }
-  .ago-tag{ display:inline-block; font-size:11px; font-weight:700; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:3px 11px; white-space:nowrap; }
-  .item .foto{ width:64px; height:64px; border-radius:12px; object-fit:cover; flex:none; background:var(--line); }
+  .ago-tag{ display:inline-block; font-size:11px; font-weight:700; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:4px 11px; white-space:nowrap; }
+  .item .foto{ width:72px; height:72px; border-radius:14px; object-fit:cover; flex:none; background:var(--line); box-shadow:0 2px 8px rgba(0,0,0,.08); }
   .item .info{ flex:1; min-width:0; }
-  .item .n{ font-size:15.5px; font-weight:600; }
+  .item .n{ font-size:16px; font-weight:650; letter-spacing:-.01em; }
   .badge{ display:inline-block; font-size:10.5px; font-weight:700; border-radius:999px; padding:1px 8px; margin-left:6px; vertical-align:middle; white-space:nowrap; }
-  .badge.rec{ color:#a86b00; background:rgba(214,158,46,.16); border:1px solid rgba(214,158,46,.4); }
-  .badge.pic{ color:#c0392b; background:rgba(214,70,54,.14); border:1px solid rgba(214,70,54,.4); }
-  .item .d{ font-size:12.5px; color:var(--muted); margin-top:2px; line-height:1.4; }
-  .aler{ display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
-  .aler .chip{ font-size:10.5px; font-weight:600; color:var(--copper); background:rgba(198,123,58,.12); border:1px solid rgba(198,123,58,.3); border-radius:999px; padding:2px 8px; line-height:1.5; }
-  .item .right{ display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
-  .item .p{ font-weight:700; font-size:15px; white-space:nowrap; }
-  .add{ width:34px; height:34px; border-radius:10px; border:none; background:var(--accent); color:#fff; font-size:22px; line-height:1; cursor:pointer; box-shadow:0 3px 8px rgba(31,122,90,.28); }
+  .badge.rec{ color:#a86b00; background:rgba(214,158,46,.16); border:1px solid rgba(214,158,46,.45); }
+  .badge.pic{ color:#c0392b; background:rgba(214,70,54,.14); border:1px solid rgba(214,70,54,.45); }
+  .item .d{ font-size:12.5px; color:var(--muted); margin-top:3px; line-height:1.45; }
+  .aler{ display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
+  .aler .chip{ font-size:10px; font-weight:700; color:var(--chip); background:color-mix(in srgb, var(--chip) 12%, transparent); border:1px solid color-mix(in srgb, var(--chip) 35%, transparent); border-radius:999px; padding:2px 9px; line-height:1.6; text-transform:uppercase; letter-spacing:.02em; }
+  .item .price{ margin-top:7px; font-weight:750; font-size:15px; color:var(--ink); }
+  .item .right{ display:flex; flex-direction:column; align-items:flex-end; justify-content:center; gap:6px; align-self:center; }
+  .item .p{ font-weight:750; font-size:15px; white-space:nowrap; }
+  .add{ width:38px; height:38px; border-radius:12px; border:none; background:var(--accent); color:#fff; font-size:23px; line-height:1; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,.18); }
+  [data-tema="minimal"] .add, [data-tema="noche"] .add{ color:var(--bg); }
   .add:active{ transform:scale(.92); }
-  .qty{ display:inline-flex; align-items:center; gap:0; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
-  .qty button{ width:32px; height:32px; border:0; background:var(--surface); color:var(--ink); font-size:18px; cursor:pointer; }
+  .qty{ display:inline-flex; align-items:center; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .qty button{ width:34px; height:34px; border:0; background:var(--surface); color:var(--ink); font-size:18px; cursor:pointer; }
   .qty span{ min-width:26px; text-align:center; font-weight:700; font-size:14px; }
-  footer{ text-align:center; color:var(--muted); font-size:12px; margin-top:30px; }
+  footer{ text-align:center; color:var(--muted); font-size:12px; margin-top:26px; opacity:.8; }
   .estado{ text-align:center; color:var(--muted); padding:60px 20px; }
-  .avisos{ display:flex; gap:10px; margin:22px 0 4px; }
-  .avisos button{ flex:1; border:1px solid var(--line); background:var(--surface); color:var(--accent2); border-radius:12px; padding:12px; font-size:14px; font-weight:700; cursor:pointer; }
-  .avisos button:active{ background:#eaf5ef; }
+
   /* Barra flotante del carrito */
-  .cartbar{ position:fixed; left:0; right:0; bottom:0; z-index:40; display:none; padding:12px 16px calc(12px + env(safe-area-inset-bottom)); background:linear-gradient(transparent, var(--bg) 22%); }
+  .cartbar{ position:fixed; left:0; right:0; bottom:0; z-index:40; display:none; padding:12px 16px calc(12px + env(safe-area-inset-bottom)); background:linear-gradient(transparent, var(--bg) 30%); }
   .cartbar .inner{ max-width:560px; margin:0 auto; }
-  .cartbar button{ width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; border:none; background:var(--accent); color:#fff; border-radius:14px; padding:15px 18px; font-size:16px; font-weight:750; cursor:pointer; box-shadow:0 10px 26px rgba(20,86,62,.32); }
-  .cartbar .badge{ background:rgba(255,255,255,.24); border-radius:999px; padding:2px 10px; font-size:14px; }
+  .cartbar button{ width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; border:none; background:var(--accent); color:#fff; border-radius:16px; padding:16px 18px; font-size:16px; font-weight:800; cursor:pointer; box-shadow:0 12px 30px rgba(0,0,0,.26); }
+  [data-tema="minimal"] .cartbar button, [data-tema="noche"] .cartbar button{ color:var(--bg); }
+  .cartbar .badge{ background:rgba(255,255,255,.26); border-radius:999px; padding:3px 11px; font-size:14px; }
+  [data-tema="minimal"] .cartbar .badge, [data-tema="noche"] .cartbar .badge{ background:rgba(0,0,0,.18); }
   /* Hoja del pedido */
-  .sheet-bg{ position:fixed; inset:0; background:rgba(10,20,16,.5); z-index:50; display:none; }
-  .sheet{ position:fixed; left:0; right:0; bottom:0; z-index:51; background:var(--surface); border-radius:20px 20px 0 0; max-width:560px; margin:0 auto; max-height:86vh; display:none; flex-direction:column; }
+  .sheet-bg{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:50; display:none; }
+  .sheet{ position:fixed; left:0; right:0; bottom:0; z-index:51; background:var(--surface); border-radius:22px 22px 0 0; max-width:560px; margin:0 auto; max-height:86vh; display:none; flex-direction:column; }
   .sheet-head{ padding:18px 20px 10px; font-family:var(--display); font-size:20px; font-weight:600; display:flex; justify-content:space-between; align-items:center; }
   .sheet-head .x{ border:none; background:none; font-size:24px; color:var(--muted); cursor:pointer; }
   .sheet-body{ padding:0 20px; overflow:auto; }
   .cline{ padding:12px 0; border-bottom:1px solid var(--line); }
   .cline .top{ display:flex; align-items:center; gap:10px; }
-  .cline .cn{ flex:1; font-weight:600; font-size:15px; }
-  .cline .cp{ font-weight:700; white-space:nowrap; }
+  .cline .cn{ flex:1; font-weight:650; font-size:15px; }
+  .cline .cp{ font-weight:750; white-space:nowrap; }
   .cline input{ width:100%; margin-top:8px; border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:13.5px; background:var(--bg); color:var(--ink); }
   .sheet-foot{ padding:14px 20px calc(18px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); }
-  .sheet-foot .tot{ display:flex; justify-content:space-between; font-size:18px; font-weight:750; margin-bottom:12px; }
-  .send{ width:100%; border:none; background:var(--accent); color:#fff; border-radius:14px; padding:15px; font-size:16px; font-weight:750; cursor:pointer; }
+  .sheet-foot .tot{ display:flex; justify-content:space-between; font-size:18px; font-weight:800; margin-bottom:12px; }
+  .send{ width:100%; border:none; background:var(--accent); color:#fff; border-radius:14px; padding:15px; font-size:16px; font-weight:800; cursor:pointer; }
+  [data-tema="minimal"] .send, [data-tema="noche"] .send{ color:var(--bg); }
   .send:disabled{ opacity:.5; }
   .toast{ position:fixed; left:50%; bottom:26px; transform:translateX(-50%); background:var(--accent2); color:#fff; padding:13px 20px; border-radius:12px; font-weight:600; font-size:14px; z-index:60; box-shadow:0 10px 30px rgba(0,0,0,.28); max-width:90%; text-align:center; }
   .ok-splash{ text-align:center; padding:50px 24px; }
-  .ok-splash .circ{ width:72px; height:72px; border-radius:50%; background:#eaf5ef; color:var(--accent); display:grid; place-items:center; margin:0 auto 18px; font-size:38px; }
-  @media (prefers-color-scheme: dark){
-    :root{ --ink:#e9f1ec; --muted:#9fb2a8; --line:#26332c; --bg:#121a16; --surface:#18211c; --accent:#4fb488; --accent2:#8ad9b4; }
-    .mesa-chip{ background:#17271f; border-color:#26332c; }
-  }
+  .ok-splash .circ{ width:72px; height:72px; border-radius:50%; background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent); display:grid; place-items:center; margin:0 auto 18px; font-size:38px; }
 </style>
 </head>
 <body>
@@ -88,6 +135,10 @@
   const E = P.get("e"), M = P.get("m"), TK = P.get("t");
   const pedirActivo = !!(E && M && TK);
   const wrap = document.getElementById("wrap");
+
+  const TEMAS = ["verde","noche","terracota","marino","vino","minimal"];
+  function aplicarTema(tm){ document.documentElement.setAttribute("data-tema", TEMAS.includes(tm)?tm:"verde"); }
+  aplicarTema(P.get("tema"));   // tema inicial (preview) hasta que llegue el de la empresa
 
   const STR = {
     es:{ carta:"Carta", iva:"Precios con IVA incluido", pedido:"Tu pedido", vacio:"Aún no has añadido nada.", enviar:"Enviar pedido", enviando:"Enviando…", enviado:"¡Pedido enviado!", enviadoSub:"El camarero lo confirmará enseguida.", nota:"Nota para cocina (opcional)", llamar:"Llamar al camarero", cuenta:"Pedir la cuenta", avisado:"Aviso enviado, ahora te atienden.", total:"Total", mesa:"Mesa", ver:"Ver pedido", art:"artículo", arts:"artículos", errCarga:"No se pudo cargar la carta.", errEnvio:"No se pudo enviar. Inténtalo de nuevo.", sinCarta:"La carta aún no está disponible.", seguir:"Seguir pidiendo", rec:"Recomendado", pic:"Picante", agotado:"Agotado" },
@@ -126,6 +177,7 @@
       const r = await fetch(`/carta/${E}/datos?idioma=${lang}`);
       if(!r.ok) throw new Error();
       carta = await r.json();
+      aplicarTema(P.get("tema") || carta.tema);
       document.title = carta.local ? `${t.carta} · ${carta.local}` : t.carta;
       pintar();
     }catch(e){ wrap.innerHTML = `<div class="estado">${esc(t.errCarga)}</div>`; }
@@ -152,13 +204,13 @@
   }
 
   function fila(it){
-    const ctl = it.agotado ? `<span class="ago-tag">${esc(t.agotado)}</span>` : (pedirActivo ? control(it) : `<span class="p">${eur(it.precio)}</span>`);
+    const ctl = it.agotado ? `<span class="ago-tag">${esc(t.agotado)}</span>` : (pedirActivo ? control(it) : "");
     const foto = it.foto ? `<img class="foto" src="${esc(it.foto)}" alt="" loading="lazy">` : "";
     const aler = (it.alergenos && it.alergenos.length) ? `<div class="aler">${it.alergenos.map(a=>`<span class="chip">${esc(alerLabel(a))}</span>`).join("")}</div>` : "";
     const dist = (it.recomendado?`<span class="badge rec">⭐ ${esc(t.rec)}</span>`:"") + (it.picante?`<span class="badge pic">🌶️ ${esc(t.pic)}</span>`:"");
     return `<div class="item${it.agotado?" ago":""}" id="it_${it.id}">
       ${foto}
-      <div class="info"><div class="n">${esc(it.nombre)}${dist}</div>${it.descripcion?`<div class="d">${esc(it.descripcion)}</div>`:""}${aler}<div class="d" style="margin-top:4px;font-weight:700;color:var(--ink)">${eur(it.precio)}</div></div>
+      <div class="info"><div class="n">${esc(it.nombre)}${dist}</div>${it.descripcion?`<div class="d">${esc(it.descripcion)}</div>`:""}${aler}<div class="price">${eur(it.precio)}</div></div>
       <div class="right">${ctl}</div></div>`;
   }
   function control(it){

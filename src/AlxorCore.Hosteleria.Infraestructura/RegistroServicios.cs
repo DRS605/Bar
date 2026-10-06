@@ -46,6 +46,7 @@ public static class RegistroServicios
         servicios.AddScoped<RepositorioFichasCarta>();
         servicios.AddScoped<IRepositorioFichasCarta>(sp => sp.GetRequiredService<RepositorioFichasCarta>());
         servicios.AddScoped<IConsultaFichasCarta>(sp => sp.GetRequiredService<RepositorioFichasCarta>());
+        servicios.AddScoped<IRepositorioConfiguracionCarta, RepositorioConfiguracionCarta>();
 
         servicios.AddScoped<CrearMesa>();
         servicios.AddScoped<ActualizarMesa>();
@@ -80,6 +81,8 @@ public static class RegistroServicios
         servicios.AddScoped<ListarFichasCarta>();
         servicios.AddScoped<GuardarFichaCarta>();
         servicios.AddScoped<CambiarDisponibilidad>();
+        servicios.AddScoped<ObtenerConfiguracionCarta>();
+        servicios.AddScoped<GuardarConfiguracionCarta>();
         servicios.AddScoped<ObtenerFotoProducto>();
         servicios.AddScoped<RegenerarTokenCartaMesa>();
 

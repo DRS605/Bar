@@ -162,6 +162,33 @@ public class FichaCartaTests
     }
 }
 
+public class ConfiguracionCartaTests
+{
+    private static readonly IReloj Reloj = new RelojFijo();
+    private static readonly Guid Empresa = Guid.NewGuid();
+
+    [Theory]
+    [InlineData("noche", "noche")]
+    [InlineData("MARINO", "marino")]
+    [InlineData(" vino ", "vino")]
+    [InlineData("inexistente", "verde")]
+    [InlineData(null, "verde")]
+    public void Normaliza_el_tema_a_uno_valido(string? entrada, string esperado)
+    {
+        TemasCarta.Normalizar(entrada).Should().Be(esperado);
+    }
+
+    [Fact]
+    public void Crear_y_fijar_tema()
+    {
+        var cfg = ConfiguracionCarta.Crear(Empresa, "terracota", Reloj);
+        cfg.Tema.Should().Be("terracota");
+
+        cfg.FijarTema("raro", Reloj);
+        cfg.Tema.Should().Be("verde"); // no válido → por defecto
+    }
+}
+
 public class TokenCartaMesaTests
 {
     private static readonly IReloj Reloj = new RelojFijo();

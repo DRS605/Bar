@@ -596,13 +596,22 @@
 
     function cartaUrlPublica(){ return `${location.origin}/carta.html?e=${empresa.id}`; }
     const ALER_ES = { Gluten:"Gluten", Crustaceos:"Crustáceos", Huevos:"Huevos", Pescado:"Pescado", Cacahuetes:"Cacahuetes", Soja:"Soja", Lacteos:"Lácteos", FrutosCascara:"Frutos de cáscara", Apio:"Apio", Mostaza:"Mostaza", Sesamo:"Sésamo", Sulfitos:"Sulfitos", Altramuces:"Altramuces", Moluscos:"Moluscos" };
-    let cartaIdiomaEdit="en", cartaTrads={}, cartaProds=[], cartaFichas={}, cartaFichaFile=null;
+    // Paletas de los temas de carta (para las muestras del selector; el aspecto real está en carta.html).
+    const TEMAS_CARTA = [
+      { id:"verde", nombre:"Verde bistró", hero:"linear-gradient(135deg,#24946c,#12563d)", bg:"#f4f6f4", accent:"#1f7a5a", ink:"#17251e" },
+      { id:"noche", nombre:"Noche", hero:"linear-gradient(135deg,#272118,#17130d)", bg:"#14120e", accent:"#d7a94a", ink:"#f1ece2" },
+      { id:"terracota", nombre:"Terracota", hero:"linear-gradient(135deg,#d2683a,#9c3f1d)", bg:"#fbf4ec", accent:"#c15b32", ink:"#3e2b20" },
+      { id:"marino", nombre:"Marino", hero:"linear-gradient(135deg,#2a8ba7,#113f4f)", bg:"#eef3f7", accent:"#1f7a95", ink:"#11303f" },
+      { id:"vino", nombre:"Vino", hero:"linear-gradient(135deg,#9a2a3e,#5e1826)", bg:"#f7f0f1", accent:"#8a2437", ink:"#3a1620" },
+      { id:"minimal", nombre:"Minimal", hero:"#161616", bg:"#ffffff", accent:"#161616", ink:"#161616" },
+    ];
+    let cartaIdiomaEdit="en", cartaTrads={}, cartaProds=[], cartaFichas={}, cartaFichaFile=null, cartaTema="verde";
     async function vCartaQr(){
       view('<div class="muted">Cargando…</div>');
       const url=cartaUrlPublica(), qr=`/carta/${empresa.id}/qr.svg`;
-      try{ const [prods,trads,fichas]=await Promise.all([api("/productos").catch(()=>[]),cartaCargarTrads(),api("/carta/fichas").catch(()=>[])]);
-        cartaProds=prods; cartaTrads=trads; cartaFichas={}; for(const f of fichas) cartaFichas[f.productoId]=f;
-      }catch{ cartaProds=[];cartaTrads={};cartaFichas={}; }
+      try{ const [prods,trads,fichas,cfg]=await Promise.all([api("/productos").catch(()=>[]),cartaCargarTrads(),api("/carta/fichas").catch(()=>[]),api("/carta/configuracion").catch(()=>({tema:"verde"}))]);
+        cartaProds=prods; cartaTrads=trads; cartaFichas={}; for(const f of fichas) cartaFichas[f.productoId]=f; cartaTema=(cfg&&cfg.tema)||"verde";
+      }catch{ cartaProds=[];cartaTrads={};cartaFichas={};cartaTema="verde"; }
       const cuerpo=`<div style="display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start">
         <div style="text-align:center">
           <div style="background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;display:inline-block"><img src="${qr}" alt="QR de la carta" style="width:200px;height:200px;display:block"/></div>
@@ -613,7 +622,32 @@
           <label>Enlace de la carta (general)</label>
           <div style="display:flex;gap:8px"><input id="cartaUrl" value="${url}" readonly style="flex:1"/><button class="btn small secondary" onclick="cartaCopiar()">Copiar</button></div>
         </div></div>`;
-      view(panel("Carta con QR",cuerpo)+`<div class="panel" id="cartaFichaPanel" style="margin-top:18px">${cartaFichaPanel()}</div>`+`<div class="panel" id="cartaTradPanel" style="margin-top:18px">${cartaTradPanel()}</div>`);
+      view(panel("Carta con QR",cuerpo)
+        +`<div class="panel" id="cartaTemaPanel" style="margin-top:18px">${cartaTemaPanel()}</div>`
+        +`<div class="panel" id="cartaFichaPanel" style="margin-top:18px">${cartaFichaPanel()}</div>`
+        +`<div class="panel" id="cartaTradPanel" style="margin-top:18px">${cartaTradPanel()}</div>`);
+    }
+    function cartaTemaPanel(){
+      const sw=TEMAS_CARTA.map(tm=>{
+        const on=cartaTema===tm.id;
+        return `<button onclick="cartaSetTema('${tm.id}')" title="${tm.nombre}" style="text-align:left;border:2px solid ${on?'var(--accent)':'var(--line)'};border-radius:14px;overflow:hidden;background:${tm.bg};cursor:pointer;padding:0;box-shadow:${on?'0 6px 16px rgba(20,60,45,.16)':'var(--shadow)'}">
+          <div style="height:46px;background:${tm.hero};position:relative"><span style="position:absolute;left:10px;bottom:7px;color:#fff;font-family:var(--display);font-weight:700;font-size:13px">Aa</span>${on?'<span style="position:absolute;right:8px;top:7px;background:#fff;color:var(--accent);border-radius:999px;width:20px;height:20px;display:grid;place-items:center;font-size:13px;font-weight:800">✓</span>':''}</div>
+          <div style="padding:10px 12px">
+            <div style="height:7px;width:62%;background:${tm.accent};border-radius:4px;margin-bottom:6px"></div>
+            <div style="height:6px;width:86%;background:${tm.ink};opacity:.18;border-radius:4px;margin-bottom:5px"></div>
+            <div style="height:6px;width:70%;background:${tm.ink};opacity:.18;border-radius:4px"></div>
+            <div style="margin-top:9px;font-size:12.5px;font-weight:700;color:${tm.ink}">${tm.nombre}${on?' · <span style="color:'+tm.accent+'">elegido</span>':''}</div>
+          </div></button>`;
+      }).join("");
+      return `<div class="panel-head"><h2>Tema de la carta</h2><a class="btn small ghost" href="${cartaUrlPublica()}" target="_blank">Ver carta</a></div>
+        <div style="padding:8px 20px 18px"><p class="muted" style="font-size:12.5px">Elige el aspecto con el que tus clientes ven la carta en el móvil. Se aplica al instante.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px">${sw}</div></div>`;
+    }
+    async function cartaSetTema(id){
+      const prev=cartaTema; cartaTema=id;
+      const pnl=document.getElementById("cartaTemaPanel"); if(pnl) pnl.innerHTML=cartaTemaPanel();
+      try{ await api("/carta/configuracion",{method:"PUT",body:JSON.stringify({tema:id})}); toast("Tema aplicado","ok"); }
+      catch(e){ cartaTema=prev; if(pnl) pnl.innerHTML=cartaTemaPanel(); toast(e.message,"err"); }
     }
     function cartaFichaPanel(){
       const rows=cartaProds.filter(p=>p.precioUnitario>0).map(p=>{ const f=cartaFichas[p.id]||{}; const na=(f.alergenos||[]).length;

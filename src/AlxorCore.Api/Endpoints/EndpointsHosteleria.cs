@@ -101,6 +101,16 @@ public static class EndpointsHosteleria
             .WithSummary("Marca un plato como agotado o lo reactiva (cambio rápido durante el servicio).")
             .RequierePermiso(Permisos.HosteleriaGestionar);
 
+        var configuracionCarta = rutas.MapGroup("/carta/configuracion").WithTags("Autopedido");
+
+        configuracionCarta.MapGet("", ObtenerConfiguracionCartaAsync)
+            .WithSummary("Obtiene la configuración de la carta (tema visual).")
+            .RequireAuthorization();
+
+        configuracionCarta.MapPut("", GuardarConfiguracionCartaAsync)
+            .WithSummary("Fija el tema visual de la carta del local.")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
         var comandas = rutas.MapGroup("/comandas").WithTags("Comandas");
 
         comandas.MapGet("", ListarComandasAsync)
@@ -326,6 +336,26 @@ public static class EndpointsHosteleria
         }
 
         return (await caso.EjecutarAsync(contexto.EmpresaId.Value, productoId, datos, ct).ConfigureAwait(false)).ASinContenido();
+    }
+
+    private static async Task<IResult> ObtenerConfiguracionCartaAsync(IContextoEmpresa contexto, ObtenerConfiguracionCarta caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> GuardarConfiguracionCartaAsync(DatosConfiguracionCarta datos, IContextoEmpresa contexto, GuardarConfiguracionCarta caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return (await caso.EjecutarAsync(contexto.EmpresaId.Value, datos, ct).ConfigureAwait(false)).AOk();
     }
 
     private static async Task<IResult> ListarComandasAsync(IContextoEmpresa contexto, ListarComandasAbiertas caso, CancellationToken ct)

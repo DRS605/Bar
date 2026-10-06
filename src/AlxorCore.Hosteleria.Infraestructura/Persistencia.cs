@@ -32,6 +32,8 @@ public sealed class HosteleriaDbContext : DbContextEmpresaBase, IUnidadDeTrabajo
 
     public DbSet<FichaCarta> FichasCarta => Set<FichaCarta>();
 
+    public DbSet<ConfiguracionCarta> ConfiguracionesCarta => Set<ConfiguracionCarta>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Esquema);
@@ -360,6 +362,34 @@ internal sealed class ConfiguracionFichaCarta : IEntityTypeConfiguration<FichaCa
         builder.Ignore(f => f.TieneFoto);
         builder.Ignore(f => f.EventosDominio);
     }
+}
+
+internal sealed class ConfiguracionCartaConfig : IEntityTypeConfiguration<ConfiguracionCarta>
+{
+    public void Configure(EntityTypeBuilder<ConfiguracionCarta> builder)
+    {
+        builder.ToTable("configuracion_carta");
+        builder.HasKey(c => c.Id);
+        builder.Property(c => c.Id).HasColumnName("id");
+        builder.Property(c => c.EmpresaId).HasColumnName("empresa_id").IsRequired();
+        builder.Property(c => c.Tema).HasColumnName("tema").HasMaxLength(20).IsRequired();
+        builder.Property(c => c.ActualizadaEn).HasColumnName("actualizada_en").IsRequired();
+
+        builder.HasIndex(c => c.EmpresaId).IsUnique().HasDatabaseName("ux_configuracion_carta_empresa");
+        builder.Ignore(c => c.EventosDominio);
+    }
+}
+
+internal sealed class RepositorioConfiguracionCarta : IRepositorioConfiguracionCarta
+{
+    private readonly HosteleriaDbContext _contexto;
+
+    public RepositorioConfiguracionCarta(HosteleriaDbContext contexto) => _contexto = contexto;
+
+    public Task<ConfiguracionCarta?> ObtenerAsync(Guid empresaId, CancellationToken ct = default) =>
+        _contexto.ConfiguracionesCarta.SingleOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
+
+    public void Agregar(ConfiguracionCarta configuracion) => _contexto.ConfiguracionesCarta.Add(configuracion);
 }
 
 internal sealed class RepositorioFichasCarta : IRepositorioFichasCarta, IConsultaFichasCarta

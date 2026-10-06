@@ -573,6 +573,57 @@ public sealed class CambiarDisponibilidad
     }
 }
 
+/// <summary>Datos para fijar el tema visual de la carta.</summary>
+public sealed record DatosConfiguracionCarta(string Tema);
+
+/// <summary>Caso de uso: obtiene la configuración de carta de la empresa (tema), con valores por defecto.</summary>
+public sealed class ObtenerConfiguracionCarta
+{
+    private readonly IRepositorioConfiguracionCarta _repositorio;
+
+    public ObtenerConfiguracionCarta(IRepositorioConfiguracionCarta repositorio) => _repositorio = repositorio;
+
+    public async Task<ConfiguracionCartaDto> EjecutarAsync(Guid empresaId, CancellationToken ct = default)
+    {
+        var cfg = await _repositorio.ObtenerAsync(empresaId, ct).ConfigureAwait(false);
+        return new ConfiguracionCartaDto(cfg?.Tema ?? TemasCarta.PorDefecto);
+    }
+}
+
+/// <summary>Caso de uso (personal): fija el tema visual de la carta del local.</summary>
+public sealed class GuardarConfiguracionCarta
+{
+    private readonly IRepositorioConfiguracionCarta _repositorio;
+    private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
+    private readonly IReloj _reloj;
+
+    public GuardarConfiguracionCarta(IRepositorioConfiguracionCarta repositorio, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    {
+        _repositorio = repositorio;
+        _unidadDeTrabajo = unidadDeTrabajo;
+        _reloj = reloj;
+    }
+
+    public async Task<Resultado<ConfiguracionCartaDto>> EjecutarAsync(Guid empresaId, DatosConfiguracionCarta datos, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(datos);
+
+        var cfg = await _repositorio.ObtenerAsync(empresaId, ct).ConfigureAwait(false);
+        if (cfg is null)
+        {
+            cfg = ConfiguracionCarta.Crear(empresaId, datos.Tema, _reloj);
+            _repositorio.Agregar(cfg);
+        }
+        else
+        {
+            cfg.FijarTema(datos.Tema, _reloj);
+        }
+
+        await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+        return Resultado.Ok(ConfiguracionCartaDto.Desde(cfg));
+    }
+}
+
 /// <summary>Caso de uso <b>anónimo</b>: sirve la foto de un producto para la carta pública.</summary>
 public sealed class ObtenerFotoProducto
 {

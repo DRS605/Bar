@@ -119,8 +119,13 @@ camarero. El pedido **no toca la cuenta** hasta que un camarero lo **acepta**.
 - **Avisos de mesa** (`AvisoMesa`, anónimo): `POST /carta/{empresaId}/mesa/{mesaId}/aviso` con tipo
   `LlamarCamarero` o `PedirCuenta`. `GET /avisos` los lista pendientes y `POST /avisos/{id}/atender`
   los cierra.
+- **Tema visual** (`ConfiguracionCarta`, uno por empresa): el bar elige con qué aspecto ve el cliente
+  la carta (temas `verde`, `noche`, `terracota`, `marino`, `vino`, `minimal`). Se gestiona con `GET/PUT
+  /carta/configuracion` y la carta pública lo devuelve en `tema`; `carta.html` lo aplica (y admite
+  `?tema=` para previsualizar). En la interfaz, «Carta con QR» trae el selector de temas con muestras.
 - **Carta multiidioma.** `GET /carta/{empresaId}/datos?idioma=es|en|fr` devuelve categorías, artículos
-  (con `id`, nombre, descripción, precio con IVA incluido, **alérgenos** y **foto**). El español es la
+  (con `id`, nombre, descripción, precio con IVA incluido, **alérgenos**, **distintivos**, **agotado**
+  y **foto**), el idioma y el **tema**. El español es la
   base (del catálogo); las traducciones a inglés/francés se guardan en `TraduccionCarta`
   (nombre/descripción de producto y nombre de categoría) y se gestionan con `GET/PUT
   /carta/traducciones` (nombre vacío borra la traducción).
@@ -177,6 +182,8 @@ camarero. El pedido **no toca la cuenta** hasta que un camarero lo **acepta**.
 | `PUT` | `/carta/fichas/{productoId}` | permiso `hosteleria.gestionar` | Guarda la ficha (alérgenos, foto, distintivos, disponibilidad). **204** |
 | `PUT` | `/carta/fichas/{productoId}/disponibilidad` | permiso `hosteleria.gestionar` | Marca el plato agotado o lo reactiva (cambio rápido). **204** |
 | `GET` | `/carta/{empresaId}/producto/{productoId}/foto` | anónimo | Foto del producto para la carta. |
+| `GET` | `/carta/configuracion` | JWT + empresa | Configuración de la carta (tema visual). |
+| `PUT` | `/carta/configuracion` | permiso `hosteleria.gestionar` | Fija el tema visual de la carta. |
 
 El permiso **`hosteleria.gestionar`** lo tienen los roles *Propietario* y *Usuario*.
 
