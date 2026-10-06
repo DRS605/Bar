@@ -406,6 +406,8 @@ public sealed class GuardarTraduccion
 /// <summary>Alta o edición de la ficha de carta (alérgenos y foto) de un producto.</summary>
 public sealed record DatosFichaCarta(
     IReadOnlyList<string>? Alergenos = null,
+    bool Recomendado = false,
+    bool Picante = false,
     string? FotoBase64 = null,
     string? FotoTipo = null,
     bool QuitarFoto = false);
@@ -455,6 +457,7 @@ public sealed class GuardarFichaCarta
         ficha ??= FichaCarta.Crear(empresaId, productoId, _reloj);
 
         ficha.FijarAlergenos(Alergenos.DeNombres(datos.Alergenos), _reloj);
+        ficha.FijarDestacados(datos.Recomendado, datos.Picante, _reloj);
 
         if (datos.QuitarFoto)
         {

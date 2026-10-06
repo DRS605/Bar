@@ -349,6 +349,8 @@ internal sealed class ConfiguracionFichaCarta : IEntityTypeConfiguration<FichaCa
         builder.Property(f => f.EmpresaId).HasColumnName("empresa_id").IsRequired();
         builder.Property(f => f.ProductoId).HasColumnName("producto_id").IsRequired();
         builder.Property(f => f.Alergenos).HasColumnName("alergenos").HasConversion<int>().IsRequired();
+        builder.Property(f => f.Recomendado).HasColumnName("recomendado").IsRequired();
+        builder.Property(f => f.Picante).HasColumnName("picante").IsRequired();
         builder.Property(f => f.Foto).HasColumnName("foto");
         builder.Property(f => f.FotoTipo).HasColumnName("foto_tipo").HasMaxLength(30);
         builder.Property(f => f.ActualizadaEn).HasColumnName("actualizada_en").IsRequired();
@@ -375,10 +377,10 @@ internal sealed class RepositorioFichasCarta : IRepositorioFichasCarta, IConsult
         // No cargamos los bytes de la foto en el listado; solo si tiene.
         var filas = await _contexto.FichasCarta
             .Where(f => f.EmpresaId == empresaId)
-            .Select(f => new { f.ProductoId, f.Alergenos, TieneFoto = f.Foto != null })
+            .Select(f => new { f.ProductoId, f.Alergenos, f.Recomendado, f.Picante, TieneFoto = f.Foto != null })
             .ToListAsync(ct).ConfigureAwait(false);
 
-        return filas.Select(f => new FichaCartaDto(f.ProductoId, Alergenos.ANombres(f.Alergenos), f.TieneFoto)).ToList();
+        return filas.Select(f => new FichaCartaDto(f.ProductoId, Alergenos.ANombres(f.Alergenos), f.Recomendado, f.Picante, f.TieneFoto)).ToList();
     }
 
     public async Task<FotoProducto?> ObtenerFotoAsync(Guid empresaId, Guid productoId, CancellationToken ct = default)

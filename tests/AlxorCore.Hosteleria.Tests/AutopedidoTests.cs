@@ -124,6 +124,22 @@ public class FichaCartaTests
     }
 
     [Fact]
+    public void Destacados_recomendado_y_picante_se_fijan()
+    {
+        var ficha = FichaCarta.Crear(Empresa, Guid.NewGuid(), Reloj);
+        ficha.Recomendado.Should().BeFalse();
+        ficha.Picante.Should().BeFalse();
+
+        ficha.FijarDestacados(recomendado: true, picante: true, Reloj);
+        ficha.Recomendado.Should().BeTrue();
+        ficha.Picante.Should().BeTrue();
+
+        ficha.FijarDestacados(recomendado: false, picante: true, Reloj);
+        ficha.Recomendado.Should().BeFalse();
+        ficha.Picante.Should().BeTrue();
+    }
+
+    [Fact]
     public void Fijar_foto_rechaza_tipo_no_valido_y_tamano_excesivo()
     {
         var ficha = FichaCarta.Crear(Empresa, Guid.NewGuid(), Reloj);

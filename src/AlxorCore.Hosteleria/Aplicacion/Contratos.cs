@@ -188,10 +188,10 @@ public interface IConsultaTraducciones
     Task<IReadOnlyList<TraduccionCartaDto>> ListarPorIdiomaAsync(Guid empresaId, IdiomaCarta idioma, CancellationToken ct = default);
 }
 
-/// <summary>Ficha de carta de un producto: sus alérgenos y si tiene foto.</summary>
-public sealed record FichaCartaDto(Guid ProductoId, IReadOnlyList<string> Alergenos, bool TieneFoto)
+/// <summary>Ficha de carta de un producto: sus alérgenos, distintivos (recomendado/picante) y si tiene foto.</summary>
+public sealed record FichaCartaDto(Guid ProductoId, IReadOnlyList<string> Alergenos, bool Recomendado, bool Picante, bool TieneFoto)
 {
-    public static FichaCartaDto Desde(FichaCarta f) => new(f.ProductoId, Dominio.Alergenos.ANombres(f.Alergenos), f.TieneFoto);
+    public static FichaCartaDto Desde(FichaCarta f) => new(f.ProductoId, Dominio.Alergenos.ANombres(f.Alergenos), f.Recomendado, f.Picante, f.TieneFoto);
 }
 
 /// <summary>Imagen de un producto (para servirla en la carta).</summary>

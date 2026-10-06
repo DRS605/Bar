@@ -95,6 +95,12 @@ public sealed class FichaCarta : RaizAgregadoEmpresa<Guid>
     /// <summary>Alérgenos del producto (banderas).</summary>
     public Alergeno Alergenos { get; private set; }
 
+    /// <summary>Si el plato se destaca como recomendado de la casa (⭐) en la carta.</summary>
+    public bool Recomendado { get; private set; }
+
+    /// <summary>Si el plato se marca como picante (🌶️) en la carta.</summary>
+    public bool Picante { get; private set; }
+
     /// <summary>Imagen del producto para la carta (bytes), o null si no tiene.</summary>
     public byte[]? Foto { get; private set; }
 
@@ -116,6 +122,15 @@ public sealed class FichaCarta : RaizAgregadoEmpresa<Guid>
     {
         ArgumentNullException.ThrowIfNull(reloj);
         Alergenos = alergenos;
+        ActualizadaEn = reloj.AhoraUtc;
+    }
+
+    /// <summary>Marca o desmarca el plato como recomendado y/o picante.</summary>
+    public void FijarDestacados(bool recomendado, bool picante, IReloj reloj)
+    {
+        ArgumentNullException.ThrowIfNull(reloj);
+        Recomendado = recomendado;
+        Picante = picante;
         ActualizadaEn = reloj.AhoraUtc;
     }
 

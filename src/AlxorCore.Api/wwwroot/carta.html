@@ -24,6 +24,9 @@
   .item .foto{ width:64px; height:64px; border-radius:12px; object-fit:cover; flex:none; background:var(--line); }
   .item .info{ flex:1; min-width:0; }
   .item .n{ font-size:15.5px; font-weight:600; }
+  .badge{ display:inline-block; font-size:10.5px; font-weight:700; border-radius:999px; padding:1px 8px; margin-left:6px; vertical-align:middle; white-space:nowrap; }
+  .badge.rec{ color:#a86b00; background:rgba(214,158,46,.16); border:1px solid rgba(214,158,46,.4); }
+  .badge.pic{ color:#c0392b; background:rgba(214,70,54,.14); border:1px solid rgba(214,70,54,.4); }
   .item .d{ font-size:12.5px; color:var(--muted); margin-top:2px; line-height:1.4; }
   .aler{ display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
   .aler .chip{ font-size:10.5px; font-weight:600; color:var(--copper); background:rgba(198,123,58,.12); border:1px solid rgba(198,123,58,.3); border-radius:999px; padding:2px 8px; line-height:1.5; }
@@ -84,9 +87,9 @@
   const wrap = document.getElementById("wrap");
 
   const STR = {
-    es:{ carta:"Carta", iva:"Precios con IVA incluido", pedido:"Tu pedido", vacio:"Aún no has añadido nada.", enviar:"Enviar pedido", enviando:"Enviando…", enviado:"¡Pedido enviado!", enviadoSub:"El camarero lo confirmará enseguida.", nota:"Nota para cocina (opcional)", llamar:"Llamar al camarero", cuenta:"Pedir la cuenta", avisado:"Aviso enviado, ahora te atienden.", total:"Total", mesa:"Mesa", ver:"Ver pedido", art:"artículo", arts:"artículos", errCarga:"No se pudo cargar la carta.", errEnvio:"No se pudo enviar. Inténtalo de nuevo.", sinCarta:"La carta aún no está disponible.", seguir:"Seguir pidiendo" },
-    en:{ carta:"Menu", iva:"Prices include VAT", pedido:"Your order", vacio:"You haven't added anything yet.", enviar:"Send order", enviando:"Sending…", enviado:"Order sent!", enviadoSub:"The waiter will confirm it shortly.", nota:"Note for the kitchen (optional)", llamar:"Call the waiter", cuenta:"Ask for the bill", avisado:"Sent, the waiter is on the way.", total:"Total", mesa:"Table", ver:"View order", art:"item", arts:"items", errCarga:"Couldn't load the menu.", errEnvio:"Couldn't send. Please try again.", sinCarta:"The menu isn't available yet.", seguir:"Keep ordering" },
-    fr:{ carta:"Carte", iva:"Prix TVA comprise", pedido:"Votre commande", vacio:"Vous n'avez rien ajouté.", enviar:"Envoyer la commande", enviando:"Envoi…", enviado:"Commande envoyée !", enviadoSub:"Le serveur va la confirmer.", nota:"Note pour la cuisine (facultatif)", llamar:"Appeler le serveur", cuenta:"Demander l'addition", avisado:"Envoyé, le serveur arrive.", total:"Total", mesa:"Table", ver:"Voir la commande", art:"article", arts:"articles", errCarga:"Impossible de charger la carte.", errEnvio:"Envoi impossible. Réessayez.", sinCarta:"La carte n'est pas encore disponible.", seguir:"Continuer" },
+    es:{ carta:"Carta", iva:"Precios con IVA incluido", pedido:"Tu pedido", vacio:"Aún no has añadido nada.", enviar:"Enviar pedido", enviando:"Enviando…", enviado:"¡Pedido enviado!", enviadoSub:"El camarero lo confirmará enseguida.", nota:"Nota para cocina (opcional)", llamar:"Llamar al camarero", cuenta:"Pedir la cuenta", avisado:"Aviso enviado, ahora te atienden.", total:"Total", mesa:"Mesa", ver:"Ver pedido", art:"artículo", arts:"artículos", errCarga:"No se pudo cargar la carta.", errEnvio:"No se pudo enviar. Inténtalo de nuevo.", sinCarta:"La carta aún no está disponible.", seguir:"Seguir pidiendo", rec:"Recomendado", pic:"Picante" },
+    en:{ carta:"Menu", iva:"Prices include VAT", pedido:"Your order", vacio:"You haven't added anything yet.", enviar:"Send order", enviando:"Sending…", enviado:"Order sent!", enviadoSub:"The waiter will confirm it shortly.", nota:"Note for the kitchen (optional)", llamar:"Call the waiter", cuenta:"Ask for the bill", avisado:"Sent, the waiter is on the way.", total:"Total", mesa:"Table", ver:"View order", art:"item", arts:"items", errCarga:"Couldn't load the menu.", errEnvio:"Couldn't send. Please try again.", sinCarta:"The menu isn't available yet.", seguir:"Keep ordering", rec:"Recommended", pic:"Spicy" },
+    fr:{ carta:"Carte", iva:"Prix TVA comprise", pedido:"Votre commande", vacio:"Vous n'avez rien ajouté.", enviar:"Envoyer la commande", enviando:"Envoi…", enviado:"Commande envoyée !", enviadoSub:"Le serveur va la confirmer.", nota:"Note pour la cuisine (facultatif)", llamar:"Appeler le serveur", cuenta:"Demander l'addition", avisado:"Envoyé, le serveur arrive.", total:"Total", mesa:"Table", ver:"Voir la commande", art:"article", arts:"articles", errCarga:"Impossible de charger la carte.", errEnvio:"Envoi impossible. Réessayez.", sinCarta:"La carte n'est pas encore disponible.", seguir:"Continuer", rec:"Recommandé", pic:"Épicé" },
   };
   const LANGS = [["es","ES"],["en","EN"],["fr","FR"]];
   // Nombres de los 14 alérgenos (Reglamento UE 1169/2011) en cada idioma.
@@ -149,9 +152,10 @@
     const ctl = pedirActivo ? control(it) : `<span class="p">${eur(it.precio)}</span>`;
     const foto = it.foto ? `<img class="foto" src="${esc(it.foto)}" alt="" loading="lazy">` : "";
     const aler = (it.alergenos && it.alergenos.length) ? `<div class="aler">${it.alergenos.map(a=>`<span class="chip">${esc(alerLabel(a))}</span>`).join("")}</div>` : "";
+    const dist = (it.recomendado?`<span class="badge rec">⭐ ${esc(t.rec)}</span>`:"") + (it.picante?`<span class="badge pic">🌶️ ${esc(t.pic)}</span>`:"");
     return `<div class="item" id="it_${it.id}">
       ${foto}
-      <div class="info"><div class="n">${esc(it.nombre)}</div>${it.descripcion?`<div class="d">${esc(it.descripcion)}</div>`:""}${aler}<div class="d" style="margin-top:4px;font-weight:700;color:var(--ink)">${eur(it.precio)}</div></div>
+      <div class="info"><div class="n">${esc(it.nombre)}${dist}</div>${it.descripcion?`<div class="d">${esc(it.descripcion)}</div>`:""}${aler}<div class="d" style="margin-top:4px;font-weight:700;color:var(--ink)">${eur(it.precio)}</div></div>
       <div class="right">${ctl}</div></div>`;
   }
   function control(it){

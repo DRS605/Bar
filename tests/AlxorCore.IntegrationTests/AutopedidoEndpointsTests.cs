@@ -18,8 +18,8 @@ public sealed class AutopedidoEndpointsTests : IClassFixture<FabricaApiPruebas>
     private sealed record ProductoResp(Guid Id, string Nombre, decimal PrecioUnitario);
     private sealed record MesaResp(Guid Id, string Nombre, bool Ocupada);
     private sealed record CartaLinkResp(string Url, Guid Token);
-    private sealed record CartaItem(Guid Id, string Nombre, string? Descripcion, decimal Precio, List<string> Alergenos, string? Foto);
-    private sealed record FichaResp(Guid ProductoId, List<string> Alergenos, bool TieneFoto);
+    private sealed record CartaItem(Guid Id, string Nombre, string? Descripcion, decimal Precio, List<string> Alergenos, bool Recomendado, bool Picante, string? Foto);
+    private sealed record FichaResp(Guid ProductoId, List<string> Alergenos, bool Recomendado, bool Picante, bool TieneFoto);
     private sealed record CartaCategoria(string Nombre, List<CartaItem> Items);
     private sealed record CartaResp(string Local, string Idioma, List<CartaCategoria> Categorias);
     private sealed record PedidoCreadoResp(Guid Id, int NumeroLineas);
@@ -193,20 +193,26 @@ public sealed class AutopedidoEndpointsTests : IClassFixture<FabricaApiPruebas>
         var guardar = await cliente.PutAsJsonAsync($"/carta/fichas/{producto.Id}", new
         {
             Alergenos = new[] { "Gluten", "Huevos" },
+            Recomendado = true,
+            Picante = true,
             FotoBase64 = PngDataUrl,
         });
         guardar.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-        // El listado del personal muestra la ficha con sus alérgenos y que tiene foto.
+        // El listado del personal muestra la ficha con sus alérgenos, distintivos y que tiene foto.
         var fichas = await cliente.GetFromJsonAsync<List<FichaResp>>("/carta/fichas");
         var ficha = fichas!.Single(f => f.ProductoId == producto.Id);
         ficha.Alergenos.Should().BeEquivalentTo(new[] { "Gluten", "Huevos" });
+        ficha.Recomendado.Should().BeTrue();
+        ficha.Picante.Should().BeTrue();
         ficha.TieneFoto.Should().BeTrue();
 
-        // La carta pública trae los alérgenos y el enlace a la foto.
+        // La carta pública trae los alérgenos, los distintivos y el enlace a la foto.
         var carta = (await anon.GetFromJsonAsync<CartaResp>($"/carta/{empresaId}/datos?idioma=es"))!;
         var item = carta.Categorias.SelectMany(c => c.Items).Single(i => i.Id == producto.Id);
         item.Alergenos.Should().BeEquivalentTo(new[] { "Gluten", "Huevos" });
+        item.Recomendado.Should().BeTrue();
+        item.Picante.Should().BeTrue();
         item.Foto.Should().Be($"/carta/{empresaId}/producto/{producto.Id}/foto");
 
         // Y la foto se sirve como imagen.
