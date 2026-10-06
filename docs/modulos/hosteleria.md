@@ -124,9 +124,12 @@ camarero. El pedido **no toca la cuenta** hasta que un camarero lo **acepta**.
   base (del catálogo); las traducciones a inglés/francés se guardan en `TraduccionCarta`
   (nombre/descripción de producto y nombre de categoría) y se gestionan con `GET/PUT
   /carta/traducciones` (nombre vacío borra la traducción).
-- **Fotos, alérgenos y distintivos** (`FichaCarta`, uno por producto): los 14 alérgenos de declaración
-  obligatoria (Reglamento UE 1169/2011), una **foto** y los distintivos **recomendado (⭐)** y
-  **picante (🌶️)**. Se gestionan con `GET /carta/fichas` y `PUT /carta/fichas/{productoId}` (la foto llega como data URL/base64 que el navegador reduce; máx. 3 MB,
+- **Fotos, alérgenos, distintivos y disponibilidad** (`FichaCarta`, uno por producto): los 14 alérgenos
+  de declaración obligatoria (Reglamento UE 1169/2011), una **foto**, los distintivos **recomendado
+  (⭐)** y **picante (🌶️)**, y el estado **agotado** (se muestra en la carta pero **no se puede
+  pedir**: `CrearPedidoWeb` rechaza un pedido con un artículo agotado). El agotar/reactivar rápido
+  durante el servicio es `PUT /carta/fichas/{productoId}/disponibilidad`. El resto se gestiona con `GET
+  /carta/fichas` y `PUT /carta/fichas/{productoId}` (la foto llega como data URL/base64 que el navegador reduce; máx. 3 MB,
   JPG/PNG/WebP). La foto se sirve anónima en `GET /carta/{empresaId}/producto/{productoId}/foto` y la
   carta pública trae el enlace. En la interfaz, «Carta con QR» trae el editor de idiomas y el de fotos
   y alérgenos; Barra/Salón muestra los pedidos por confirmar y los avisos, y el botón **«📱 QR»** de
@@ -171,7 +174,8 @@ camarero. El pedido **no toca la cuenta** hasta que un camarero lo **acepta**.
 | `GET` | `/carta/traducciones` | JWT + empresa | Traducciones de la carta del local. |
 | `PUT` | `/carta/traducciones` | permiso `hosteleria.gestionar` | Guarda o borra una traducción. **204** |
 | `GET` | `/carta/fichas` | JWT + empresa | Fichas de carta (alérgenos y si tienen foto). |
-| `PUT` | `/carta/fichas/{productoId}` | permiso `hosteleria.gestionar` | Guarda la ficha (alérgenos y/o foto). **204** |
+| `PUT` | `/carta/fichas/{productoId}` | permiso `hosteleria.gestionar` | Guarda la ficha (alérgenos, foto, distintivos, disponibilidad). **204** |
+| `PUT` | `/carta/fichas/{productoId}/disponibilidad` | permiso `hosteleria.gestionar` | Marca el plato agotado o lo reactiva (cambio rápido). **204** |
 | `GET` | `/carta/{empresaId}/producto/{productoId}/foto` | anónimo | Foto del producto para la carta. |
 
 El permiso **`hosteleria.gestionar`** lo tienen los roles *Propietario* y *Usuario*.

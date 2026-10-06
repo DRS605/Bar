@@ -79,6 +79,7 @@ public static class RegistroServicios
         servicios.AddScoped<GuardarTraduccion>();
         servicios.AddScoped<ListarFichasCarta>();
         servicios.AddScoped<GuardarFichaCarta>();
+        servicios.AddScoped<CambiarDisponibilidad>();
         servicios.AddScoped<ObtenerFotoProducto>();
         servicios.AddScoped<RegenerarTokenCartaMesa>();
 

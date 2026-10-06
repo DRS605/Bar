@@ -97,6 +97,10 @@ public static class EndpointsHosteleria
             .WithSummary("Guarda la ficha de carta de un producto (alérgenos y/o foto).")
             .RequierePermiso(Permisos.HosteleriaGestionar);
 
+        fichas.MapPut("/{productoId:guid}/disponibilidad", CambiarDisponibilidadAsync)
+            .WithSummary("Marca un plato como agotado o lo reactiva (cambio rápido durante el servicio).")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
         var comandas = rutas.MapGroup("/comandas").WithTags("Comandas");
 
         comandas.MapGet("", ListarComandasAsync)
@@ -305,6 +309,16 @@ public static class EndpointsHosteleria
     }
 
     private static async Task<IResult> GuardarFichaCartaAsync(Guid productoId, DatosFichaCarta datos, IContextoEmpresa contexto, GuardarFichaCarta caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return (await caso.EjecutarAsync(contexto.EmpresaId.Value, productoId, datos, ct).ConfigureAwait(false)).ASinContenido();
+    }
+
+    private static async Task<IResult> CambiarDisponibilidadAsync(Guid productoId, DatosDisponibilidad datos, IContextoEmpresa contexto, CambiarDisponibilidad caso, CancellationToken ct)
     {
         if (contexto.EmpresaId is null)
         {

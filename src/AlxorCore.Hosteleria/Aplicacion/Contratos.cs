@@ -189,9 +189,9 @@ public interface IConsultaTraducciones
 }
 
 /// <summary>Ficha de carta de un producto: sus alérgenos, distintivos (recomendado/picante) y si tiene foto.</summary>
-public sealed record FichaCartaDto(Guid ProductoId, IReadOnlyList<string> Alergenos, bool Recomendado, bool Picante, bool TieneFoto)
+public sealed record FichaCartaDto(Guid ProductoId, IReadOnlyList<string> Alergenos, bool Recomendado, bool Picante, bool Agotado, bool TieneFoto)
 {
-    public static FichaCartaDto Desde(FichaCarta f) => new(f.ProductoId, Dominio.Alergenos.ANombres(f.Alergenos), f.Recomendado, f.Picante, f.TieneFoto);
+    public static FichaCartaDto Desde(FichaCarta f) => new(f.ProductoId, Dominio.Alergenos.ANombres(f.Alergenos), f.Recomendado, f.Picante, f.Agotado, f.TieneFoto);
 }
 
 /// <summary>Imagen de un producto (para servirla en la carta).</summary>

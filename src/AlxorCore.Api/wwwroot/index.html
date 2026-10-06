@@ -617,18 +617,19 @@
     }
     function cartaFichaPanel(){
       const rows=cartaProds.filter(p=>p.precioUnitario>0).map(p=>{ const f=cartaFichas[p.id]||{}; const na=(f.alergenos||[]).length;
-        const dist=(f.recomendado?'<span title="Recomendado">⭐</span> ':"")+(f.picante?'<span title="Picante">🌶️</span>':"");
-        return `<tr><td><strong>${esc(p.nombre)}</strong> ${dist}<br><small class="muted">${eur(p.precioUnitario)}</small></td>
+        const dist=(f.recomendado?'<span title="Recomendado">⭐</span> ':"")+(f.picante?'<span title="Picante">🌶️</span>':"")+(f.agotado?'<span class="pill neg" style="margin-left:4px">Agotado</span>':"");
+        const toggle=f.agotado?`<button class="btn small ghost" onclick="cartaAgotar('${p.id}',false)">Reactivar</button>`:`<button class="btn small secondary" onclick="cartaAgotar('${p.id}',true)">Agotar</button>`;
+        return `<tr${f.agotado?' style="opacity:.6"':''}><td><strong>${esc(p.nombre)}</strong> ${dist}<br><small class="muted">${eur(p.precioUnitario)}</small></td>
           <td>${f.tieneFoto?'<span class="pill ok">📷 Con foto</span>':'<span class="pill wait">Sin foto</span>'}</td>
           <td>${na?`<span class="muted">${na} alérgeno${na>1?"s":""}</span>`:'<span class="muted">—</span>'}</td>
-          <td class="right"><button class="btn small secondary" onclick="cartaFicha('${p.id}')">Editar ficha</button></td></tr>`; }).join("");
-      return `<div class="panel-head"><h2>Fotos, alérgenos y distintivos</h2></div>
-        <div style="padding:8px 20px 16px"><p class="muted" style="font-size:12.5px">Añade una <strong>foto</strong>, marca los <strong>alérgenos</strong> (Reglamento UE 1169/2011) y destaca los platos como <strong>⭐ recomendado</strong> o <strong>🌶️ picante</strong>. Salen en la carta del cliente.</p>
+          <td class="right" style="white-space:nowrap">${toggle} <button class="btn small secondary" onclick="cartaFicha('${p.id}')">Editar ficha</button></td></tr>`; }).join("");
+      return `<div class="panel-head"><h2>Fotos, alérgenos y disponibilidad</h2></div>
+        <div style="padding:8px 20px 16px"><p class="muted" style="font-size:12.5px">Añade una <strong>foto</strong>, marca los <strong>alérgenos</strong> (Reglamento UE 1169/2011), destaca platos como <strong>⭐ recomendado</strong> o <strong>🌶️ picante</strong> y marca los <strong>agotados</strong> (no se podrán pedir). Sale todo en la carta del cliente.</p>
         <table><thead><tr><th>Artículo</th><th>Foto</th><th>Alérgenos</th><th></th></tr></thead>
         <tbody>${rows||`<tr><td colspan="4" class="muted">Crea artículos con precio para completar su ficha.</td></tr>`}</tbody></table></div>`;
     }
     function cartaFicha(id){
-      const p=cartaProds.find(x=>x.id===id); if(!p) return; const f=cartaFichas[id]||{alergenos:[],tieneFoto:false,recomendado:false,picante:false};
+      const p=cartaProds.find(x=>x.id===id); if(!p) return; const f=cartaFichas[id]||{alergenos:[],tieneFoto:false,recomendado:false,picante:false,agotado:false};
       cartaFichaFile=null; const sel=new Set(f.alergenos||[]);
       const checks=Object.keys(ALER_ES).map(k=>`<label style="display:flex;align-items:center;gap:7px;font-weight:500;cursor:pointer;margin:0"><input type="checkbox" data-a="${k}" ${sel.has(k)?"checked":""} style="width:auto"/> ${ALER_ES[k]}</label>`).join("");
       const fotoActual=f.tieneFoto?`<div id="fichaFotoActual" style="margin-bottom:8px"><img src="/carta/${empresa.id}/producto/${id}/foto?t=${Date.now()}" style="width:120px;height:120px;object-fit:cover;border-radius:12px;border:1px solid var(--line)"/><label style="display:flex;align-items:center;gap:7px;margin-top:6px;font-weight:500;cursor:pointer"><input type="checkbox" id="fichaQuitar" style="width:auto"/> Quitar la foto</label></div>`:"";
@@ -638,16 +639,17 @@
          <div id="fichaPrev" style="margin-top:8px"></div>
          <p class="muted" style="font-size:12px;margin:6px 0 0">La imagen se reduce en tu móvil antes de subirla.</p>
          <label style="margin-top:16px">Destacar</label>
-         <div style="display:flex;gap:20px;margin-top:4px">
+         <div style="display:flex;gap:20px;margin-top:4px;flex-wrap:wrap">
            <label style="display:flex;align-items:center;gap:7px;font-weight:500;cursor:pointer;margin:0"><input type="checkbox" id="fichaRec" ${f.recomendado?"checked":""} style="width:auto"/> ⭐ Recomendado</label>
            <label style="display:flex;align-items:center;gap:7px;font-weight:500;cursor:pointer;margin:0"><input type="checkbox" id="fichaPic" ${f.picante?"checked":""} style="width:auto"/> 🌶️ Picante</label>
+           <label style="display:flex;align-items:center;gap:7px;font-weight:500;cursor:pointer;margin:0"><input type="checkbox" id="fichaAgo" ${f.agotado?"checked":""} style="width:auto"/> 🚫 Agotado</label>
          </div>
          <label style="margin-top:16px">Alérgenos</label>
          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-top:4px">${checks}</div>`,
         async()=>{
           const alergenos=[...document.querySelectorAll('#modalBody input[data-a]:checked')].map(c=>c.dataset.a);
           const quitar=!!(document.getElementById("fichaQuitar")&&document.getElementById("fichaQuitar").checked);
-          const body={ alergenos, recomendado:document.getElementById("fichaRec").checked, picante:document.getElementById("fichaPic").checked };
+          const body={ alergenos, recomendado:document.getElementById("fichaRec").checked, picante:document.getElementById("fichaPic").checked, agotado:document.getElementById("fichaAgo").checked };
           if(quitar) body.quitarFoto=true; else if(cartaFichaFile){ body.fotoBase64=cartaFichaFile; }
           await api("/carta/fichas/"+id,{method:"PUT",body:JSON.stringify(body)});
           toast("Ficha guardada","ok"); vCartaQr();
@@ -686,6 +688,13 @@
         cartaTrads=await cartaCargarTrads(); toast("Traducción guardada","ok"); }catch(e){ toast(e.message,"err"); }
     }
     function cartaGuardarProd(id){ const n=document.getElementById("tn_"+id),d=document.getElementById("td_"+id); cartaGuardarTrad("Producto",id,n?n.value:"",d?d.value:""); }
+    async function cartaAgotar(id,agotar){
+      try{ await api("/carta/fichas/"+id+"/disponibilidad",{method:"PUT",body:JSON.stringify({agotado:agotar})});
+        const f=cartaFichas[id]||{productoId:id,alergenos:[],tieneFoto:false}; f.agotado=agotar; cartaFichas[id]=f;
+        const pnl=document.getElementById("cartaFichaPanel"); if(pnl) pnl.innerHTML=cartaFichaPanel();
+        toast(agotar?"Plato agotado · no se puede pedir":"Plato reactivado","ok");
+      }catch(e){ toast(e.message,"err"); }
+    }
     function cartaCopiar(){ const i=document.getElementById("cartaUrl"); if(!i)return; i.select(); try{ document.execCommand("copy"); toast("Enlace copiado","ok"); }catch{ toast("Copia el enlace a mano","err"); } }
     function cartaCartel(){
       const url=cartaUrlPublica(), qr=`${location.origin}/carta/${empresa.id}/qr.svg`;

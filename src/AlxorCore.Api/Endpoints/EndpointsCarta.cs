@@ -16,7 +16,7 @@ namespace AlxorCore.Api.Endpoints;
 /// </summary>
 public static class EndpointsCarta
 {
-    public sealed record CartaItemDto(Guid Id, string Nombre, string? Descripcion, decimal Precio, IReadOnlyList<string> Alergenos, bool Recomendado, bool Picante, string? Foto);
+    public sealed record CartaItemDto(Guid Id, string Nombre, string? Descripcion, decimal Precio, IReadOnlyList<string> Alergenos, bool Recomendado, bool Picante, bool Agotado, string? Foto);
     public sealed record CartaCategoriaDto(string Nombre, IReadOnlyList<CartaItemDto> Items);
     public sealed record CartaPublicaDto(string Local, string Idioma, IReadOnlyList<CartaCategoriaDto> Categorias);
 
@@ -87,7 +87,7 @@ public static class EndpointsCarta
                         fichaPorProducto.TryGetValue(p.Id, out var ficha);
                         var foto = ficha is { TieneFoto: true } ? $"/carta/{empresaId}/producto/{p.Id}/foto" : null;
                         return new CartaItemDto(p.Id, t?.Nombre ?? p.Nombre, t?.Descripcion, p.PrecioUnitario,
-                            ficha?.Alergenos ?? Array.Empty<string>(), ficha?.Recomendado ?? false, ficha?.Picante ?? false, foto);
+                            ficha?.Alergenos ?? Array.Empty<string>(), ficha?.Recomendado ?? false, ficha?.Picante ?? false, ficha?.Agotado ?? false, foto);
                     })
                     .ToList()))
             .ToList();

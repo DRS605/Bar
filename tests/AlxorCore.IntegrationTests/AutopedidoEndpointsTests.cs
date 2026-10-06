@@ -18,8 +18,8 @@ public sealed class AutopedidoEndpointsTests : IClassFixture<FabricaApiPruebas>
     private sealed record ProductoResp(Guid Id, string Nombre, decimal PrecioUnitario);
     private sealed record MesaResp(Guid Id, string Nombre, bool Ocupada);
     private sealed record CartaLinkResp(string Url, Guid Token);
-    private sealed record CartaItem(Guid Id, string Nombre, string? Descripcion, decimal Precio, List<string> Alergenos, bool Recomendado, bool Picante, string? Foto);
-    private sealed record FichaResp(Guid ProductoId, List<string> Alergenos, bool Recomendado, bool Picante, bool TieneFoto);
+    private sealed record CartaItem(Guid Id, string Nombre, string? Descripcion, decimal Precio, List<string> Alergenos, bool Recomendado, bool Picante, bool Agotado, string? Foto);
+    private sealed record FichaResp(Guid ProductoId, List<string> Alergenos, bool Recomendado, bool Picante, bool Agotado, bool TieneFoto);
     private sealed record CartaCategoria(string Nombre, List<CartaItem> Items);
     private sealed record CartaResp(string Local, string Idioma, List<CartaCategoria> Categorias);
     private sealed record PedidoCreadoResp(Guid Id, int NumeroLineas);
@@ -224,5 +224,37 @@ public sealed class AutopedidoEndpointsTests : IClassFixture<FabricaApiPruebas>
         // Quitar la foto la elimina.
         (await cliente.PutAsJsonAsync($"/carta/fichas/{producto.Id}", new { Alergenos = new[] { "Gluten", "Huevos" }, QuitarFoto = true })).StatusCode.Should().Be(HttpStatusCode.NoContent);
         (await anon.GetAsync(new Uri($"/carta/{empresaId}/producto/{producto.Id}/foto", UriKind.Relative))).StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Un_plato_agotado_se_marca_en_la_carta_y_no_se_puede_pedir()
+    {
+        var (cliente, empresaId) = await Ayudas.ConEmpresaAsync(_fabrica);
+        var producto = await CrearProductoAsync(cliente, "Pulpo", 14.00m, "Tapas");
+        var mesa = await CrearMesaAsync(cliente, "Mesa 7");
+        var anon = _fabrica.CreateClient();
+        var link = (await cliente.GetFromJsonAsync<CartaLinkResp>($"/mesas/{mesa.Id}/carta-link"))!;
+
+        // Marcar como agotado (cambio rápido).
+        (await cliente.PutAsJsonAsync($"/carta/fichas/{producto.Id}/disponibilidad", new { Agotado = true })).StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        // La carta lo muestra agotado.
+        var carta = (await anon.GetFromJsonAsync<CartaResp>($"/carta/{empresaId}/datos?idioma=es"))!;
+        carta.Categorias.SelectMany(c => c.Items).Single(i => i.Id == producto.Id).Agotado.Should().BeTrue();
+
+        // Pedirlo se rechaza.
+        var pedir = await anon.PostAsJsonAsync($"/carta/{empresaId}/mesa/{mesa.Id}/pedido", new
+        {
+            Token = link.Token, Idioma = "es", Items = new[] { new { ProductoId = producto.Id, Cantidad = 1m } },
+        });
+        pedir.StatusCode.Should().Be(HttpStatusCode.Conflict);
+
+        // Reactivarlo permite pedirlo.
+        (await cliente.PutAsJsonAsync($"/carta/fichas/{producto.Id}/disponibilidad", new { Agotado = false })).StatusCode.Should().Be(HttpStatusCode.NoContent);
+        var pedir2 = await anon.PostAsJsonAsync($"/carta/{empresaId}/mesa/{mesa.Id}/pedido", new
+        {
+            Token = link.Token, Idioma = "es", Items = new[] { new { ProductoId = producto.Id, Cantidad = 1m } },
+        });
+        pedir2.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 }

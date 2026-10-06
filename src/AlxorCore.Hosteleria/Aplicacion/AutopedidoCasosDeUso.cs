@@ -47,14 +47,16 @@ public sealed class CrearPedidoWeb
 {
     private readonly IRepositorioMesas _mesas;
     private readonly IConsultaProductos _productos;
+    private readonly IRepositorioFichasCarta _fichas;
     private readonly IRepositorioPedidosWeb _pedidos;
     private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
     private readonly IReloj _reloj;
 
-    public CrearPedidoWeb(IRepositorioMesas mesas, IConsultaProductos productos, IRepositorioPedidosWeb pedidos, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    public CrearPedidoWeb(IRepositorioMesas mesas, IConsultaProductos productos, IRepositorioFichasCarta fichas, IRepositorioPedidosWeb pedidos, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
     {
         _mesas = mesas;
         _productos = productos;
+        _fichas = fichas;
         _pedidos = pedidos;
         _unidadDeTrabajo = unidadDeTrabajo;
         _reloj = reloj;
@@ -84,6 +86,12 @@ public sealed class CrearPedidoWeb
             if (producto is null || !producto.Activo)
             {
                 return Resultado.Fallo<PedidoWebCreadoDto>(Error.NoEncontrado("producto.no_encontrado", "Un artículo del pedido no está disponible."));
+            }
+
+            var ficha = await _fichas.ObtenerPorProductoAsync(item.ProductoId, ct).ConfigureAwait(false);
+            if (ficha is { Agotado: true })
+            {
+                return Resultado.Fallo<PedidoWebCreadoDto>(Error.Conflicto("producto.agotado", $"«{producto.Nombre}» está agotado."));
             }
 
             items.Add((item.ProductoId, producto.Nombre, item.Cantidad, item.Nota));
@@ -408,9 +416,13 @@ public sealed record DatosFichaCarta(
     IReadOnlyList<string>? Alergenos = null,
     bool Recomendado = false,
     bool Picante = false,
+    bool Agotado = false,
     string? FotoBase64 = null,
     string? FotoTipo = null,
     bool QuitarFoto = false);
+
+/// <summary>Cambio rápido de disponibilidad de un plato (agotar / reactivar).</summary>
+public sealed record DatosDisponibilidad(bool Agotado);
 
 /// <summary>Caso de uso (personal): lista las fichas de carta (alérgenos y foto) de la empresa.</summary>
 public sealed class ListarFichasCarta
@@ -458,6 +470,7 @@ public sealed class GuardarFichaCarta
 
         ficha.FijarAlergenos(Alergenos.DeNombres(datos.Alergenos), _reloj);
         ficha.FijarDestacados(datos.Recomendado, datos.Picante, _reloj);
+        ficha.FijarDisponibilidad(datos.Agotado, _reloj);
 
         if (datos.QuitarFoto)
         {
@@ -513,6 +526,50 @@ public sealed class GuardarFichaCarta
         {
             return (null, string.Empty);
         }
+    }
+}
+
+/// <summary>
+/// Caso de uso (personal): cambio rápido de disponibilidad de un plato (agotar / reactivar), sin tocar
+/// el resto de la ficha. Pensado para usarlo sobre la marcha durante el servicio.
+/// </summary>
+public sealed class CambiarDisponibilidad
+{
+    private readonly IRepositorioFichasCarta _fichas;
+    private readonly IConsultaProductos _productos;
+    private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
+    private readonly IReloj _reloj;
+
+    public CambiarDisponibilidad(IRepositorioFichasCarta fichas, IConsultaProductos productos, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    {
+        _fichas = fichas;
+        _productos = productos;
+        _unidadDeTrabajo = unidadDeTrabajo;
+        _reloj = reloj;
+    }
+
+    public async Task<Resultado> EjecutarAsync(Guid empresaId, Guid productoId, DatosDisponibilidad datos, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(datos);
+
+        var producto = await _productos.ObtenerAsync(productoId, ct).ConfigureAwait(false);
+        if (producto is null)
+        {
+            return Resultado.Fallo(Error.NoEncontrado("producto.no_encontrado", "El producto no existe."));
+        }
+
+        var ficha = await _fichas.ObtenerPorProductoAsync(productoId, ct).ConfigureAwait(false);
+        var nueva = ficha is null;
+        ficha ??= FichaCarta.Crear(empresaId, productoId, _reloj);
+        ficha.FijarDisponibilidad(datos.Agotado, _reloj);
+
+        if (nueva)
+        {
+            _fichas.Agregar(ficha);
+        }
+
+        await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
+        return Resultado.Ok();
     }
 }
 

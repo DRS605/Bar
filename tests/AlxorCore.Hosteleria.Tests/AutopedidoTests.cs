@@ -140,6 +140,19 @@ public class FichaCartaTests
     }
 
     [Fact]
+    public void Disponibilidad_marca_y_reactiva_el_plato()
+    {
+        var ficha = FichaCarta.Crear(Empresa, Guid.NewGuid(), Reloj);
+        ficha.Agotado.Should().BeFalse();
+
+        ficha.FijarDisponibilidad(agotado: true, Reloj);
+        ficha.Agotado.Should().BeTrue();
+
+        ficha.FijarDisponibilidad(agotado: false, Reloj);
+        ficha.Agotado.Should().BeFalse();
+    }
+
+    [Fact]
     public void Fijar_foto_rechaza_tipo_no_valido_y_tamano_excesivo()
     {
         var ficha = FichaCarta.Crear(Empresa, Guid.NewGuid(), Reloj);
