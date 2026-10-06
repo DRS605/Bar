@@ -124,9 +124,9 @@ camarero. El pedido **no toca la cuenta** hasta que un camarero lo **acepta**.
   base (del catálogo); las traducciones a inglés/francés se guardan en `TraduccionCarta`
   (nombre/descripción de producto y nombre de categoría) y se gestionan con `GET/PUT
   /carta/traducciones` (nombre vacío borra la traducción).
-- **Fotos y alérgenos** (`FichaCarta`, uno por producto): los 14 alérgenos de declaración obligatoria
-  (Reglamento UE 1169/2011) y una **foto**. Se gestionan con `GET /carta/fichas` y `PUT
-  /carta/fichas/{productoId}` (la foto llega como data URL/base64 que el navegador reduce; máx. 3 MB,
+- **Fotos, alérgenos y distintivos** (`FichaCarta`, uno por producto): los 14 alérgenos de declaración
+  obligatoria (Reglamento UE 1169/2011), una **foto** y los distintivos **recomendado (⭐)** y
+  **picante (🌶️)**. Se gestionan con `GET /carta/fichas` y `PUT /carta/fichas/{productoId}` (la foto llega como data URL/base64 que el navegador reduce; máx. 3 MB,
   JPG/PNG/WebP). La foto se sirve anónima en `GET /carta/{empresaId}/producto/{productoId}/foto` y la
   carta pública trae el enlace. En la interfaz, «Carta con QR» trae el editor de idiomas y el de fotos
   y alérgenos; Barra/Salón muestra los pedidos por confirmar y los avisos, y el botón **«📱 QR»** de
