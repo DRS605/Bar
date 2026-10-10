@@ -139,6 +139,25 @@ public static class EndpointsHosteleria
             .RequierePermiso(Permisos.HosteleriaGestionar)
             .RequierePlanPro();
 
+        // Caja: movimientos de efectivo (fondo, entradas, salidas) y arqueo del día.
+        var caja = rutas.MapGroup("/caja").WithTags("Caja");
+
+        caja.MapGet("/movimientos", ListarMovimientosCajaAsync)
+            .WithSummary("Lista los movimientos de efectivo (fondo, entradas y salidas) de un día.")
+            .RequireAuthorization();
+
+        caja.MapPost("/movimientos", RegistrarMovimientoCajaAsync)
+            .WithSummary("Registra un movimiento de efectivo: fondo inicial, entrada o salida.")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
+        caja.MapDelete("/movimientos/{id:guid}", QuitarMovimientoCajaAsync)
+            .WithSummary("Elimina un movimiento de caja (corrige un error de registro).")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
+        caja.MapGet("/arqueo", ArqueoCajaAsync)
+            .WithSummary("Arqueo del día: efectivo teórico (fondo + cobros en efectivo + entradas − salidas) para cuadrar la caja.")
+            .RequireAuthorization();
+
         var comandas = rutas.MapGroup("/comandas").WithTags("Comandas");
 
         comandas.MapGet("", ListarComandasAsync)
@@ -484,6 +503,62 @@ public static class EndpointsHosteleria
         }
 
         return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, dia, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> ListarMovimientosCajaAsync(IContextoEmpresa contexto, ListarMovimientosCaja caso, CancellationToken ct, DateOnly? dia = null)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, dia, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> RegistrarMovimientoCajaAsync(DatosMovimientoCaja datos, IContextoEmpresa contexto, ClaimsPrincipal usuario, RegistrarMovimientoCaja caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var (usuarioId, usuarioNombre) = CamareroActual(usuario);
+        var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, datos, usuarioId, usuarioNombre, ct).ConfigureAwait(false);
+        return resultado.EsCorrecto ? resultado.ACreado("/caja/movimientos") : ResultadosHttp.AProblema(resultado.Error);
+    }
+
+    private static async Task<IResult> QuitarMovimientoCajaAsync(Guid id, IContextoEmpresa contexto, QuitarMovimientoCaja caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return (await caso.EjecutarAsync(contexto.EmpresaId.Value, id, ct).ConfigureAwait(false)).ASinContenido();
+    }
+
+    private static async Task<IResult> ArqueoCajaAsync(
+        IContextoEmpresa contexto, ListarMovimientosCaja movimientosCaso, IConsultaTesoreria tesoreria, IReloj reloj, CancellationToken ct, DateOnly? dia = null)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var d = dia ?? DateOnly.FromDateTime(reloj.AhoraUtc.UtcDateTime);
+        var movs = await movimientosCaso.EjecutarAsync(contexto.EmpresaId.Value, d, ct).ConfigureAwait(false);
+
+        var fondo = movs.Where(m => m.Tipo == nameof(Hosteleria.Dominio.TipoMovimientoCaja.FondoInicial)).Sum(m => m.Importe);
+        var entradas = movs.Where(m => m.Tipo == nameof(Hosteleria.Dominio.TipoMovimientoCaja.Entrada)).Sum(m => m.Importe);
+        var salidas = movs.Where(m => m.Tipo == nameof(Hosteleria.Dominio.TipoMovimientoCaja.Salida)).Sum(m => m.Importe);
+
+        var tes = await tesoreria.ListarPorPeriodoAsync(contexto.EmpresaId.Value, d, d, ct).ConfigureAwait(false);
+        var cobrosEfectivo = tes
+            .Where(x => x.Sentido == "Cobro" && string.Equals(x.Metodo, "Efectivo", StringComparison.OrdinalIgnoreCase))
+            .Sum(x => x.Importe);
+
+        var teorico = Math.Round(fondo + cobrosEfectivo + entradas - salidas, 2, MidpointRounding.AwayFromZero);
+        return Results.Ok(new ArqueoCajaDto(d, fondo, Math.Round(cobrosEfectivo, 2, MidpointRounding.AwayFromZero), entradas, salidas, teorico, movs));
     }
 
     private static async Task<IResult> AgregarLineaAsync(Guid id, DatosLineaComanda datos, AgregarLineaComanda caso, CancellationToken ct) =>

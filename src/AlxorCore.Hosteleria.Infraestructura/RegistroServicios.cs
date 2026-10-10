@@ -51,6 +51,7 @@ public static class RegistroServicios
         servicios.AddScoped<IRepositorioSuscripcion>(sp => sp.GetRequiredService<RepositorioSuscripcion>());
         servicios.AddScoped<IConsultaPlanBar>(sp => sp.GetRequiredService<RepositorioSuscripcion>());
         servicios.AddScoped<IRepositorioMenuDia, RepositorioMenuDia>();
+        servicios.AddScoped<IRepositorioMovimientosCaja, RepositorioMovimientosCaja>();
 
         servicios.AddScoped<CrearMesa>();
         servicios.AddScoped<ActualizarMesa>();
@@ -98,6 +99,11 @@ public static class RegistroServicios
         // Menú del día.
         servicios.AddScoped<ObtenerMenuDia>();
         servicios.AddScoped<GuardarMenuDia>();
+
+        // Caja: movimientos de efectivo y arqueo.
+        servicios.AddScoped<RegistrarMovimientoCaja>();
+        servicios.AddScoped<QuitarMovimientoCaja>();
+        servicios.AddScoped<ListarMovimientosCaja>();
 
         return servicios;
     }

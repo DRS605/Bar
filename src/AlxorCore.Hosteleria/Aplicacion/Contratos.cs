@@ -71,6 +71,34 @@ public sealed record ComandaDto(
 /// <summary>Ventas de un camarero en un día (para el arqueo por persona).</summary>
 public sealed record VentasCamareroDto(Guid? UsuarioId, string Camarero, int Comandas, decimal Total);
 
+// ---------------------------------------------------------------------------
+// Caja: movimientos de efectivo (fondo, entradas, salidas) y arqueo del día.
+// ---------------------------------------------------------------------------
+
+/// <summary>Un movimiento manual de efectivo en la caja.</summary>
+public sealed record MovimientoCajaDto(Guid Id, string Tipo, decimal Importe, string? Concepto, string? Camarero, DateTimeOffset Momento)
+{
+    public static MovimientoCajaDto Desde(MovimientoCaja m) =>
+        new(m.Id, m.Tipo.ToString(), m.Importe, m.Concepto, m.UsuarioNombre, m.Momento);
+}
+
+/// <summary>Arqueo de caja de un día: efectivo teórico a partir del fondo, cobros en efectivo y movimientos.</summary>
+public sealed record ArqueoCajaDto(
+    DateOnly Dia, decimal Fondo, decimal CobrosEfectivo, decimal Entradas, decimal Salidas,
+    decimal EfectivoTeorico, IReadOnlyList<MovimientoCajaDto> Movimientos);
+
+/// <summary>Repositorio de movimientos de caja.</summary>
+public interface IRepositorioMovimientosCaja
+{
+    Task<MovimientoCaja?> ObtenerPorIdAsync(Guid id, CancellationToken ct = default);
+
+    Task<IReadOnlyList<MovimientoCaja>> ListarPorDiaAsync(Guid empresaId, DateOnly dia, CancellationToken ct = default);
+
+    void Agregar(MovimientoCaja movimiento);
+
+    void Quitar(MovimientoCaja movimiento);
+}
+
 /// <summary>Resumen de una comanda para listados.</summary>
 public sealed record ComandaResumen(
     Guid Id,

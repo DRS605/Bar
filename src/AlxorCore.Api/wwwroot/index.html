@@ -1017,21 +1017,67 @@
     function tpvCambio(total){ const e=Number(document.getElementById("tpvEnt").value||0); const out=document.getElementById("tpvCambioOut"); if(!out)return;
       if(e<=0){ out.textContent="—"; out.style.color=""; return; }
       const c=e-total; out.textContent=c>=0?eur(c):"Falta "+eur(-c); out.style.color=c>=0?"var(--pos)":"var(--neg)"; }
+    let cajaArqueo=null;
     async function modalCierreCaja(){
       const hoy=new Date().toISOString().slice(0,10);
       let c; try{ c=await api("/informes/cierre-caja?dia="+hoy); }catch(e){ toast(e.message,"err"); return; }
       let cam=[]; try{ cam=await api("/comandas/ventas-por-camarero?dia="+hoy); }catch{}
+      let arq=null; try{ arq=await api("/caja/arqueo?dia="+hoy); }catch{}
+      cajaArqueo=arq;
       const filas=(c.cobrosPorMetodo||[]).map(m=>`<div class="cart-tot"><span>${m.metodo} <span class="muted">(${m.numero})</span></span><span>${eur(m.importe)}</span></div>`).join("")||'<p class="muted">Sin cobros hoy.</p>';
       const camHtml=(cam&&cam.length)?`<div style="margin-top:16px;border-top:1px solid var(--line);padding-top:12px">
           <strong style="font-size:13px">Ventas por camarero</strong>
           ${cam.map(v=>`<div class="cart-tot"><span>${esc(v.camarero)} <span class="muted">(${v.comandas})</span></span><span>${eur(v.total)}</span></div>`).join("")}
         </div>`:"";
+      const tipoLbl={FondoInicial:"Fondo inicial",Entrada:"Entrada",Salida:"Salida"};
+      const movs=(arq&&arq.movimientos)||[];
+      const movHtml=movs.map(m=>`<div class="cart-tot"><span>${tipoLbl[m.tipo]||m.tipo}${m.concepto?` · <span class="muted">${esc(m.concepto)}</span>`:""}</span><span>${m.tipo==="Salida"?"−":"+"}${eur(m.importe)} <button class="btn small ghost" style="padding:1px 7px;margin-left:6px" title="Quitar" onclick="cajaDelMov('${m.id}')">✕</button></span></div>`).join("")||'<p class="muted" style="font-size:12px">Sin movimientos de efectivo hoy.</p>';
+      const cajaHtml=arq?`<div style="margin-top:16px;border-top:1px solid var(--line);padding-top:12px">
+          <strong style="font-size:13px">Caja (efectivo)</strong>
+          <div class="cart-tot"><span>Fondo inicial</span><span>${eur(arq.fondo)}</span></div>
+          <div class="cart-tot"><span>Cobros en efectivo</span><span>${eur(arq.cobrosEfectivo)}</span></div>
+          <div class="cart-tot"><span>Entradas</span><span>+${eur(arq.entradas)}</span></div>
+          <div class="cart-tot"><span>Salidas</span><span>−${eur(arq.salidas)}</span></div>
+          <div class="cart-tot big"><span>Efectivo teórico</span><span>${eur(arq.efectivoTeorico)}</span></div>
+          <div style="margin-top:8px">${movHtml}</div>
+          <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr auto;gap:6px;align-items:end">
+            <div><label style="font-size:11px">Movimiento</label><select id="cajaTipo"><option value="FondoInicial">Fondo inicial</option><option value="Entrada">Entrada</option><option value="Salida">Salida</option></select></div>
+            <div><label style="font-size:11px">Importe (€)</label><input id="cajaImporte" type="number" step="0.01" min="0"/></div>
+            <button class="btn small" onclick="cajaAddMov()">Añadir</button>
+          </div>
+          <input id="cajaConcepto" placeholder="Concepto (opcional)" style="margin-top:6px"/>
+          <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <label style="font-size:12px;margin:0">Efectivo contado €</label>
+            <input id="cajaContado" type="number" step="0.01" style="width:120px" oninput="cajaDescuadre()"/>
+            <span id="cajaDesc" class="muted" style="font-size:13px"></span>
+          </div>
+        </div>`:`<p class="muted" style="font-size:12px;margin-top:12px">Arqueo de efectivo no disponible.</p>`;
       abrir("Cierre de caja · "+new Date().toLocaleDateString("es-ES"),`${filas}
         <div class="cart-tot big" style="margin-top:8px"><span>Cobrado</span><span style="color:var(--pos)">${eur(c.totalCobrado)}</span></div>
         <div class="cart-tot"><span>Pagado (salidas)</span><span style="color:var(--neg)">${eur(c.totalPagado)}</span></div>
         <div class="cart-tot big"><span>Neto en caja</span><span>${eur(c.neto)}</span></div>
         ${camHtml}
-        <p class="muted" style="font-size:12px;margin-top:12px">Cobros del día por método de pago y por camarero. Úsalo para cuadrar la caja al cerrar.</p>`,()=>{}); }
+        ${cajaHtml}
+        <p class="muted" style="font-size:12px;margin-top:12px">Registra el fondo y las entradas/salidas de efectivo y cuenta el cajón: el descuadre es contado − teórico.</p>`,()=>{}); }
+    async function cajaAddMov(){
+      const tipo=document.getElementById("cajaTipo").value;
+      const importe=parseFloat((document.getElementById("cajaImporte").value||"0").replace(",","."))||0;
+      const concepto=(document.getElementById("cajaConcepto").value||"").trim()||null;
+      if(importe<=0){ toast("Indica un importe mayor que cero.","err"); return; }
+      try{ await api("/caja/movimientos",{method:"POST",body:JSON.stringify({tipo,importe,concepto})}); toast("Movimiento registrado","ok"); modalCierreCaja(); }
+      catch(e){ toast(e.message,"err"); }
+    }
+    async function cajaDelMov(id){
+      try{ await api("/caja/movimientos/"+id,{method:"DELETE"}); toast("Movimiento eliminado","ok"); modalCierreCaja(); }
+      catch(e){ toast(e.message,"err"); }
+    }
+    function cajaDescuadre(){
+      const el=document.getElementById("cajaContado"), out=document.getElementById("cajaDesc"); if(!el||!out||!cajaArqueo) return;
+      const v=el.value.trim(); if(v===""){ out.textContent=""; return; }
+      const contado=parseFloat(v.replace(",","."))||0; const d=Math.round((contado-cajaArqueo.efectivoTeorico)*100)/100;
+      out.innerHTML = d===0 ? '<span style="color:var(--pos);font-weight:700">Caja cuadrada ✓</span>'
+        : `Descuadre: <strong style="color:${d<0?'var(--neg)':'var(--copper)'}">${d>0?"+":""}${eur(d)}</strong>`;
+    }
     async function tpvCobrar(){ if(!tpvCart.length){ toast("Añade artículos al ticket.","err"); return; }
       const lineas=tpvCart.map(l=>({descripcion:l.descripcion,cantidad:l.cantidad,precioUnitario:l.precioUnitario,codigoIva:l.codigoIva}));
       try{ const t=await api("/tickets",{method:"POST",body:JSON.stringify({lineas})});

@@ -38,6 +38,8 @@ public sealed class HosteleriaDbContext : DbContextEmpresaBase, IUnidadDeTrabajo
 
     public DbSet<MenuDia> MenusDia => Set<MenuDia>();
 
+    public DbSet<MovimientoCaja> MovimientosCaja => Set<MovimientoCaja>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Esquema);
@@ -430,6 +432,48 @@ internal sealed class SuscripcionConfig : IEntityTypeConfiguration<SuscripcionBa
         builder.HasIndex(s => s.EmpresaId).IsUnique().HasDatabaseName("ux_suscripcion_empresa");
         builder.Ignore(s => s.EventosDominio);
     }
+}
+
+internal sealed class MovimientoCajaConfig : IEntityTypeConfiguration<MovimientoCaja>
+{
+    public void Configure(EntityTypeBuilder<MovimientoCaja> builder)
+    {
+        builder.ToTable("caja_movimiento");
+        builder.HasKey(m => m.Id);
+        builder.Property(m => m.Id).HasColumnName("id");
+        builder.Property(m => m.EmpresaId).HasColumnName("empresa_id").IsRequired();
+        builder.Property(m => m.Fecha).HasColumnName("fecha").IsRequired();
+        builder.Property(m => m.Tipo).HasColumnName("tipo").HasMaxLength(20).HasConversion<string>().IsRequired();
+        builder.Property(m => m.Importe).HasColumnName("importe").HasColumnType("numeric(14,2)").IsRequired();
+        builder.Property(m => m.Concepto).HasColumnName("concepto").HasMaxLength(MovimientoCaja.LongitudMaximaConcepto);
+        builder.Property(m => m.UsuarioId).HasColumnName("usuario_id");
+        builder.Property(m => m.UsuarioNombre).HasColumnName("usuario_nombre").HasMaxLength(60);
+        builder.Property(m => m.Momento).HasColumnName("momento").IsRequired();
+
+        builder.HasIndex(m => new { m.EmpresaId, m.Fecha }).HasDatabaseName("ix_caja_movimiento_empresa_fecha");
+        builder.Ignore(m => m.ImporteConSigno);
+        builder.Ignore(m => m.EventosDominio);
+    }
+}
+
+internal sealed class RepositorioMovimientosCaja : IRepositorioMovimientosCaja
+{
+    private readonly HosteleriaDbContext _contexto;
+
+    public RepositorioMovimientosCaja(HosteleriaDbContext contexto) => _contexto = contexto;
+
+    public Task<MovimientoCaja?> ObtenerPorIdAsync(Guid id, CancellationToken ct = default) =>
+        _contexto.MovimientosCaja.SingleOrDefaultAsync(m => m.Id == id, ct);
+
+    public async Task<IReadOnlyList<MovimientoCaja>> ListarPorDiaAsync(Guid empresaId, DateOnly dia, CancellationToken ct = default) =>
+        await _contexto.MovimientosCaja
+            .Where(m => m.EmpresaId == empresaId && m.Fecha == dia)
+            .OrderBy(m => m.Momento)
+            .ToListAsync(ct).ConfigureAwait(false);
+
+    public void Agregar(MovimientoCaja movimiento) => _contexto.MovimientosCaja.Add(movimiento);
+
+    public void Quitar(MovimientoCaja movimiento) => _contexto.MovimientosCaja.Remove(movimiento);
 }
 
 internal sealed class MenuDiaConfig : IEntityTypeConfiguration<MenuDia>
