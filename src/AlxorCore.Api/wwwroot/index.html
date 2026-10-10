@@ -2,8 +2,16 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Bar Query · Hostelería</title>
+  <!-- App instalable (PWA): el camarero la añade a la pantalla de inicio y se abre a pantalla completa. -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#14563e" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Bar Query" />
+  <link rel="apple-touch-icon" href="/icono-192.png" />
   <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="%2314563e"/><path fill="%23fff" d="M6.7 3.3h10.6a1.4 1.4 0 0 1 1.4 1.4V20l-1.7-1.1-1.6 1.1-1.6-1.1-1.6 1.1-1.6-1.1-1.6 1.1L5.3 20V4.7A1.4 1.4 0 0 1 6.7 3.3z"/><path stroke="%23c67b3a" stroke-width="1.5" stroke-linecap="round" d="M8.6 8.1h6.8M8.6 11.1h6.8"/><path fill="none" stroke="%231f8f5f" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M8.7 14.5l1.6 1.6 3.7-3.7"/></svg>'>
 
   <style>
@@ -429,8 +437,32 @@
       const h = Object.assign({ "Content-Type":"application/json" }, opts.headers||{});
       if (token) h["Authorization"]="Bearer "+token;
       const r = await fetch(API+path, Object.assign({}, opts, { headers:h }));
-      if (!r.ok){ let m=""; try{m=(await r.json()).title||""}catch{}; throw new Error(m||("HTTP "+r.status)); }
+      if (!r.ok){
+        // Sesión caducada: volvemos al login en vez de dejar errores sueltos.
+        if (r.status===401 && token){ salir(); }
+        let m=""; try{m=(await r.json()).title||""}catch{}; throw new Error(m||("HTTP "+r.status));
+      }
       const ct = r.headers.get("content-type")||""; return ct.includes("json") ? r.json() : r.text();
+    }
+
+    // --- Sesión recordada: el camarero entra una vez y sigue dentro al reabrir la app ---
+    function guardarSesion(){ try{ localStorage.setItem("bq_sesion", JSON.stringify({ token, empresa, usuario })); }catch{} }
+    function borrarSesion(){ try{ localStorage.removeItem("bq_sesion"); }catch{} }
+    function salir(){
+      token=null; empresa=null; usuario=null; borrarSesion();
+      cerrarModal();
+      document.getElementById("app").style.display="none";
+      document.getElementById("login").style.display="";
+      const e=document.getElementById("loginError"); if(e) e.textContent="";
+    }
+    async function restaurarSesion(){
+      if(window.__BQ_NO_RESTORE) return;                                  // la demo gestiona su propio acceso
+      if(_params.get("restablecer")||_params.get("verificar")) return;    // flujos de enlace por correo
+      let s=null; try{ s=JSON.parse(localStorage.getItem("bq_sesion")||"null"); }catch{}
+      if(!(s&&s.token&&s.empresa)) return;
+      token=s.token; empresa=s.empresa; usuario=s.usuario;
+      try{ await api("/empresas"); arrancar(); }   // token aún válido → entramos directos
+      catch{ salir(); }                            // caducado → a login
     }
 
     async function entrar() {
@@ -449,7 +481,7 @@
     }
     async function activarEmpresa(emp){
       const sel=await api("/empresas/"+emp.id+"/seleccionar",{method:"POST"});
-      token=sel.token; empresa=emp; arrancar();
+      token=sel.token; empresa=emp; guardarSesion(); arrancar();
     }
     async function modalEmpresas(){
       const lista=await api("/empresas");
@@ -458,7 +490,9 @@
           <span class="avatar mini">${e.razonSocial.slice(0,1)}</span>
           <div style="flex:1"><strong>${e.razonSocial}</strong><br><small class="muted mono">${e.nif}</small></div>
           ${act?'<span class="pill ok">Actual</span>':'<span class="muted">Cambiar →</span>'}</div>`; }).join("");
-      abrir("Tus empresas",`${filas}<button class="btn small" style="margin-top:6px" onclick="modalNuevaEmpresa()">+ Nueva empresa</button>`,()=>{});
+      abrir("Tus empresas",`${filas}<button class="btn small" style="margin-top:6px" onclick="modalNuevaEmpresa()">+ Nueva empresa</button>
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);text-align:center">
+          <button class="btn small secondary" onclick="salir()">Cerrar sesión</button></div>`,()=>{});
     }
     async function cambiarEmpresa(id){
       const lista=await api("/empresas"); const emp=lista.find(e=>e.id===id); if(!emp)return;
@@ -2110,6 +2144,16 @@
       mostrarRecuperar();
       document.getElementById("rec_reset").style.display="block";
       document.getElementById("rec_token").value=_params.get("restablecer");
+    }
+
+    // Mantener la sesión iniciada (clave para el camarero: entra una vez y sigue dentro).
+    // En DOMContentLoaded para que, en la demo, su propio acceso tenga preferencia.
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", restaurarSesion);
+    else restaurarSesion();
+
+    // Registro de la app instalable (PWA): el camarero puede «añadir a inicio» y abrirla como una app.
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => { navigator.serviceWorker.register("/sw.js").catch(()=>{}); });
     }
   </script>
 </body>
