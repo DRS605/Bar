@@ -1,10 +1,16 @@
-// Service worker mínimo de Bar Query: hace la app instalable y da un respaldo offline del «shell».
-// No cachea datos de la API (siempre van a la red), así que la información nunca queda obsoleta.
-const CACHE = "bq-shell-v1";
-const SHELL = ["/", "/index.html", "/manifest.json", "/icono-192.png", "/icono-512.png"];
+// Service worker de Bar Query: hace la app instalable y da un respaldo offline del «shell»
+// (abrir la app, la carta y la pantalla de cocina sin conexión). No cachea datos de la API:
+// las lecturas y escrituras van siempre a la red, así la información nunca queda obsoleta ni
+// se descuadra la caja. El modo offline completo (encolar comandas y cobros) es un desarrollo aparte.
+const CACHE = "bq-shell-v2";
+const SHELL = ["/", "/index.html", "/carta.html", "/cocina.html", "/manifest.json", "/icono-192.png", "/icono-512.png"];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(
+    caches.open(CACHE)
+      .then((c) => Promise.allSettled(SHELL.map((u) => c.add(u))))  // que un recurso ausente no rompa la instalación
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (e) => {
@@ -21,9 +27,11 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;             // recursos externos, sin tocar
 
-  // Abrir la app (navegación): red primero; si no hay conexión, el shell cacheado.
+  // Abrir la app (navegación): red primero; sin conexión, la página cacheada que corresponda.
   if (req.mode === "navigate") {
-    e.respondWith(fetch(req).catch(() => caches.match("/index.html")));
+    const p = url.pathname;
+    const destino = p.indexOf("carta") !== -1 ? "/carta.html" : p.indexOf("cocina") !== -1 ? "/cocina.html" : "/index.html";
+    e.respondWith(fetch(req).catch(() => caches.match(destino).then((c) => c || caches.match("/index.html"))));
     return;
   }
   // Iconos/manifest cacheados; el resto (API incluida) a la red. Nunca servimos API desde caché.

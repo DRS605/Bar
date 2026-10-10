@@ -318,6 +318,7 @@
   </style>
 </head>
 <body>
+  <div id="offbar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9999;background:#b4532e;color:#fff;text-align:center;font-size:13px;font-weight:700;padding:7px 12px">⚠ Sin conexión · la caja necesita internet para cobrar y sincronizar</div>
   <!-- LOGIN -->
   <div id="login" class="login">
     <div class="promo">
@@ -2417,6 +2418,12 @@
     else restaurarSesion();
 
     // Registro de la app instalable (PWA): el camarero puede «añadir a inicio» y abrirla como una app.
+    // Aviso de conexión: la app abre sin red (shell cacheado) pero la caja necesita internet.
+    function bqActualizarConexion(){ const b=document.getElementById("offbar"); if(b) b.style.display=navigator.onLine?"none":"block"; }
+    window.addEventListener("online", bqActualizarConexion);
+    window.addEventListener("offline", bqActualizarConexion);
+    bqActualizarConexion();
+
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => { navigator.serviceWorker.register("/sw.js").catch(()=>{}); });
     }
