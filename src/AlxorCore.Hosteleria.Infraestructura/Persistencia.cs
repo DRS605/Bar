@@ -40,6 +40,8 @@ public sealed class HosteleriaDbContext : DbContextEmpresaBase, IUnidadDeTrabajo
 
     public DbSet<MovimientoCaja> MovimientosCaja => Set<MovimientoCaja>();
 
+    public DbSet<GrupoOpcion> GruposOpcion => Set<GrupoOpcion>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Esquema);
@@ -432,6 +434,56 @@ internal sealed class SuscripcionConfig : IEntityTypeConfiguration<SuscripcionBa
         builder.HasIndex(s => s.EmpresaId).IsUnique().HasDatabaseName("ux_suscripcion_empresa");
         builder.Ignore(s => s.EventosDominio);
     }
+}
+
+internal sealed class GrupoOpcionConfig : IEntityTypeConfiguration<GrupoOpcion>
+{
+    public void Configure(EntityTypeBuilder<GrupoOpcion> builder)
+    {
+        builder.ToTable("grupo_opcion");
+        builder.HasKey(g => g.Id);
+        builder.Property(g => g.Id).HasColumnName("id");
+        builder.Property(g => g.EmpresaId).HasColumnName("empresa_id").IsRequired();
+        builder.Property(g => g.ProductoId).HasColumnName("producto_id").IsRequired();
+        builder.Property(g => g.Nombre).HasColumnName("nombre").HasMaxLength(GrupoOpcion.LongitudMaximaNombre).IsRequired();
+        builder.Property(g => g.Seleccion).HasColumnName("seleccion").HasMaxLength(20).HasConversion<string>().IsRequired();
+        builder.Property(g => g.Obligatorio).HasColumnName("obligatorio").IsRequired();
+        builder.Property(g => g.Orden).HasColumnName("orden").IsRequired();
+
+        builder.HasIndex(g => new { g.EmpresaId, g.ProductoId }).HasDatabaseName("ix_grupo_opcion_producto");
+        builder.Ignore(g => g.EventosDominio);
+
+        builder.OwnsMany(g => g.Opciones, op =>
+        {
+            op.ToTable("opcion_producto");
+            op.WithOwner().HasForeignKey("GrupoOpcionId");
+            op.HasKey(o => o.Id);
+            op.Property(o => o.Id).HasColumnName("id").ValueGeneratedNever();
+            op.Property(o => o.GrupoOpcionId).HasColumnName("grupo_opcion_id").IsRequired();
+            op.Property(o => o.EmpresaId).HasColumnName("empresa_id").IsRequired();
+            op.Property(o => o.Nombre).HasColumnName("nombre").HasMaxLength(OpcionProducto.LongitudMaximaNombre).IsRequired();
+            op.Property(o => o.PrecioDelta).HasColumnName("precio_delta").HasColumnType("numeric(14,2)").IsRequired();
+            op.Property(o => o.Orden).HasColumnName("orden").IsRequired();
+            op.HasIndex("GrupoOpcionId").HasDatabaseName("ix_opcion_producto_grupo");
+        });
+    }
+}
+
+internal sealed class RepositorioGruposOpcion : IRepositorioGruposOpcion
+{
+    private readonly HosteleriaDbContext _contexto;
+
+    public RepositorioGruposOpcion(HosteleriaDbContext contexto) => _contexto = contexto;
+
+    public async Task<IReadOnlyList<GrupoOpcion>> ListarPorProductoAsync(Guid productoId, CancellationToken ct = default) =>
+        await _contexto.GruposOpcion.Where(g => g.ProductoId == productoId).ToListAsync(ct).ConfigureAwait(false);
+
+    public async Task<IReadOnlyList<GrupoOpcion>> ListarPorEmpresaAsync(Guid empresaId, CancellationToken ct = default) =>
+        await _contexto.GruposOpcion.Where(g => g.EmpresaId == empresaId).ToListAsync(ct).ConfigureAwait(false);
+
+    public void Agregar(GrupoOpcion grupo) => _contexto.GruposOpcion.Add(grupo);
+
+    public void Quitar(GrupoOpcion grupo) => _contexto.GruposOpcion.Remove(grupo);
 }
 
 internal sealed class MovimientoCajaConfig : IEntityTypeConfiguration<MovimientoCaja>

@@ -52,6 +52,7 @@ public static class RegistroServicios
         servicios.AddScoped<IConsultaPlanBar>(sp => sp.GetRequiredService<RepositorioSuscripcion>());
         servicios.AddScoped<IRepositorioMenuDia, RepositorioMenuDia>();
         servicios.AddScoped<IRepositorioMovimientosCaja, RepositorioMovimientosCaja>();
+        servicios.AddScoped<IRepositorioGruposOpcion, RepositorioGruposOpcion>();
 
         servicios.AddScoped<CrearMesa>();
         servicios.AddScoped<ActualizarMesa>();
@@ -104,6 +105,11 @@ public static class RegistroServicios
         servicios.AddScoped<RegistrarMovimientoCaja>();
         servicios.AddScoped<QuitarMovimientoCaja>();
         servicios.AddScoped<ListarMovimientosCaja>();
+
+        // Opciones de producto (formatos/extras).
+        servicios.AddScoped<ObtenerOpcionesProducto>();
+        servicios.AddScoped<ListarOpcionesEmpresa>();
+        servicios.AddScoped<GuardarOpcionesProducto>();
 
         return servicios;
     }

@@ -17,7 +17,7 @@ public sealed record DatosMesa(string Nombre, string? Zona = null, int Capacidad
 public sealed record DatosPosicion(double PosX, double PosY);
 
 /// <summary>Datos para añadir una línea a una comanda (un producto del catálogo y su cantidad).</summary>
-public sealed record DatosLineaComanda(Guid ProductoId, decimal Cantidad = 1m);
+public sealed record DatosLineaComanda(Guid ProductoId, decimal Cantidad = 1m, IReadOnlyList<Guid>? OpcionIds = null);
 
 /// <summary>Datos para fijar la cantidad de una línea existente.</summary>
 public sealed record DatosCantidadLinea(decimal Cantidad);
@@ -225,13 +225,15 @@ public sealed class AgregarLineaComanda
 {
     private readonly IRepositorioComandas _comandas;
     private readonly IConsultaProductos _productos;
+    private readonly IRepositorioGruposOpcion _opciones;
     private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
     private readonly IReloj _reloj;
 
-    public AgregarLineaComanda(IRepositorioComandas comandas, IConsultaProductos productos, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    public AgregarLineaComanda(IRepositorioComandas comandas, IConsultaProductos productos, IRepositorioGruposOpcion opciones, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
     {
         _comandas = comandas;
         _productos = productos;
+        _opciones = opciones;
         _unidadDeTrabajo = unidadDeTrabajo;
         _reloj = reloj;
     }
@@ -252,7 +254,26 @@ public sealed class AgregarLineaComanda
             return Resultado.Fallo<ComandaDto>(Error.NoEncontrado("producto.no_encontrado", "El producto no existe."));
         }
 
-        var linea = comanda.AgregarLinea(producto.Id, producto.Nombre, datos.Cantidad, producto.PrecioUnitario, producto.CodigoIva, producto.PorcentajeIva, _reloj);
+        // Opciones elegidas (formatos/extras): ajustan el precio y la descripción de la línea.
+        var precio = producto.PrecioUnitario;
+        var descripcion = producto.Nombre;
+        if (datos.OpcionIds is { Count: > 0 })
+        {
+            var grupos = await _opciones.ListarPorProductoAsync(datos.ProductoId, ct).ConfigureAwait(false);
+            var resuelto = ResolverOpciones.Resolver(grupos, datos.OpcionIds);
+            if (resuelto.Error is not null)
+            {
+                return Resultado.Fallo<ComandaDto>(resuelto.Error);
+            }
+
+            precio = Math.Max(0m, producto.PrecioUnitario + resuelto.PrecioDelta);
+            if (!string.IsNullOrEmpty(resuelto.Texto))
+            {
+                descripcion = $"{producto.Nombre} ({resuelto.Texto})";
+            }
+        }
+
+        var linea = comanda.AgregarLinea(producto.Id, descripcion, datos.Cantidad, precio, producto.CodigoIva, producto.PorcentajeIva, _reloj);
         if (linea.EsFallo)
         {
             return Resultado.Fallo<ComandaDto>(linea.Error);

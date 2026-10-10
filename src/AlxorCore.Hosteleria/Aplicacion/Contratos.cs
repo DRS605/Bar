@@ -87,6 +87,38 @@ public sealed record ArqueoCajaDto(
     DateOnly Dia, decimal Fondo, decimal CobrosEfectivo, decimal Entradas, decimal Salidas,
     decimal EfectivoTeorico, IReadOnlyList<MovimientoCajaDto> Movimientos);
 
+// ---------------------------------------------------------------------------
+// Opciones de producto: formatos/tamaños (media/ración) y extras con suplemento.
+// ---------------------------------------------------------------------------
+
+/// <summary>Una opción concreta (p. ej. «Ración» o «Extra queso») con su suplemento.</summary>
+public sealed record OpcionProductoDto(Guid Id, string Nombre, decimal PrecioDelta)
+{
+    public static OpcionProductoDto Desde(OpcionProducto o) => new(o.Id, o.Nombre, o.PrecioDelta);
+}
+
+/// <summary>Un grupo de opciones de un producto (formato o extras).</summary>
+public sealed record GrupoOpcionDto(Guid Id, string Nombre, string Seleccion, bool Obligatorio, IReadOnlyList<OpcionProductoDto> Opciones)
+{
+    public static GrupoOpcionDto Desde(GrupoOpcion g) =>
+        new(g.Id, g.Nombre, g.Seleccion.ToString(), g.Obligatorio, g.Opciones.OrderBy(o => o.Orden).Select(OpcionProductoDto.Desde).ToList());
+}
+
+/// <summary>Opciones de un producto (para que el TPV sepa qué productos tienen formatos/extras).</summary>
+public sealed record ProductoConOpcionesDto(Guid ProductoId, IReadOnlyList<GrupoOpcionDto> Grupos);
+
+/// <summary>Repositorio de grupos de opciones de producto.</summary>
+public interface IRepositorioGruposOpcion
+{
+    Task<IReadOnlyList<GrupoOpcion>> ListarPorProductoAsync(Guid productoId, CancellationToken ct = default);
+
+    Task<IReadOnlyList<GrupoOpcion>> ListarPorEmpresaAsync(Guid empresaId, CancellationToken ct = default);
+
+    void Agregar(GrupoOpcion grupo);
+
+    void Quitar(GrupoOpcion grupo);
+}
+
 /// <summary>Repositorio de movimientos de caja.</summary>
 public interface IRepositorioMovimientosCaja
 {

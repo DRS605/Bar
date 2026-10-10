@@ -158,6 +158,21 @@ public static class EndpointsHosteleria
             .WithSummary("Arqueo del día: efectivo teórico (fondo + cobros en efectivo + entradas − salidas) para cuadrar la caja.")
             .RequireAuthorization();
 
+        // Opciones de producto (formatos/tamaños y extras con suplemento) para el TPV.
+        var opciones = rutas.MapGroup("/carta/opciones").WithTags("Opciones");
+
+        opciones.MapGet("", ListarOpcionesEmpresaAsync)
+            .WithSummary("Todas las opciones del local agrupadas por producto (para el TPV).")
+            .RequireAuthorization();
+
+        opciones.MapGet("/{productoId:guid}", ObtenerOpcionesProductoAsync)
+            .WithSummary("Grupos de opciones (formatos y extras) de un producto.")
+            .RequireAuthorization();
+
+        opciones.MapPut("/{productoId:guid}", GuardarOpcionesProductoAsync)
+            .WithSummary("Fija los grupos de opciones de un producto (reemplaza los existentes).")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
         var comandas = rutas.MapGroup("/comandas").WithTags("Comandas");
 
         comandas.MapGet("", ListarComandasAsync)
@@ -503,6 +518,29 @@ public static class EndpointsHosteleria
         }
 
         return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, dia, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> ListarOpcionesEmpresaAsync(IContextoEmpresa contexto, ListarOpcionesEmpresa caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> ObtenerOpcionesProductoAsync(Guid productoId, ObtenerOpcionesProducto caso, CancellationToken ct) =>
+        Results.Ok(await caso.EjecutarAsync(productoId, ct).ConfigureAwait(false));
+
+    private static async Task<IResult> GuardarOpcionesProductoAsync(Guid productoId, DatosOpcionesProducto datos, IContextoEmpresa contexto, GuardarOpcionesProducto caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return (await caso.EjecutarAsync(contexto.EmpresaId.Value, productoId, datos, ct).ConfigureAwait(false)).ASinContenido();
     }
 
     private static async Task<IResult> ListarMovimientosCajaAsync(IContextoEmpresa contexto, ListarMovimientosCaja caso, CancellationToken ct, DateOnly? dia = null)
