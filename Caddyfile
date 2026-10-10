@@ -1,0 +1,10 @@
+# Proxy inverso con HTTPS automático para Bar Query.
+# El dominio se toma de la variable de entorno DOMINIO (ver docker-compose.prod.yml / .env).
+{$DOMINIO} {
+	encode zstd gzip
+	# Permite subir fotos de los platos sin que el proxy las corte.
+	request_body {
+		max_size 12MB
+	}
+	reverse_proxy api:8080
+}

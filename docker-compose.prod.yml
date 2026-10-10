@@ -1,0 +1,62 @@
+# Bar Query — despliegue en PRODUCCIÓN con HTTPS automático (Caddy + Let's Encrypt).
+#
+# Requisitos: un servidor con Docker, un dominio apuntando a su IP, y un archivo «.env»
+# (copia «.env.ejemplo» y rellénalo). Arranque:
+#   docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+#
+# Caddy obtiene y renueva el certificado HTTPS solo. La API y PostgreSQL NO publican puertos
+# al exterior: solo Caddy (80/443) es accesible desde fuera.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD en .env}
+      POSTGRES_DB: alxor
+    volumes:
+      - alxor-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      # Aplica las migraciones al arrancar (deja la base lista en el primer despliegue).
+      AplicarMigraciones: "true"
+      ConnectionStrings__AlxorCore: "Host=postgres;Port=5432;Database=alxor;Username=postgres;Password=${POSTGRES_PASSWORD}"
+      # Secreto para firmar los tokens (mínimo 32 caracteres). Pon uno largo y aleatorio en .env.
+      Jwt__ClaveSecreta: ${JWT_CLAVE:?define JWT_CLAVE en .env (mínimo 32 caracteres)}
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMINIO: ${DOMINIO:?define DOMINIO en .env (p. ej. carta.tubar.com)}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  alxor-postgres-data:
+  caddy-data:
+  caddy-config:

@@ -19,6 +19,7 @@ using AlxorCore.Informes.Infraestructura;
 using AlxorCore.Auditoria.Infraestructura;
 using AlxorCore.Organizacion.Infraestructura.Persistencia;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
@@ -124,8 +125,19 @@ builder.Services.AddProblemDetails();
 
 var app = builder.Build();
 
-// En desarrollo aplicamos las migraciones automáticamente para facilitar el arranque.
-if (app.Environment.IsDevelopment())
+// Detrás de un proxy inverso (Caddy/Nginx) que termina el HTTPS: respeta el esquema y el host
+// originales, para que los enlaces absolutos (p. ej. el QR de la carta) salgan como «https://dominio».
+var opcionesReenvio = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost,
+};
+opcionesReenvio.KnownNetworks.Clear();
+opcionesReenvio.KnownProxies.Clear();
+app.UseForwardedHeaders(opcionesReenvio);
+
+// Aplicamos las migraciones automáticamente en desarrollo, o en producción cuando se activa
+// «AplicarMigraciones» (así la base queda lista al arrancar en un despliegue autogestionado).
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("AplicarMigraciones"))
 {
     using var ambito = app.Services.CreateScope();
     await ambito.ServiceProvider.GetRequiredService<IdentidadDbContext>().Database.MigrateAsync().ConfigureAwait(false);
@@ -138,7 +150,11 @@ if (app.Environment.IsDevelopment())
     await ambito.ServiceProvider.GetRequiredService<AlxorCore.Hosteleria.Infraestructura.HosteleriaDbContext>().Database.MigrateAsync().ConfigureAwait(false);
     await ambito.ServiceProvider.GetRequiredService<AlxorCore.Reservas.Infraestructura.ReservasDbContext>().Database.MigrateAsync().ConfigureAwait(false);
     await ambito.ServiceProvider.GetRequiredService<AlxorCore.Auditoria.Infraestructura.AuditoriaDbContext>().Database.MigrateAsync().ConfigureAwait(false);
+}
 
+// Swagger solo en desarrollo (no se expone en producción).
+if (app.Environment.IsDevelopment())
+{
     app.UseSwagger();
     app.UseSwaggerUI();
 }
