@@ -32,7 +32,7 @@ public sealed record DatosNotaLinea(string? Nota);
 public sealed record DatosAbrirComanda(Guid MesaId, string? Notas = null);
 
 /// <summary>Datos para cobrar una comanda.</summary>
-public sealed record DatosCobro(MetodoCobro Metodo = MetodoCobro.Efectivo, Guid? ClienteId = null, string? Serie = null, decimal DescuentoPorcentaje = 0m);
+public sealed record DatosCobro(MetodoCobro Metodo = MetodoCobro.Efectivo, Guid? ClienteId = null, string? Serie = null, decimal DescuentoPorcentaje = 0m, decimal? ImporteEfectivo = null, decimal Propina = 0m);
 
 /// <summary>Caso de uso: crear una mesa.</summary>
 public sealed class CrearMesa

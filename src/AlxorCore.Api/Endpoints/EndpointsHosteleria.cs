@@ -710,8 +710,8 @@ public static class EndpointsHosteleria
     }
 
     private static async Task<IResult> CobrarComandaAsync(
-        Guid id, DatosCobro datos, IContextoEmpresa contexto, CobrarComanda caso,
-        RegistrarCobro registrarCobro, ILoggerFactory registros, CancellationToken ct)
+        Guid id, DatosCobro datos, IContextoEmpresa contexto, ClaimsPrincipal usuario, CobrarComanda caso,
+        RegistrarCobro registrarCobro, RegistrarMovimientoCaja movimientoCaja, ILoggerFactory registros, CancellationToken ct)
     {
         if (contexto.EmpresaId is null)
         {
@@ -724,14 +724,45 @@ public static class EndpointsHosteleria
         // ya está cobrada (transacción propia); si el registro del cobro fallara, se avisa sin deshacerla.
         if (resultado.EsCorrecto && resultado.Valor.FacturaId is { } facturaId)
         {
-            var cobro = await registrarCobro.EjecutarAsync(
-                contexto.EmpresaId.Value,
-                new RegistrarCobroComando(facturaId, resultado.Valor.Total, Metodo: datos.Metodo.ToString()),
-                ct).ConfigureAwait(false);
-            if (cobro.EsFallo)
+            var empresaId = contexto.EmpresaId.Value;
+            var registro = registros.CreateLogger("Hosteleria.Cobro");
+            var total = resultado.Valor.Total;
+
+            async Task RegistrarAsync(decimal importe, string metodo)
             {
-                registros.CreateLogger("Hosteleria.Cobro").LogWarning(
-                    "Comanda {ComandaId} cobrada, pero el cobro no se registró en caja: {Codigo}.", id, cobro.Error.Codigo);
+                if (importe <= 0m)
+                {
+                    return;
+                }
+
+                var cobro = await registrarCobro.EjecutarAsync(empresaId, new RegistrarCobroComando(facturaId, importe, Metodo: metodo), ct).ConfigureAwait(false);
+                if (cobro.EsFallo)
+                {
+                    registro.LogWarning("Comanda {ComandaId}: cobro ({Metodo}) no registrado en caja: {Codigo}.", id, metodo, cobro.Error.Codigo);
+                }
+            }
+
+            // Pago mixto: la parte en efectivo y la parte con tarjeta se registran por separado para que
+            // el cierre de caja y el arqueo de efectivo cuadren.
+            if (datos.ImporteEfectivo is { } efectivo && efectivo > 0m && efectivo < total)
+            {
+                await RegistrarAsync(Math.Round(efectivo, 2, MidpointRounding.AwayFromZero), "Efectivo").ConfigureAwait(false);
+                await RegistrarAsync(total - Math.Round(efectivo, 2, MidpointRounding.AwayFromZero), "Tarjeta").ConfigureAwait(false);
+            }
+            else
+            {
+                await RegistrarAsync(total, datos.Metodo.ToString() == "Mixto" ? "Efectivo" : datos.Metodo.ToString()).ConfigureAwait(false);
+            }
+
+            // Propina (en efectivo): entra en la caja, no forma parte de la base imponible del ticket.
+            if (datos.Propina > 0m)
+            {
+                var (usuarioId, usuarioNombre) = CamareroActual(usuario);
+                var prop = await movimientoCaja.EjecutarAsync(empresaId, new DatosMovimientoCaja("Entrada", datos.Propina, "Propina"), usuarioId, usuarioNombre, ct).ConfigureAwait(false);
+                if (prop.EsFallo)
+                {
+                    registro.LogWarning("Comanda {ComandaId}: propina no registrada en caja: {Codigo}.", id, prop.Error.Codigo);
+                }
             }
         }
 

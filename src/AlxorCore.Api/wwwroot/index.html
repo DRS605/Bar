@@ -1428,7 +1428,7 @@
     const cobroTotalCent=()=>cobroTotalDesc()+cobroPropinaCent; // consumición (con descuento) + propina
     function hosCobrar(id){
       cobroMetodo="Efectivo"; cobroCent=0; cobroTotal=Number(hosComanda?.total||0); cobroPersonas=1; cobroPropinaCent=0; cobroDescPct=0;
-      const seg=m=>`<button class="${cobroMetodo===m?"on":""}" onclick="cobroSetMetodo('${m}')">${m==="Efectivo"?"💶 Efectivo":m==="Tarjeta"?"💳 Tarjeta":"Otro"}</button>`;
+      const seg=m=>`<button data-m="${m}" class="${cobroMetodo===m?"on":""}" onclick="cobroSetMetodo('${m}')">${m==="Efectivo"?"💶 Efectivo":m==="Tarjeta"?"💳 Tarjeta":m==="Mixto"?"💶💳 Mixto":"Otro"}</button>`;
       const pb=(p,t)=>`<button data-p="${p}" class="${p==="0"?"on":""}" onclick="cobroPropina('${p}')">${t}</button>`;
       const db=(p,t)=>`<button data-d="${p}" class="${p===0?"on":""}" onclick="cobroDescuento(${p})">${t}</button>`;
       abrir("Cobrar comanda",
@@ -1437,12 +1437,14 @@
          <div class="cobro-split"><span class="lb">Dividir a escote</span><div style="display:flex;align-items:center;gap:14px"><strong id="cobroPerImp" style="color:var(--accent);font-size:15px;display:none"></strong><div class="split-step"><button onclick="cobroDiv(-1)" aria-label="Menos personas">−</button><span class="n" id="cobroPers">1</span><button onclick="cobroDiv(1)" aria-label="Más personas">+</button></div></div></div>
          <div class="cobro-split"><span class="lb">Propina</span><div class="prop-quick">${pb("0","Sin")}${pb("5","5 %")}${pb("10","10 %")}${pb("round","Redondear")}</div></div>
          <div class="pp" id="cobroProp" style="display:none;text-align:right;margin:-6px 0 12px"></div>
-         <div class="pay-seg">${seg("Efectivo")}${seg("Tarjeta")}${seg("Otro")}</div>
+         <div class="pay-seg">${seg("Efectivo")}${seg("Tarjeta")}${seg("Mixto")}${seg("Otro")}</div>
          <div id="cobroEfectivo"></div>
          <label style="display:flex;align-items:center;gap:8px;margin-top:6px;font-weight:500;cursor:pointer"><input id="hos_print" type="checkbox" style="width:auto" checked/> 🖨️ Imprimir ticket en la impresora</label>
          <p class="muted" style="font-size:12px;margin-top:10px">El descuento va en el ticket (recalcula base e IVA); la propina no. Se emite la factura simplificada, se descuenta el stock y la mesa queda libre.</p>`,
         async()=>{ const metodo=cobroMetodo; const imprimir=document.getElementById("hos_print").checked; const propina=cobroPropinaCent; const desc=cobroDescPct; await hosCola;
-          const c=await api("/comandas/"+id+"/cobrar",{method:"POST",body:JSON.stringify({metodo,descuentoPorcentaje:desc})});
+          const body={metodo,descuentoPorcentaje:desc,propina:propina/100};
+          if(metodo==="Mixto") body.importeEfectivo=cobroCent/100;
+          const c=await api("/comandas/"+id+"/cobrar",{method:"POST",body:JSON.stringify(body)});
           const cambio=metodo==="Efectivo" && cobroCent>=cobroTotalCent() ? (cobroCent-cobroTotalCent())/100 : 0;
           const extra=(desc>0?(" · dto "+desc+"%"):"")+(propina>0?(" · propina "+eur(propina/100)):"");
           toast((cambio>0?("Cobrado · cambio "+eur(cambio)):("Cobrado · ticket "+(c.numeroTicket||"")))+extra,"ok");
@@ -1479,15 +1481,15 @@
       if(line){ if(cobroPropinaCent>0){ line.style.display=""; line.innerHTML=`Propina ${eur(cobroPropinaCent/100)} · <strong>Total ${eur(cobroTotalCent()/100)}</strong>`; } else line.style.display="none"; }
       cobroPintarCambio();
     }
-    function cobroSetMetodo(m){ cobroMetodo=m; if(m!=="Efectivo") cobroCent=0;
-      document.querySelectorAll(".pay-seg button").forEach(b=>b.classList.toggle("on", b.textContent.includes(m==="Efectivo"?"Efectivo":m==="Tarjeta"?"Tarjeta":"Otro")));
+    function cobroSetMetodo(m){ cobroMetodo=m; if(m!=="Efectivo" && m!=="Mixto") cobroCent=0;
+      document.querySelectorAll(".pay-seg button").forEach(b=>b.classList.toggle("on", b.dataset.m===m));
       cobroPintarEfectivo(); }
     function cobroPintarEfectivo(){
       const cont=document.getElementById("cobroEfectivo"); if(!cont)return;
-      if(cobroMetodo!=="Efectivo"){ cont.innerHTML=""; return; }
+      if(cobroMetodo!=="Efectivo" && cobroMetodo!=="Mixto"){ cont.innerHTML=""; return; }
       const key=d=>`<button onclick="cobroKey('${d}')">${d}</button>`;
       cont.innerHTML=`<div class="cash-box">
-        <div class="cash-disp"><span class="k">Entregado</span><span class="v" id="cobroEnt">${eur(cobroCent/100)}</span></div>
+        <div class="cash-disp"><span class="k">${cobroMetodo==="Mixto"?"Efectivo (resto a tarjeta)":"Entregado"}</span><span class="v" id="cobroEnt">${eur(cobroCent/100)}</span></div>
         <div class="cash-quick">
           <button onclick="cobroExacto()">Exacto</button>
           <button onclick="cobroPreset(5)">5 €</button><button onclick="cobroPreset(10)">10 €</button>
@@ -1510,6 +1512,7 @@
       const cont=document.getElementById("cobroCambio"); if(!cont)return;
       const totC=cobroTotalCent();
       if(cobroCent===0){ cont.innerHTML=""; return; }
+      if(cobroMetodo==="Mixto"){ cont.innerHTML = cobroCent>=totC ? `<div class="cambio-box ok">Cubre el total en efectivo</div>` : `<div class="cambio-box falta">Resto a tarjeta<span class="big">${eur((totC-cobroCent)/100)}</span></div>`; return; }
       if(cobroCent>=totC){ cont.innerHTML=`<div class="cambio-box ok">Cambio a devolver<span class="big">${eur((cobroCent-totC)/100)}</span></div>`; }
       else { cont.innerHTML=`<div class="cambio-box falta">Faltan<span class="big">${eur((totC-cobroCent)/100)}</span></div>`; }
     }

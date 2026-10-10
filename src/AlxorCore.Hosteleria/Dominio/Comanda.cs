@@ -32,6 +32,9 @@ public enum MetodoCobro
 
     /// <summary>Otro medio (transferencia, vale…).</summary>
     Otro = 3,
+
+    /// <summary>Pago mixto (parte en efectivo y parte con tarjeta).</summary>
+    Mixto = 4,
 }
 
 /// <summary>Se ha abierto una comanda en una mesa.</summary>
