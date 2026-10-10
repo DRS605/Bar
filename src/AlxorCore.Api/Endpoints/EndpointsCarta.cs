@@ -5,6 +5,7 @@ using AlxorCore.Hosteleria.Dominio;
 using AlxorCore.Nucleo.Multiempresa;
 using AlxorCore.Nucleo.Resultados;
 using AlxorCore.Organizacion.Aplicacion.Puertos;
+using AlxorCore.Reservas.Aplicacion;
 using QRCoder;
 
 namespace AlxorCore.Api.Endpoints;
@@ -47,7 +48,31 @@ public static class EndpointsCarta
             .WithSummary("Foto de un producto para la carta pública.")
             .AllowAnonymous();
 
+        carta.MapPost("/{empresaId:guid}/reserva", ReservarAsync)
+            .WithSummary("El cliente solicita una reserva online (queda pendiente de confirmar por el local).")
+            .AllowAnonymous();
+
         return rutas;
+    }
+
+    public sealed record DatosReservaPublica(string Nombre, DateTimeOffset FechaHora, int Comensales, string? Telefono = null, string? Email = null, string? Notas = null);
+
+    private static async Task<IResult> ReservarAsync(
+        Guid empresaId, DatosReservaPublica datos, IContextoEmpresaMutable contexto, CrearReserva caso, IConsultaPlanBar planes, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(datos);
+        contexto.Fijar(empresaId);
+
+        // La reserva online es una función del plan Pro.
+        if (!PlanesBar.IncluyeFuncionesPro(await planes.ObtenerPlanAsync(empresaId, ct).ConfigureAwait(false)))
+        {
+            return Results.NotFound();
+        }
+
+        var r = await caso.EjecutarAsync(empresaId, new DatosReserva(
+            datos.Nombre, datos.FechaHora, datos.Comensales, datos.Telefono, datos.Email, Notas: datos.Notas), ct).ConfigureAwait(false);
+
+        return r.EsCorrecto ? Results.Ok(new { ok = true }) : ResultadosHttp.AProblema(r.Error);
     }
 
     private static async Task<IResult> DatosAsync(

@@ -58,6 +58,15 @@
   .menudia .md-p{ font-size:14.5px; color:var(--ink); padding:3px 0; border-bottom:1px dashed var(--line); }
   .menudia .md-p:last-child{ border-bottom:0; }
 
+  /* Reserva online */
+  .reserva{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; margin-top:18px; }
+  .reserva h2{ font-family:var(--display); font-weight:600; font-size:19px; margin:0 0 12px; color:var(--ink); }
+  .reserva input, .reserva textarea{ width:100%; box-sizing:border-box; margin-bottom:9px; padding:11px 12px; border:1px solid var(--line); border-radius:11px; background:var(--bg); color:var(--ink); font:inherit; }
+  .reserva .rv-row{ display:flex; gap:9px; } .reserva .rv-row input:first-child{ flex:1; } .reserva .rv-row input:last-child{ width:84px; }
+  .rv-btn{ width:100%; background:var(--accent); color:#fff; border:0; border-radius:12px; padding:13px; font-weight:800; font-size:15px; cursor:pointer; margin-top:2px; }
+  .rv-msg{ text-align:center; font-size:14px; margin-top:10px; font-weight:600; }
+  .rv-msg.ok{ color:var(--chip); } .rv-msg.err{ color:#c0392b; }
+
   /* Hero */
   header{ position:relative; overflow:hidden; text-align:center; background:var(--hero); color:var(--hero-ink);
     border-radius:var(--radius); padding:30px 22px 22px; box-shadow:0 14px 34px rgba(0,0,0,.14); }
@@ -159,6 +168,12 @@
   const LANGS = [["es","ES"],["en","EN"],["fr","FR"]];
   const MENUDIA = { es:"Menú del día", en:"Menu of the day", fr:"Menu du jour" };
   const menuDiaLabel = () => MENUDIA[lang] || MENUDIA.es;
+  const RES = {
+    es:{ t:"Reservar mesa", n:"Tu nombre", p:"Personas", tel:"Teléfono", nota:"Comentario (opcional)", env:"Solicitar reserva", ok:"¡Reserva solicitada! El local te la confirmará.", err:"No se pudo enviar la reserva.", falta:"Pon tu nombre y la fecha." },
+    en:{ t:"Book a table", n:"Your name", p:"People", tel:"Phone", nota:"Comment (optional)", env:"Request booking", ok:"Booking requested! The venue will confirm.", err:"Couldn't send the booking.", falta:"Enter your name and the date." },
+    fr:{ t:"Réserver une table", n:"Votre nom", p:"Personnes", tel:"Téléphone", nota:"Commentaire (facultatif)", env:"Demander", ok:"Réservation demandée ! Le lieu confirmera.", err:"Envoi impossible.", falta:"Indiquez votre nom et la date." },
+  };
+  const resL = () => RES[lang] || RES.es;
   // Nombres de los 14 alérgenos (Reglamento UE 1169/2011) en cada idioma.
   const ALER = {
     Gluten:{es:"Gluten",en:"Gluten",fr:"Gluten"}, Crustaceos:{es:"Crustáceos",en:"Crustaceans",fr:"Crustacés"},
@@ -219,7 +234,17 @@
       <section class="cat"><h2>${esc(cat.nombre)}</h2><div class="rule"></div>
         ${cat.items.map(it=>fila(it)).join("")}
       </section>`).join("") : "";
-    wrap.innerHTML = head + menuHtml + avisos + cats + `<footer>Bar Query</footer>`;
+    const L = resL();
+    const reserva = `<section class="reserva">
+        <h2>${esc(L.t)}</h2>
+        <input id="rvNombre" placeholder="${esc(L.n)}">
+        <div class="rv-row"><input id="rvFecha" type="datetime-local"><input id="rvPers" type="number" min="1" value="2" aria-label="${esc(L.p)}"></div>
+        <input id="rvTel" placeholder="${esc(L.tel)}">
+        <textarea id="rvNota" rows="2" placeholder="${esc(L.nota)}"></textarea>
+        <button class="rv-btn" onclick="reservar()">${esc(L.env)}</button>
+        <div id="rvMsg" class="rv-msg"></div>
+      </section>`;
+    wrap.innerHTML = head + menuHtml + avisos + cats + reserva + `<footer>Bar Query</footer>`;
     sincronizarBarra();
   }
 
@@ -296,6 +321,23 @@
       if(!r.ok) throw new Error();
       toast(t.avisado);
     }catch(e){ toast(t.errEnvio); }
+  };
+
+  window.reservar = async () => {
+    const L = resL();
+    const msg = document.getElementById("rvMsg");
+    const nombre = (document.getElementById("rvNombre").value||"").trim();
+    const fecha = document.getElementById("rvFecha").value;
+    const pers = parseInt(document.getElementById("rvPers").value||"0", 10) || 0;
+    if(!nombre || !fecha || pers < 1){ msg.className="rv-msg err"; msg.textContent=L.falta; return; }
+    const body = { nombre, fechaHora:new Date(fecha).toISOString(), comensales:pers,
+      telefono:(document.getElementById("rvTel").value||"").trim()||null, notas:(document.getElementById("rvNota").value||"").trim()||null };
+    try{
+      const r = await fetch(`/carta/${E}/reserva`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      if(!r.ok) throw new Error();
+      msg.className="rv-msg ok"; msg.textContent=L.ok;
+      ["rvNombre","rvFecha","rvTel","rvNota"].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=""; });
+    }catch(e){ msg.className="rv-msg err"; msg.textContent=L.err; }
   };
 
   cargar();
