@@ -645,14 +645,15 @@
       { id:"vino", nombre:"Vino", hero:"linear-gradient(135deg,#9a2a3e,#5e1826)", bg:"#f7f0f1", accent:"#8a2437", ink:"#3a1620" },
       { id:"minimal", nombre:"Minimal", hero:"#161616", bg:"#ffffff", accent:"#161616", ink:"#161616" },
     ];
-    let cartaIdiomaEdit="en", cartaTrads={}, cartaProds=[], cartaFichas={}, cartaFichaFile=null, cartaTema="verde", cartaFotoV=0;
+    let cartaIdiomaEdit="en", cartaTrads={}, cartaProds=[], cartaFichas={}, cartaFichaFile=null, cartaTema="verde", cartaFotoV=0, cartaMenu={precio:0,activo:false,incluye:"",secciones:[]};
     async function vCartaQr(){
       if(!esPro()){ return planGate("Carta con QR y autopedido","Tus clientes escanean el QR de su mesa, ven la carta en su idioma con fotos y alérgenos, y piden desde el móvil. Tú confirmas cada pedido y te llega a la cuenta."); }
       view('<div class="muted">Cargando…</div>');
       const url=cartaUrlPublica(), qr=`/carta/${empresa.id}/qr.svg`;
-      try{ const [prods,trads,fichas,cfg]=await Promise.all([api("/productos").catch(()=>[]),cartaCargarTrads(),api("/carta/fichas").catch(()=>[]),api("/carta/configuracion").catch(()=>({tema:"verde"}))]);
+      try{ const [prods,trads,fichas,cfg,menu]=await Promise.all([api("/productos").catch(()=>[]),cartaCargarTrads(),api("/carta/fichas").catch(()=>[]),api("/carta/configuracion").catch(()=>({tema:"verde"})),api("/carta/menu-dia").catch(()=>null)]);
         cartaProds=prods; cartaTrads=trads; cartaFichas={}; for(const f of fichas) cartaFichas[f.productoId]=f; cartaTema=(cfg&&cfg.tema)||"verde"; cartaFotoV=Date.now();
-      }catch{ cartaProds=[];cartaTrads={};cartaFichas={};cartaTema="verde"; }
+        cartaMenu=menu||{precio:0,activo:false,incluye:"",secciones:[]};
+      }catch{ cartaProds=[];cartaTrads={};cartaFichas={};cartaTema="verde"; cartaMenu={precio:0,activo:false,incluye:"",secciones:[]}; }
       const cuerpo=`<div style="display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start">
         <div style="text-align:center">
           <div style="background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;display:inline-block"><img src="${qr}" alt="QR de la carta" style="width:200px;height:200px;display:block"/></div>
@@ -664,9 +665,56 @@
           <div style="display:flex;gap:8px"><input id="cartaUrl" value="${url}" readonly style="flex:1"/><button class="btn small secondary" onclick="cartaCopiar()">Copiar</button></div>
         </div></div>`;
       view(panel("Carta con QR",cuerpo)
+        +`<div class="panel" id="cartaMenuPanel" style="margin-top:18px">${cartaMenuPanel()}</div>`
         +`<div class="panel" id="cartaTemaPanel" style="margin-top:18px">${cartaTemaPanel()}</div>`
         +`<div class="panel" id="cartaFichaPanel" style="margin-top:18px">${cartaFichaPanel()}</div>`
         +`<div class="panel" id="cartaTradPanel" style="margin-top:18px">${cartaTradPanel()}</div>`);
+    }
+    // ---- Menú del día ----
+    function menuATexto(m){
+      return (m.secciones||[]).map(s=>{
+        const platos=(s.platos||[]).map(p=>"- "+p).join("\n");
+        return (s.titulo||"")+"\n"+platos;
+      }).join("\n\n").trim();
+    }
+    function textoASecciones(txt){
+      const secciones=[]; let actual=null;
+      (txt||"").split(/\r?\n/).forEach(linea=>{
+        const t=linea.trim(); if(!t) return;
+        const m=t.match(/^[-*•]\s*(.+)$/);
+        if(m){ if(!actual){ actual={titulo:"Menú",platos:[]}; secciones.push(actual); } actual.platos.push(m[1].trim()); }
+        else { actual={titulo:t,platos:[]}; secciones.push(actual); }
+      });
+      return secciones.filter(s=>s.platos.length);
+    }
+    function cartaMenuPanel(){
+      const m=cartaMenu||{};
+      const on=!!m.activo;
+      return `<div class="panel-head"><h2>Menú del día</h2>
+        <label style="display:flex;align-items:center;gap:7px;font-weight:600;font-size:13px;cursor:pointer"><input type="checkbox" id="menuActivo" ${on?"checked":""} style="width:auto"/> Mostrar en la carta</label></div>
+        <div style="padding:8px 20px 18px">
+        <p class="muted" style="font-size:12.5px;margin:0 0 12px">El menú del día sale <strong>arriba del todo</strong> en la carta del cliente. Escribe cada sección en una línea (Primeros, Segundos, Postres…) y debajo los platos empezando por «- ». Actualízalo cada día.</p>
+        <div class="grid2">
+          <div><label>Precio del menú (€)</label><input id="menuPrecio" type="number" step="0.05" min="0" value="${m.precio||""}"/></div>
+          <div><label>Qué incluye (opcional)</label><input id="menuIncluye" placeholder="Pan, bebida y postre o café" value="${esc(m.incluye||"")}"/></div>
+        </div>
+        <label style="margin-top:12px">Platos</label>
+        <textarea id="menuPlatos" rows="12" style="width:100%;font-family:inherit;font-size:13.5px;line-height:1.5" placeholder="Primeros&#10;- Ensalada mixta&#10;- Lentejas estofadas&#10;- Sopa de picadillo&#10;&#10;Segundos&#10;- Merluza a la plancha&#10;- Pollo asado&#10;&#10;Postres&#10;- Flan de la casa&#10;- Fruta del tiempo&#10;- Café">${esc(menuATexto(m))}</textarea>
+        <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn small" onclick="cartaGuardarMenu()">Guardar menú del día</button>
+          <a class="btn small ghost" href="${cartaUrlPublica()}" target="_blank">Ver carta</a>
+        </div></div>`;
+    }
+    async function cartaGuardarMenu(){
+      const precio=parseFloat((document.getElementById("menuPrecio").value||"0").replace(",","."))||0;
+      const activo=document.getElementById("menuActivo").checked;
+      const incluye=(document.getElementById("menuIncluye").value||"").trim()||null;
+      const secciones=textoASecciones(document.getElementById("menuPlatos").value);
+      try{
+        const r=await api("/carta/menu-dia",{method:"PUT",body:JSON.stringify({precio,activo,incluye,secciones})});
+        cartaMenu=r||cartaMenu; toast("Menú del día guardado","ok");
+        const pnl=document.getElementById("cartaMenuPanel"); if(pnl) pnl.innerHTML=cartaMenuPanel();
+      }catch(e){ toast(e.message,"err"); }
     }
     function cartaTemaPanel(){
       const sw=TEMAS_CARTA.map(tm=>{

@@ -126,6 +126,18 @@ public static class EndpointsHosteleria
             .RequierePermiso(Permisos.HosteleriaGestionar)
             .RequierePlanPro();
 
+        var menuDia = rutas.MapGroup("/carta/menu-dia").WithTags("Autopedido");
+
+        menuDia.MapGet("", ObtenerMenuDiaAsync)
+            .WithSummary("Obtiene el menú del día del local (precio, qué incluye y platos por secciones).")
+            .RequireAuthorization()
+            .RequierePlanPro();
+
+        menuDia.MapPut("", GuardarMenuDiaAsync)
+            .WithSummary("Fija el menú del día del local (se muestra en la carta del cliente si está activo).")
+            .RequierePermiso(Permisos.HosteleriaGestionar)
+            .RequierePlanPro();
+
         var comandas = rutas.MapGroup("/comandas").WithTags("Comandas");
 
         comandas.MapGet("", ListarComandasAsync)
@@ -396,6 +408,26 @@ public static class EndpointsHosteleria
     }
 
     private static async Task<IResult> GuardarConfiguracionCartaAsync(DatosConfiguracionCarta datos, IContextoEmpresa contexto, GuardarConfiguracionCarta caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return (await caso.EjecutarAsync(contexto.EmpresaId.Value, datos, ct).ConfigureAwait(false)).AOk();
+    }
+
+    private static async Task<IResult> ObtenerMenuDiaAsync(IContextoEmpresa contexto, ObtenerMenuDia caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> GuardarMenuDiaAsync(DatosMenuDia datos, IContextoEmpresa contexto, GuardarMenuDia caso, CancellationToken ct)
     {
         if (contexto.EmpresaId is null)
         {

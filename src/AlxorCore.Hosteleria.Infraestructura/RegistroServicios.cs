@@ -50,6 +50,7 @@ public static class RegistroServicios
         servicios.AddScoped<RepositorioSuscripcion>();
         servicios.AddScoped<IRepositorioSuscripcion>(sp => sp.GetRequiredService<RepositorioSuscripcion>());
         servicios.AddScoped<IConsultaPlanBar>(sp => sp.GetRequiredService<RepositorioSuscripcion>());
+        servicios.AddScoped<IRepositorioMenuDia, RepositorioMenuDia>();
 
         servicios.AddScoped<CrearMesa>();
         servicios.AddScoped<ActualizarMesa>();
@@ -92,6 +93,10 @@ public static class RegistroServicios
         // Planes / suscripción (Essential vs Pro).
         servicios.AddScoped<ObtenerSuscripcion>();
         servicios.AddScoped<CambiarPlanBar>();
+
+        // Menú del día.
+        servicios.AddScoped<ObtenerMenuDia>();
+        servicios.AddScoped<GuardarMenuDia>();
 
         return servicios;
     }

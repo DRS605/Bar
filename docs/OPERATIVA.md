@@ -13,6 +13,7 @@ por terminal, alta gratis. Hardware para el bar: **0 €** (usan sus móviles/ta
 | Cierre de caja e informes | ✅ | ✅ |
 | Comandas a cocina / barra | — | ✅ |
 | **Carta QR con autopedido** (multiidioma, fotos, alérgenos) | — | ✅ |
+| **Menú del día** online (primeros/segundos/postres, actualizable a diario) | — | ✅ |
 | Pedidos del cliente desde su móvil | — | ✅ |
 | Reservas (aforo, recordatorios, calendario) | — | ✅ |
 

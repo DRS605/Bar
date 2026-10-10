@@ -36,6 +36,8 @@ public sealed class HosteleriaDbContext : DbContextEmpresaBase, IUnidadDeTrabajo
 
     public DbSet<SuscripcionBar> Suscripciones => Set<SuscripcionBar>();
 
+    public DbSet<MenuDia> MenusDia => Set<MenuDia>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Esquema);
@@ -408,6 +410,50 @@ internal sealed class SuscripcionConfig : IEntityTypeConfiguration<SuscripcionBa
         builder.HasIndex(s => s.EmpresaId).IsUnique().HasDatabaseName("ux_suscripcion_empresa");
         builder.Ignore(s => s.EventosDominio);
     }
+}
+
+internal sealed class MenuDiaConfig : IEntityTypeConfiguration<MenuDia>
+{
+    public void Configure(EntityTypeBuilder<MenuDia> builder)
+    {
+        builder.ToTable("menu_dia");
+        builder.HasKey(m => m.Id);
+        builder.Property(m => m.Id).HasColumnName("id");
+        builder.Property(m => m.EmpresaId).HasColumnName("empresa_id").IsRequired();
+        builder.Property(m => m.Precio).HasColumnName("precio").HasColumnType("numeric(14,2)").IsRequired();
+        builder.Property(m => m.Activo).HasColumnName("activo").IsRequired();
+        builder.Property(m => m.Incluye).HasColumnName("incluye").HasMaxLength(MenuDia.LongitudMaximaIncluye);
+        builder.Property(m => m.ActualizadaEn).HasColumnName("actualizada_en").IsRequired();
+
+        builder.HasIndex(m => m.EmpresaId).IsUnique().HasDatabaseName("ux_menu_dia_empresa");
+        builder.Ignore(m => m.EventosDominio);
+
+        builder.OwnsMany(m => m.Platos, plato =>
+        {
+            plato.ToTable("menu_dia_plato");
+            plato.WithOwner().HasForeignKey("MenuDiaId");
+            plato.HasKey(p => p.Id);
+            plato.Property(p => p.Id).HasColumnName("id").ValueGeneratedNever();
+            plato.Property(p => p.MenuDiaId).HasColumnName("menu_dia_id").IsRequired();
+            plato.Property(p => p.EmpresaId).HasColumnName("empresa_id").IsRequired();
+            plato.Property(p => p.Seccion).HasColumnName("seccion").HasMaxLength(PlatoMenu.LongitudMaximaSeccion).IsRequired();
+            plato.Property(p => p.Nombre).HasColumnName("nombre").HasMaxLength(PlatoMenu.LongitudMaximaNombre).IsRequired();
+            plato.Property(p => p.Orden).HasColumnName("orden").IsRequired();
+            plato.HasIndex("MenuDiaId").HasDatabaseName("ix_menu_dia_plato_menu");
+        });
+    }
+}
+
+internal sealed class RepositorioMenuDia : IRepositorioMenuDia
+{
+    private readonly HosteleriaDbContext _contexto;
+
+    public RepositorioMenuDia(HosteleriaDbContext contexto) => _contexto = contexto;
+
+    public Task<MenuDia?> ObtenerAsync(Guid empresaId, CancellationToken ct = default) =>
+        _contexto.MenusDia.SingleOrDefaultAsync(m => m.EmpresaId == empresaId, ct);
+
+    public void Agregar(MenuDia menu) => _contexto.MenusDia.Add(menu);
 }
 
 internal sealed class RepositorioSuscripcion : IRepositorioSuscripcion, IConsultaPlanBar

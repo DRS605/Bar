@@ -253,3 +253,46 @@ public interface IConsultaPlanBar
 {
     Task<PlanBar> ObtenerPlanAsync(Guid empresaId, CancellationToken ct = default);
 }
+
+// ---------------------------------------------------------------------------
+// Menú del día: precio cerrado, qué incluye y platos por secciones.
+// ---------------------------------------------------------------------------
+
+/// <summary>Una sección del menú del día (p. ej. «Primeros») con sus platos.</summary>
+public sealed record MenuDiaSeccionDto(string Titulo, IReadOnlyList<string> Platos);
+
+/// <summary>Vista del menú del día de un local.</summary>
+public sealed record MenuDiaDto(decimal Precio, bool Activo, string? Incluye, IReadOnlyList<MenuDiaSeccionDto> Secciones)
+{
+    public static readonly MenuDiaDto Vacio = new(0m, false, null, Array.Empty<MenuDiaSeccionDto>());
+
+    public static MenuDiaDto Desde(MenuDia menu)
+    {
+        ArgumentNullException.ThrowIfNull(menu);
+
+        // Agrupamos los platos por sección conservando el orden en que los puso el bar.
+        var secciones = new List<MenuDiaSeccionDto>();
+        var indice = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var plato in menu.Platos.OrderBy(p => p.Orden))
+        {
+            if (!indice.TryGetValue(plato.Seccion, out var pos))
+            {
+                pos = secciones.Count;
+                indice[plato.Seccion] = pos;
+                secciones.Add(new MenuDiaSeccionDto(plato.Seccion, new List<string>()));
+            }
+
+            ((List<string>)secciones[pos].Platos).Add(plato.Nombre);
+        }
+
+        return new MenuDiaDto(menu.Precio, menu.Activo, menu.Incluye, secciones);
+    }
+}
+
+/// <summary>Repositorio/consulta del menú del día de la empresa.</summary>
+public interface IRepositorioMenuDia
+{
+    Task<MenuDia?> ObtenerAsync(Guid empresaId, CancellationToken ct = default);
+
+    void Agregar(MenuDia menu);
+}
