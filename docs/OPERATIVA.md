@@ -7,20 +7,25 @@ por terminal, alta gratis. Hardware para el bar: **0 €** (usan sus móviles/ta
 
 | | **Essential — 12,95 €/mes** | **Pro — 29,95 €/mes** |
 |---|---|---|
-| Catálogo y carta | ✅ | ✅ |
-| Mesas y comandas | ✅ | ✅ |
-| Cobro con ticket (IVA incluido) | ✅ | ✅ |
-| Cierre de caja e informes | ✅ | ✅ |
-| Comandas a cocina / barra | — | ✅ |
+| Catálogo, mesas y comandas | ✅ | ✅ |
+| **Formatos (media/ración) y extras** con suplemento | ✅ | ✅ |
+| **Promociones y happy hour** (por producto/categoría y franja horaria) | ✅ | ✅ |
+| Cobro con ticket (IVA incluido), **propinas y pago mixto** | ✅ | ✅ |
+| **Cierre de caja con arqueo** (fondo, movimientos) y **ventas por camarero** | ✅ | ✅ |
+| Informes y libros de IVA | ✅ | ✅ |
+| Comandas a cocina y **pantalla de cocina (KDS) por zonas** | — | ✅ |
 | **Carta QR con autopedido** (multiidioma, fotos, alérgenos) | — | ✅ |
-| **Menú del día** online (primeros/segundos/postres, actualizable a diario) | — | ✅ |
+| **Menú del día** online y **pedirlo desde el QR** | — | ✅ |
 | Pedidos del cliente desde su móvil | — | ✅ |
-| Reservas (aforo, recordatorios, calendario) | — | ✅ |
+| Reservas (aforo, recordatorios, calendario) y **reserva online** | — | ✅ |
 
-- **Essential** es el gancho de entrada: «convierte tu móvil en caja registradora». Para el bar que
-  solo quiere **sacar tickets** y llevar la caja.
-- **Pro** añade la capa digital de cara al cliente (carta QR con autopedido estilo Qamarero),
-  las comandas a cocina y las reservas.
+- **Essential** es el gancho de entrada: «convierte tu móvil en caja registradora», pero ya con
+  formatos/extras, promociones, propinas, pago mixto y un cierre de caja de verdad (arqueo y
+  ventas por camarero).
+- **Pro** añade la capa digital de cara al cliente (carta QR con autopedido estilo Qamarero, menú del
+  día y reserva online), las comandas a cocina y la **pantalla de cocina (KDS)**.
+- Instalable como app (PWA) y con **modo offline básico**: abre sin conexión; la caja necesita
+  internet para cobrar y sincronizar.
 - El plan se ve y se cambia en **Ajustes → Tu plan** dentro de la app. Técnicamente es el campo
   `plan` de la suscripción del local (por defecto **Pro**, para no capar a los locales ya existentes).
 - El cobro de la cuota se factura por fuera (Stripe/recibo/transferencia); el plan de la app controla
@@ -82,6 +87,9 @@ desarrollo futuro, cuando varios clientes lo pidan.
 ## Qué necesita el bar (para el argumentario de venta)
 - **Nada de hardware nuevo:** móvil/tablet que ya tienen. (Opcional: tablet Android de ~60–100 €.)
 - **Nada que instalar:** es web; se «añade a la pantalla de inicio» como una app.
-- **Alta gratis**, **sin permanencia**, **sin cobro por terminal**. Dos planes: **Essential** (caja y
-  tickets) por **12,95 €/mes** y **Pro** (añade carta QR con autopedido, comandas a cocina y reservas)
-  por **29,95 €/mes**.
+- **Alta gratis**, **sin permanencia**, **sin cobro por terminal**. Dos planes: **Essential** (caja,
+  tickets, formatos/extras, promociones, propinas y arqueo) por **12,95 €/mes** y **Pro** (añade carta
+  QR con autopedido, menú del día, reserva online, comandas a cocina y pantalla de cocina) por
+  **29,95 €/mes**.
+- **Pantalla de cocina (KDS):** una tablet en la cocina (`…/cocina.html`) ve los platos por zonas y los
+  marca como servidos; no hace falta aparato nuevo.
