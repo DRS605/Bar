@@ -226,14 +226,16 @@ public sealed class AgregarLineaComanda
     private readonly IRepositorioComandas _comandas;
     private readonly IConsultaProductos _productos;
     private readonly IRepositorioGruposOpcion _opciones;
+    private readonly IRepositorioPromociones _promociones;
     private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
     private readonly IReloj _reloj;
 
-    public AgregarLineaComanda(IRepositorioComandas comandas, IConsultaProductos productos, IRepositorioGruposOpcion opciones, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    public AgregarLineaComanda(IRepositorioComandas comandas, IConsultaProductos productos, IRepositorioGruposOpcion opciones, IRepositorioPromociones promociones, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
     {
         _comandas = comandas;
         _productos = productos;
         _opciones = opciones;
+        _promociones = promociones;
         _unidadDeTrabajo = unidadDeTrabajo;
         _reloj = reloj;
     }
@@ -271,6 +273,15 @@ public sealed class AgregarLineaComanda
             {
                 descripcion = $"{producto.Nombre} ({resuelto.Texto})";
             }
+        }
+
+        // Promociones (descuentos por producto/categoría y happy hour): se aplican solas al precio.
+        var promos = await _promociones.ListarPorEmpresaAsync(comanda.EmpresaId, ct).ConfigureAwait(false);
+        var pct = PromocionesAplicables.MejorDescuento(promos, producto.Categoria, producto.Id, _reloj.AhoraUtc);
+        if (pct > 0m)
+        {
+            precio = Math.Round(precio * (1m - pct / 100m), 2, MidpointRounding.AwayFromZero);
+            descripcion = $"{descripcion} (-{pct:0.##}%)";
         }
 
         var linea = comanda.AgregarLinea(producto.Id, descripcion, datos.Cantidad, precio, producto.CodigoIva, producto.PorcentajeIva, _reloj);

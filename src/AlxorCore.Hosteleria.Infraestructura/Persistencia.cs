@@ -44,6 +44,8 @@ public sealed class HosteleriaDbContext : DbContextEmpresaBase, IUnidadDeTrabajo
 
     public DbSet<ZonaProducto> ZonasProducto => Set<ZonaProducto>();
 
+    public DbSet<Promocion> Promociones => Set<Promocion>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Esquema);
@@ -477,6 +479,47 @@ internal sealed class SuscripcionConfig : IEntityTypeConfiguration<SuscripcionBa
         builder.HasIndex(s => s.EmpresaId).IsUnique().HasDatabaseName("ux_suscripcion_empresa");
         builder.Ignore(s => s.EventosDominio);
     }
+}
+
+internal sealed class PromocionConfig : IEntityTypeConfiguration<Promocion>
+{
+    public void Configure(EntityTypeBuilder<Promocion> builder)
+    {
+        builder.ToTable("promocion");
+        builder.HasKey(p => p.Id);
+        builder.Property(p => p.Id).HasColumnName("id");
+        builder.Property(p => p.EmpresaId).HasColumnName("empresa_id").IsRequired();
+        builder.Property(p => p.Nombre).HasColumnName("nombre").HasMaxLength(Promocion.LongitudMaximaNombre).IsRequired();
+        builder.Property(p => p.Porcentaje).HasColumnName("porcentaje").HasColumnType("numeric(5,2)").IsRequired();
+        builder.Property(p => p.Ambito).HasColumnName("ambito").HasMaxLength(20).HasConversion<string>().IsRequired();
+        builder.Property(p => p.Categoria).HasColumnName("categoria").HasMaxLength(60);
+        builder.Property(p => p.ProductoId).HasColumnName("producto_id");
+        builder.Property(p => p.Dias).HasColumnName("dias").HasMaxLength(20);
+        builder.Property(p => p.HoraInicio).HasColumnName("hora_inicio");
+        builder.Property(p => p.HoraFin).HasColumnName("hora_fin");
+        builder.Property(p => p.Activa).HasColumnName("activa").IsRequired();
+        builder.Property(p => p.CreadaEn).HasColumnName("creada_en").IsRequired();
+
+        builder.HasIndex(p => p.EmpresaId).HasDatabaseName("ix_promocion_empresa");
+        builder.Ignore(p => p.EventosDominio);
+    }
+}
+
+internal sealed class RepositorioPromociones : IRepositorioPromociones
+{
+    private readonly HosteleriaDbContext _contexto;
+
+    public RepositorioPromociones(HosteleriaDbContext contexto) => _contexto = contexto;
+
+    public Task<Promocion?> ObtenerPorIdAsync(Guid id, CancellationToken ct = default) =>
+        _contexto.Promociones.SingleOrDefaultAsync(p => p.Id == id, ct);
+
+    public async Task<IReadOnlyList<Promocion>> ListarPorEmpresaAsync(Guid empresaId, CancellationToken ct = default) =>
+        await _contexto.Promociones.Where(p => p.EmpresaId == empresaId).ToListAsync(ct).ConfigureAwait(false);
+
+    public void Agregar(Promocion promocion) => _contexto.Promociones.Add(promocion);
+
+    public void Quitar(Promocion promocion) => _contexto.Promociones.Remove(promocion);
 }
 
 internal sealed class ZonaProductoConfig : IEntityTypeConfiguration<ZonaProducto>

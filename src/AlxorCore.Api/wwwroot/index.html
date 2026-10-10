@@ -413,6 +413,7 @@
     ICON.reservas = '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4M8 14h4"/></svg>';
     ICON.sala = '<svg viewBox="0 0 24 24"><path d="M6 3v7a2 2 0 0 0 2 2v9M6 3v4M9 3v4M17.5 3C16 3 15 5 15 8s1 4 2.5 4v9"/></svg>';
     ICON.cartaqr = '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 14v7M14 18v3M18 21h3"/></svg>';
+    ICON.promociones = '<svg viewBox="0 0 24 24"><path d="M9 7h.01M7 3h5a2 2 0 0 1 1.4.6l7 7a2 2 0 0 1 0 2.8l-5.6 5.6a2 2 0 0 1-2.8 0l-7-7A2 2 0 0 1 4 10.5V5a2 2 0 0 1 2-2z"/></svg>';
 
     // Menú centrado en el bar: Sala, Ventas (tickets), Compras y Artículos.
     const NAV = [
@@ -424,7 +425,7 @@
       { t:"item", k:"informes", l:"Informes" },
       { t:"item", k:"ajustes", l:"Ajustes" },
     ];
-    const TITULOS = { inicio:"Inicio", presupuestos:"Presupuestos", facturas:"Facturas", tpv:"TPV · Tickets", recurrentes:"Facturación periódica", clientes:"Clientes", cobros:"Cobros", remesas:"Remesas SEPA", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", conciliacion:"Conciliación bancaria", productos:"Artículos", hosteleria:"Barra / Salón", plano:"Plano del local", reservas:"Reservas", cartaqr:"Carta con QR", informes:"Informes", ajustes:"Ajustes" };
+    const TITULOS = { inicio:"Inicio", presupuestos:"Presupuestos", facturas:"Facturas", tpv:"TPV · Tickets", recurrentes:"Facturación periódica", clientes:"Clientes", cobros:"Cobros", remesas:"Remesas SEPA", gastos:"Gastos", proveedores:"Proveedores", pagos:"Pagos", conciliacion:"Conciliación bancaria", productos:"Artículos", promociones:"Promociones", hosteleria:"Barra / Salón", plano:"Plano del local", reservas:"Reservas", cartaqr:"Carta con QR", informes:"Informes", ajustes:"Ajustes" };
     function renderNav() {
       return NAV.map(n => {
         if (n.t === "item") return `<a class="navitem" data-k="${n.k}" onclick="ir('${n.k}')">${ICON[n.k]}<span>${n.l}</span></a>`;
@@ -563,7 +564,7 @@
       if(k==="inicio"){ if(back)back.style.display="none"; if(title)title.textContent=""; }
       else { if(back)back.style.display=""; if(title)title.textContent=TITULOS[k]||k; }
       window.scrollTo(0,0);
-      ({inicio:vInicio,presupuestos:vPresupuestos,facturas:vFacturas,tpv:vTpv,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,hosteleria:vHosteleria,plano:vPlano,reservas:vReservas,cartaqr:vCartaQr,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,remesas:vRemesa,pagos:vPagos,conciliacion:vConciliacion,informes:vInformes,ajustes:vAjustes}[k])();
+      ({inicio:vInicio,presupuestos:vPresupuestos,facturas:vFacturas,tpv:vTpv,recurrentes:vRecurrentes,clientes:vClientes,productos:vProductos,promociones:vPromos,hosteleria:vHosteleria,plano:vPlano,reservas:vReservas,cartaqr:vCartaQr,gastos:vGastos,proveedores:vProveedores,cobros:vCobros,remesas:vRemesa,pagos:vPagos,conciliacion:vConciliacion,informes:vInformes,ajustes:vAjustes}[k])();
     }
     const view = h => document.getElementById("view").innerHTML=h;
     const panel = (t,c,a="") => `<div class="panel">${(t||a)?`<div class="panel-head">${t?`<h2>${t}</h2>`:'<span></span>'}${a}</div>`:''}${c}</div>`;
@@ -620,7 +621,7 @@
         grupo("Sala", tile("hosteleria","Barra / Salón",`${ocup} de ${mesas.length} mesas ocupadas`)+tile("plano","Plano del local","Croquis y zonas")+tilePro("reservas","Reservas",esPro()?`${resHoy} para hoy`:"Agenda y aforo")+tilePro("cartaqr","Carta con QR","Menú y autopedido"))+
         grupo("Ventas", tile("tpv","TPV · Tickets","Cobrar en la barra",true)+tile("clientes","Clientes","Habituales y datos"))+
         grupo("Compras", tile("gastos","Gastos","Compras y tickets de proveedor")+tile("proveedores","Proveedores","Tu agenda")+tile("pagos","Pagos","Pagos a proveedores"))+
-        grupo("Catálogo y datos", tile("productos","Artículos","Carta y stock")+tile("informes","Informes","Ventas y libros")+tile("ajustes","Ajustes","Empresa y usuarios"));
+        grupo("Catálogo y datos", tile("productos","Artículos","Carta y stock")+tile("promociones","Promociones","Descuentos y happy hour")+tile("informes","Informes","Ventas y libros")+tile("ajustes","Ajustes","Empresa y usuarios"));
       view(greet+(onboarding?onb:kpis+bannerMes(vMes,vPrev))+menu);
     }
     async function onbCargarEjemplo(){
@@ -2253,6 +2254,50 @@
         <textarea id="opTxt" rows="12" style="width:100%;font-family:inherit;font-size:13.5px;line-height:1.5" placeholder="Tamaño | unica | obligatorio&#10;- Media ración | -3&#10;- Ración | 0&#10;&#10;Extras | multiple&#10;- Extra queso | 1&#10;- Bacon | 1,50">${esc(opcionesATexto(grupos))}</textarea>`,
         async()=>{ await api("/carta/opciones/"+productoId,{method:"PUT",body:JSON.stringify({grupos:textoAOpciones(document.getElementById("opTxt").value)})}); toast("Opciones guardadas","ok"); });
     }
+    // ---- Promociones ----
+    const DIAS_SEM=[["1","L"],["2","M"],["3","X"],["4","J"],["5","V"],["6","S"],["0","D"]];
+    async function vPromos(){
+      view('<div class="muted">Cargando…</div>');
+      let promos=[],prods=[]; try{ [promos,prods]=await Promise.all([api("/promociones"),api("/productos").catch(()=>[])]); }catch(e){ toast(e.message,"err"); return; }
+      _cacheProd=prods;
+      const objetivo=p=> p.ambito==="Categoria"?esc(p.categoria||"—"):p.ambito==="Producto"?esc((prods.find(x=>x.id===p.productoId)||{}).nombre||"producto"):"Toda la carta";
+      const dias=p=>{ if(!p.dias) return "todos los días"; const m={0:"D",1:"L",2:"M",3:"X",4:"J",5:"V",6:"S"}; return p.dias.split(",").map(d=>m[d.trim()]||"").join("·"); };
+      const franja=p=> (p.horaInicio&&p.horaFin)?`${p.horaInicio}–${p.horaFin}`:"todo el día";
+      const filas=promos.map(p=>`<tr style="${p.activa?'':'opacity:.5'}">
+          <td><strong>${esc(p.nombre)}</strong><br><small class="muted">${objetivo(p)} · ${dias(p)} · ${franja(p)}</small></td>
+          <td class="num"><strong style="color:var(--accent)">−${p.porcentaje}%</strong></td>
+          <td class="right" style="white-space:nowrap"><button class="btn small ghost" onclick="promoToggle('${p.id}',${p.activa?'false':'true'})">${p.activa?'Pausar':'Activar'}</button> <button class="btn small ghost" onclick="promoBorrar('${p.id}')">✕</button></td></tr>`).join("")
+        ||`<tr><td colspan="3" class="muted" style="padding:14px">Sin promociones. Crea una (p. ej. «−20% en cervezas» o «Happy hour 18–20h»).</td></tr>`;
+      view(panel("Promociones",
+        `<p class="muted" style="margin:0 0 12px;font-size:13px">Los descuentos se aplican <strong>solos</strong> al añadir el producto a la comanda (coge el mejor que aplique). Útil para menús por categoría o <strong>happy hour</strong> por franja horaria.</p>
+         <table><thead><tr><th>Promoción</th><th class="num">Dto</th><th class="right">Acciones</th></tr></thead><tbody>${filas}</tbody></table>`,
+        `<button class="btn small" onclick="modalPromo()">+ Nueva promoción</button>`));
+    }
+    function modalPromo(){
+      const cats=[...new Set((_cacheProd||[]).map(x=>x.categoria).filter(Boolean))];
+      const prodOpts=(_cacheProd||[]).map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join("");
+      const diasChk=DIAS_SEM.map(([v,l])=>`<label style="display:inline-flex;align-items:center;gap:4px;margin-right:8px;font-weight:500"><input type="checkbox" class="pr_dia" value="${v}" style="width:auto"> ${l}</label>`).join("");
+      abrir("Nueva promoción",
+        `<label>Nombre</label><input id="pr_nombre" placeholder="Ej. Happy hour cervezas"/>
+         <div class="grid2"><div><label>Descuento (%)</label><input id="pr_pct" type="number" min="1" max="100" value="20"/></div>
+           <div><label>Aplicar a</label><select id="pr_amb" onchange="promoAmbito()"><option value="Todo">Toda la carta</option><option value="Categoria">Una categoría</option><option value="Producto">Un producto</option></select></div></div>
+         <div id="pr_cat_box" style="display:none"><label>Categoría</label><input id="pr_cat" list="pr_cat_l"/><datalist id="pr_cat_l">${cats.map(c=>`<option value="${esc(c)}">`).join("")}</datalist></div>
+         <div id="pr_prod_box" style="display:none"><label>Producto</label><select id="pr_prod">${prodOpts}</select></div>
+         <label style="margin-top:10px">Días (vacío = todos)</label><div style="padding:4px 0">${diasChk}</div>
+         <div class="grid2"><div><label>Desde (opcional)</label><input id="pr_h1" type="time"/></div><div><label>Hasta (opcional)</label><input id="pr_h2" type="time"/></div></div>
+         <p class="muted" style="font-size:11.5px;margin-top:8px">La franja horaria usa la hora local de España. Deja las horas vacías para todo el día.</p>`,
+        async()=>{
+          const amb=val("pr_amb");
+          const dias=Array.from(document.querySelectorAll(".pr_dia:checked")).map(c=>c.value).join(",");
+          const body={ nombre:val("pr_nombre"), porcentaje:Number(val("pr_pct")), ambito:amb,
+            categoria:amb==="Categoria"?(val("pr_cat")||null):null,
+            productoId:amb==="Producto"?(val("pr_prod")||null):null,
+            dias:dias||null, horaInicio:val("pr_h1")||null, horaFin:val("pr_h2")||null };
+          await api("/promociones",{method:"POST",body:JSON.stringify(body)}); toast("Promoción creada","ok"); vPromos(); });
+    }
+    function promoAmbito(){ const a=val("pr_amb"); document.getElementById("pr_cat_box").style.display=a==="Categoria"?"block":"none"; document.getElementById("pr_prod_box").style.display=a==="Producto"?"block":"none"; }
+    async function promoToggle(id,activa){ try{ await api("/promociones/"+id+"/activa",{method:"PUT",body:JSON.stringify({activa})}); vPromos(); }catch(e){ toast(e.message,"err"); } }
+    async function promoBorrar(id){ try{ await api("/promociones/"+id,{method:"DELETE"}); toast("Promoción eliminada","ok"); vPromos(); }catch(e){ toast(e.message,"err"); } }
     async function modalStock(id){ const p=_cacheProd.find(x=>x.id===id); const movs=await api(`/productos/${id}/stock`).catch(()=>[]);
       const hist=movs.length?`<table><thead><tr><th>Fecha</th><th>Tipo</th><th class="num">Cantidad</th><th class="num">Stock</th></tr></thead><tbody>${movs.map(m=>`<tr><td class="muted">${new Date(m.fecha).toLocaleDateString("es-ES")}</td><td>${m.tipo}${m.motivo?` <span class="muted">· ${m.motivo}</span>`:''}</td><td class="num">${numCant(m.cantidad)}</td><td class="num">${numCant(m.stockResultante)}</td></tr>`).join("")}</tbody></table>`:'<p class="muted">Sin movimientos todavía.</p>';
       abrir(`Stock · ${p?p.nombre:''}`,`<div style="margin-bottom:6px">Existencias actuales: <strong>${p?numCant(p.stock||0):'—'}</strong></div>

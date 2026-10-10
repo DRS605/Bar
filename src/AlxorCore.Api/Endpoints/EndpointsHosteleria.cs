@@ -184,6 +184,25 @@ public static class EndpointsHosteleria
             .WithSummary("Fija la zona de preparación de un producto.")
             .RequierePermiso(Permisos.HosteleriaGestionar);
 
+        // Promociones (descuentos por producto/categoría y happy hour).
+        var promos = rutas.MapGroup("/promociones").WithTags("Promociones");
+
+        promos.MapGet("", ListarPromocionesAsync)
+            .WithSummary("Lista las promociones del local.")
+            .RequireAuthorization();
+
+        promos.MapPost("", CrearPromocionAsync)
+            .WithSummary("Crea una promoción (descuento por producto, categoría o toda la carta, con días y franja horaria opcionales).")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
+        promos.MapPut("/{id:guid}/activa", CambiarActivaPromocionAsync)
+            .WithSummary("Activa o desactiva una promoción.")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
+        promos.MapDelete("/{id:guid}", EliminarPromocionAsync)
+            .WithSummary("Elimina una promoción.")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
         // Pantalla de cocina (KDS): artículos pendientes de servir.
         var cocina = rutas.MapGroup("/cocina").WithTags("Cocina");
 
@@ -563,6 +582,49 @@ public static class EndpointsHosteleria
         }
 
         return (await caso.EjecutarAsync(contexto.EmpresaId.Value, productoId, datos, ct).ConfigureAwait(false)).ASinContenido();
+    }
+
+    private sealed record ActivaPeticion(bool Activa);
+
+    private static async Task<IResult> ListarPromocionesAsync(IContextoEmpresa contexto, ListarPromociones caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> CrearPromocionAsync(DatosPromocion datos, IContextoEmpresa contexto, CrearPromocion caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        var r = await caso.EjecutarAsync(contexto.EmpresaId.Value, datos, ct).ConfigureAwait(false);
+        return r.EsCorrecto ? r.ACreado("/promociones") : ResultadosHttp.AProblema(r.Error);
+    }
+
+    private static async Task<IResult> CambiarActivaPromocionAsync(Guid id, ActivaPeticion datos, IContextoEmpresa contexto, CambiarActivaPromocion caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return (await caso.EjecutarAsync(contexto.EmpresaId.Value, id, datos.Activa, ct).ConfigureAwait(false)).ASinContenido();
+    }
+
+    private static async Task<IResult> EliminarPromocionAsync(Guid id, IContextoEmpresa contexto, EliminarPromocion caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return (await caso.EjecutarAsync(contexto.EmpresaId.Value, id, ct).ConfigureAwait(false)).ASinContenido();
     }
 
     private static async Task<IResult> ListarZonasAsync(IContextoEmpresa contexto, ObtenerZonasEmpresa caso, CancellationToken ct)

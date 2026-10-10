@@ -55,6 +55,7 @@ public static class RegistroServicios
         servicios.AddScoped<IRepositorioMenuDia, RepositorioMenuDia>();
         servicios.AddScoped<IRepositorioMovimientosCaja, RepositorioMovimientosCaja>();
         servicios.AddScoped<IRepositorioGruposOpcion, RepositorioGruposOpcion>();
+        servicios.AddScoped<IRepositorioPromociones, RepositorioPromociones>();
 
         servicios.AddScoped<CrearMesa>();
         servicios.AddScoped<ActualizarMesa>();
@@ -112,6 +113,12 @@ public static class RegistroServicios
         servicios.AddScoped<ObtenerOpcionesProducto>();
         servicios.AddScoped<ListarOpcionesEmpresa>();
         servicios.AddScoped<GuardarOpcionesProducto>();
+
+        // Promociones.
+        servicios.AddScoped<ListarPromociones>();
+        servicios.AddScoped<CrearPromocion>();
+        servicios.AddScoped<CambiarActivaPromocion>();
+        servicios.AddScoped<EliminarPromocion>();
 
         // Zonas de preparación y pantalla de cocina (KDS).
         servicios.AddScoped<ObtenerZonasEmpresa>();

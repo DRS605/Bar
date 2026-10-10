@@ -148,6 +148,32 @@ public interface IRepositorioGruposOpcion
     void Quitar(GrupoOpcion grupo);
 }
 
+// ---------------------------------------------------------------------------
+// Promociones (descuentos por producto/categoría y happy hour).
+// ---------------------------------------------------------------------------
+
+/// <summary>Una promoción de descuento.</summary>
+public sealed record PromocionDto(
+    Guid Id, string Nombre, decimal Porcentaje, string Ambito, string? Categoria, Guid? ProductoId,
+    string? Dias, string? HoraInicio, string? HoraFin, bool Activa)
+{
+    public static PromocionDto Desde(Promocion p) => new(
+        p.Id, p.Nombre, p.Porcentaje, p.Ambito.ToString(), p.Categoria, p.ProductoId, p.Dias,
+        p.HoraInicio?.ToString("HH:mm"), p.HoraFin?.ToString("HH:mm"), p.Activa);
+}
+
+/// <summary>Repositorio de promociones.</summary>
+public interface IRepositorioPromociones
+{
+    Task<Promocion?> ObtenerPorIdAsync(Guid id, CancellationToken ct = default);
+
+    Task<IReadOnlyList<Promocion>> ListarPorEmpresaAsync(Guid empresaId, CancellationToken ct = default);
+
+    void Agregar(Promocion promocion);
+
+    void Quitar(Promocion promocion);
+}
+
 /// <summary>Repositorio de movimientos de caja.</summary>
 public interface IRepositorioMovimientosCaja
 {
