@@ -1020,12 +1020,18 @@
     async function modalCierreCaja(){
       const hoy=new Date().toISOString().slice(0,10);
       let c; try{ c=await api("/informes/cierre-caja?dia="+hoy); }catch(e){ toast(e.message,"err"); return; }
+      let cam=[]; try{ cam=await api("/comandas/ventas-por-camarero?dia="+hoy); }catch{}
       const filas=(c.cobrosPorMetodo||[]).map(m=>`<div class="cart-tot"><span>${m.metodo} <span class="muted">(${m.numero})</span></span><span>${eur(m.importe)}</span></div>`).join("")||'<p class="muted">Sin cobros hoy.</p>';
+      const camHtml=(cam&&cam.length)?`<div style="margin-top:16px;border-top:1px solid var(--line);padding-top:12px">
+          <strong style="font-size:13px">Ventas por camarero</strong>
+          ${cam.map(v=>`<div class="cart-tot"><span>${esc(v.camarero)} <span class="muted">(${v.comandas})</span></span><span>${eur(v.total)}</span></div>`).join("")}
+        </div>`:"";
       abrir("Cierre de caja · "+new Date().toLocaleDateString("es-ES"),`${filas}
         <div class="cart-tot big" style="margin-top:8px"><span>Cobrado</span><span style="color:var(--pos)">${eur(c.totalCobrado)}</span></div>
         <div class="cart-tot"><span>Pagado (salidas)</span><span style="color:var(--neg)">${eur(c.totalPagado)}</span></div>
         <div class="cart-tot big"><span>Neto en caja</span><span>${eur(c.neto)}</span></div>
-        <p class="muted" style="font-size:12px;margin-top:12px">Cobros del día por método de pago. Úsalo para cuadrar la caja al cerrar.</p>`,()=>{}); }
+        ${camHtml}
+        <p class="muted" style="font-size:12px;margin-top:12px">Cobros del día por método de pago y por camarero. Úsalo para cuadrar la caja al cerrar.</p>`,()=>{}); }
     async function tpvCobrar(){ if(!tpvCart.length){ toast("Añade artículos al ticket.","err"); return; }
       const lineas=tpvCart.map(l=>({descripcion:l.descripcion,cantidad:l.cantidad,precioUnitario:l.precioUnitario,codigoIva:l.codigoIva}));
       try{ const t=await api("/tickets",{method:"POST",body:JSON.stringify({lineas})});
@@ -1208,7 +1214,7 @@
         <div class="scanbar"><input id="hosBuscar" placeholder="Buscar producto… (o escáner)" oninput="hosPintarGrid()" onkeydown="hosBuscarKey(event)" autofocus/></div>
         <div id="hosCats" class="hos-cats"></div>
         <div class="tpv-res" id="hosGrid" style="margin-top:12px"></div></div></div>`;
-      const der=`<div class="panel tpv-cart" style="margin:0"><div class="panel-head"><h2>Comanda</h2><span class="pill part">Mesa</span></div>
+      const der=`<div class="panel tpv-cart" style="margin:0"><div class="panel-head"><h2>Comanda</h2>${c.usuarioNombre?`<span class="pill part" title="Camarero">👤 ${esc(c.usuarioNombre)}</span>`:`<span class="pill part">Mesa</span>`}</div>
         <div style="padding:14px 18px"><div id="hosCart"></div><div id="hosTotal"></div>
         <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
           <button class="btn small ghost" onclick="vHosteleria()">← Volver</button>

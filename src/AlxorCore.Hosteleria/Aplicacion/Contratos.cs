@@ -49,6 +49,7 @@ public sealed record ComandaDto(
     DateTimeOffset AbiertaEn,
     DateTimeOffset? CerradaEn,
     string? Notas,
+    string? UsuarioNombre,
     decimal BaseImponible,
     decimal CuotaIva,
     decimal Total,
@@ -61,11 +62,14 @@ public sealed record ComandaDto(
     IReadOnlyList<LineaComandaDto> Lineas)
 {
     public static ComandaDto Desde(Comanda c) => new(
-        c.Id, c.MesaId, c.Estado.ToString(), c.AbiertaEn, c.CerradaEn, c.Notas,
+        c.Id, c.MesaId, c.Estado.ToString(), c.AbiertaEn, c.CerradaEn, c.Notas, c.UsuarioNombre,
         c.BaseImponible, c.CuotaIva, c.Total, c.MetodoCobro?.ToString(), c.FacturaId, c.NumeroTicket,
         c.TieneCobroParcial, c.TotalPendienteCobro, c.DescuentoPorcentaje,
         c.Lineas.Select(LineaComandaDto.Desde).ToList());
 }
+
+/// <summary>Ventas de un camarero en un día (para el arqueo por persona).</summary>
+public sealed record VentasCamareroDto(Guid? UsuarioId, string Camarero, int Comandas, decimal Total);
 
 /// <summary>Resumen de una comanda para listados.</summary>
 public sealed record ComandaResumen(
@@ -110,6 +114,9 @@ public interface IConsultaComandas
     Task<ComandaDto?> ObtenerAsync(Guid comandaId, CancellationToken ct = default);
 
     Task<IReadOnlyList<ComandaResumen>> ListarAbiertasAsync(Guid empresaId, CancellationToken ct = default);
+
+    /// <summary>Ventas (comandas cobradas) de un día agrupadas por camarero, para el arqueo por persona.</summary>
+    Task<IReadOnlyList<VentasCamareroDto>> VentasPorCamareroAsync(Guid empresaId, DateOnly dia, CancellationToken ct = default);
 }
 
 /// <summary>Unidad de trabajo del módulo Hostelería.</summary>

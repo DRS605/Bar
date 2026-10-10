@@ -69,16 +69,24 @@ public sealed class Comanda : RaizAgregadoEmpresa<Guid>
     {
     }
 
-    private Comanda(Guid id, Guid empresaId, Guid mesaId, string? notas, DateTimeOffset ahora)
+    private Comanda(Guid id, Guid empresaId, Guid mesaId, string? notas, Guid? usuarioId, string? usuarioNombre, DateTimeOffset ahora)
         : base(id, empresaId)
     {
         MesaId = mesaId;
         Notas = notas;
+        UsuarioId = usuarioId;
+        UsuarioNombre = Normalizar(usuarioNombre) is { Length: > 60 } n ? n[..60] : Normalizar(usuarioNombre);
         Estado = EstadoComanda.Abierta;
         AbiertaEn = ahora;
     }
 
     public Guid MesaId { get; private set; }
+
+    /// <summary>Camarero que abrió la comanda (usuario); nulo si no se registró.</summary>
+    public Guid? UsuarioId { get; private set; }
+
+    /// <summary>Nombre del camarero que abrió la comanda (denormalizado para mostrar/informar sin cruzar módulos).</summary>
+    public string? UsuarioNombre { get; private set; }
 
     public EstadoComanda Estado { get; private set; }
 
@@ -114,11 +122,11 @@ public sealed class Comanda : RaizAgregadoEmpresa<Guid>
     /// <summary>Líneas de la comanda (solo lectura; se manipulan con los métodos del agregado).</summary>
     public IReadOnlyList<LineaComanda> Lineas => _lineas.AsReadOnly();
 
-    public static Comanda Abrir(Guid empresaId, Guid mesaId, string? notas, IReloj reloj)
+    public static Comanda Abrir(Guid empresaId, Guid mesaId, string? notas, Guid? usuarioId, string? usuarioNombre, IReloj reloj)
     {
         ArgumentNullException.ThrowIfNull(reloj);
 
-        var comanda = new Comanda(Guid.NewGuid(), empresaId, mesaId, Normalizar(notas), reloj.AhoraUtc);
+        var comanda = new Comanda(Guid.NewGuid(), empresaId, mesaId, Normalizar(notas), usuarioId, usuarioNombre, reloj.AhoraUtc);
         comanda.RegistrarEvento(new ComandaAbierta(comanda.Id, empresaId, mesaId, reloj.AhoraUtc));
         return comanda;
     }

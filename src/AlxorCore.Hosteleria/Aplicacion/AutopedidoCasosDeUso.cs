@@ -185,7 +185,7 @@ public sealed class AceptarPedidoWeb
 
         var comanda = await _comandas.ObtenerAbiertaPorMesaAsync(pedido.MesaId, ct).ConfigureAwait(false);
         var comandaNueva = comanda is null;
-        comanda ??= Comanda.Abrir(empresaId, pedido.MesaId, null, _reloj);
+        comanda ??= Comanda.Abrir(empresaId, pedido.MesaId, null, usuarioId: null, usuarioNombre: null, _reloj);
 
         foreach (var linea in pedido.Lineas)
         {

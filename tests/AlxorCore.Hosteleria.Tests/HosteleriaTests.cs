@@ -77,7 +77,7 @@ public class ComandaTests
     private static readonly Guid Mesa = Guid.NewGuid();
     private static readonly Guid Producto = Guid.NewGuid();
 
-    private static Comanda ComandaAbierta() => Comanda.Abrir(Empresa, Mesa, "sin gluten", Reloj);
+    private static Comanda ComandaAbierta() => Comanda.Abrir(Empresa, Mesa, "sin gluten", null, null, Reloj);
 
     [Fact]
     public void Abrir_registra_evento_y_estado_abierta()
@@ -305,7 +305,7 @@ public class ComandaTests
     {
         var destino = ComandaAbierta();
         destino.AgregarLinea(Producto, "Caña", 2m, 1.50m, "IVA10", 10m, Reloj);
-        var origen = Comanda.Abrir(Empresa, Guid.NewGuid(), null, Reloj);
+        var origen = Comanda.Abrir(Empresa, Guid.NewGuid(), null, null, null, Reloj);
         origen.AgregarLinea(Producto, "Caña", 1m, 1.50m, "IVA10", 10m, Reloj); // mismo producto/precio: acumula
         var tapaProducto = Guid.NewGuid();
         origen.AgregarLinea(tapaProducto, "Tapa", 1m, 4.00m, "IVA10", 10m, Reloj);
@@ -326,7 +326,7 @@ public class ComandaTests
     {
         var destino = ComandaAbierta();
         destino.AgregarLinea(Producto, "Caña", 1m, 1.50m, "IVA10", 10m, Reloj);
-        var origen = Comanda.Abrir(Empresa, Guid.NewGuid(), null, Reloj);
+        var origen = Comanda.Abrir(Empresa, Guid.NewGuid(), null, null, null, Reloj);
         var linea = origen.AgregarLinea(Producto, "Caña", 2m, 1.50m, "IVA10", 10m, Reloj).Valor;
         origen.AplicarCobroParcial([new ItemCobroParcial(linea.Id, 1m)], Guid.NewGuid(), "T2026/000001", MetodoCobro.Efectivo, Reloj);
 

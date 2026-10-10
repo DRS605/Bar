@@ -90,6 +90,8 @@ internal sealed class ConfiguracionComanda : IEntityTypeConfiguration<Comanda>
         builder.Property(c => c.MetodoCobro).HasColumnName("metodo_cobro").HasMaxLength(20).HasConversion<string>();
         builder.Property(c => c.FacturaId).HasColumnName("factura_id");
         builder.Property(c => c.NumeroTicket).HasColumnName("numero_ticket").HasMaxLength(30);
+        builder.Property(c => c.UsuarioId).HasColumnName("usuario_id");
+        builder.Property(c => c.UsuarioNombre).HasColumnName("usuario_nombre").HasMaxLength(60);
 
         builder.HasIndex(c => new { c.EmpresaId, c.Estado, c.MesaId }).HasDatabaseName("ix_comanda_empresa_estado_mesa");
         builder.Ignore(c => c.EventosDominio);
@@ -206,6 +208,24 @@ internal sealed class RepositorioComandas : IRepositorioComandas, IConsultaComan
             select new ComandaResumen(c.Id, c.MesaId, m != null ? m.Nombre : string.Empty, c.Estado.ToString(), c.AbiertaEn, c.Lineas.Count, c.Total);
 
         return await consulta.ToListAsync(ct).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<VentasCamareroDto>> VentasPorCamareroAsync(Guid empresaId, DateOnly dia, CancellationToken ct = default)
+    {
+        var desde = new DateTimeOffset(dia.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+        var hasta = desde.AddDays(1);
+
+        var filas = await _contexto.Comandas
+            .Where(c => c.EmpresaId == empresaId && c.Estado == EstadoComanda.Cobrada
+                && c.CerradaEn >= desde && c.CerradaEn < hasta)
+            .GroupBy(c => new { c.UsuarioId, c.UsuarioNombre })
+            .Select(g => new { g.Key.UsuarioId, g.Key.UsuarioNombre, Comandas = g.Count(), Total = g.Sum(x => x.Total) })
+            .ToListAsync(ct).ConfigureAwait(false);
+
+        return filas
+            .Select(f => new VentasCamareroDto(f.UsuarioId, string.IsNullOrWhiteSpace(f.UsuarioNombre) ? "Sin asignar" : f.UsuarioNombre!, f.Comandas, f.Total))
+            .OrderByDescending(f => f.Total)
+            .ToList();
     }
 }
 

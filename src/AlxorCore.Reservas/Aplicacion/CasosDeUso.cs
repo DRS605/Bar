@@ -271,7 +271,7 @@ public sealed class SentarReserva
         Guid? comandaId = null;
         if (reserva.MesaId is not null)
         {
-            var comanda = await _abrirComanda.EjecutarAsync(empresaId, new DatosAbrirComanda(reserva.MesaId.Value, reserva.Notas), ct).ConfigureAwait(false);
+            var comanda = await _abrirComanda.EjecutarAsync(empresaId, new DatosAbrirComanda(reserva.MesaId.Value, reserva.Notas), ct: ct).ConfigureAwait(false);
             if (comanda.EsFallo)
             {
                 return Resultado.Fallo<ReservaDto>(comanda.Error);

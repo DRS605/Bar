@@ -192,7 +192,7 @@ public sealed class AbrirComanda
         _reloj = reloj;
     }
 
-    public async Task<Resultado<ComandaDto>> EjecutarAsync(Guid empresaId, DatosAbrirComanda datos, CancellationToken ct = default)
+    public async Task<Resultado<ComandaDto>> EjecutarAsync(Guid empresaId, DatosAbrirComanda datos, Guid? usuarioId = null, string? usuarioNombre = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(datos);
 
@@ -213,7 +213,7 @@ public sealed class AbrirComanda
             return Resultado.Fallo<ComandaDto>(Error.Conflicto("mesa.ocupada", "La mesa ya tiene una comanda abierta."));
         }
 
-        var comanda = Comanda.Abrir(empresaId, datos.MesaId, datos.Notas, _reloj);
+        var comanda = Comanda.Abrir(empresaId, datos.MesaId, datos.Notas, usuarioId, usuarioNombre, _reloj);
         _comandas.Agregar(comanda);
         await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
         return Resultado.Ok(ComandaDto.Desde(comanda));
@@ -759,4 +759,20 @@ public sealed class CobrarComandaParcial
             ticket.Valor.Id, ticket.Valor.NumeroCompleto, ticket.Valor.Total,
             comanda.Estado == EstadoComanda.Cobrada, ComandaDto.Desde(comanda)));
     }
+}
+
+/// <summary>Caso de uso: ventas (comandas cobradas) de un día agrupadas por camarero.</summary>
+public sealed class VentasPorCamarero
+{
+    private readonly IConsultaComandas _comandas;
+    private readonly IReloj _reloj;
+
+    public VentasPorCamarero(IConsultaComandas comandas, IReloj reloj)
+    {
+        _comandas = comandas;
+        _reloj = reloj;
+    }
+
+    public Task<IReadOnlyList<VentasCamareroDto>> EjecutarAsync(Guid empresaId, DateOnly? dia = null, CancellationToken ct = default) =>
+        _comandas.VentasPorCamareroAsync(empresaId, dia ?? DateOnly.FromDateTime(_reloj.AhoraUtc.UtcDateTime), ct);
 }

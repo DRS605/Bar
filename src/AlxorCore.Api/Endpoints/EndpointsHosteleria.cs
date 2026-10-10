@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using AlxorCore.Api.Comun;
 using AlxorCore.Documentos.Aplicacion;
 using AlxorCore.Hosteleria.Aplicacion;
@@ -142,6 +143,10 @@ public static class EndpointsHosteleria
 
         comandas.MapGet("", ListarComandasAsync)
             .WithSummary("Lista las comandas abiertas de la empresa activa.")
+            .RequireAuthorization();
+
+        comandas.MapGet("/ventas-por-camarero", VentasPorCamareroAsync)
+            .WithSummary("Ventas (comandas cobradas) de un día agrupadas por camarero, para el arqueo por persona.")
             .RequireAuthorization();
 
         comandas.MapGet("/{id:guid}", ObtenerComandaAsync)
@@ -450,15 +455,35 @@ public static class EndpointsHosteleria
     private static async Task<IResult> ObtenerComandaAsync(Guid id, ObtenerComanda caso, CancellationToken ct) =>
         (await caso.EjecutarAsync(id, ct).ConfigureAwait(false)).AOk();
 
-    private static async Task<IResult> AbrirComandaAsync(DatosAbrirComanda datos, IContextoEmpresa contexto, AbrirComanda caso, CancellationToken ct)
+    private static async Task<IResult> AbrirComandaAsync(DatosAbrirComanda datos, IContextoEmpresa contexto, ClaimsPrincipal usuario, AbrirComanda caso, CancellationToken ct)
     {
         if (contexto.EmpresaId is null)
         {
             return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
         }
 
-        var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, datos, ct).ConfigureAwait(false);
+        var (usuarioId, usuarioNombre) = CamareroActual(usuario);
+        var resultado = await caso.EjecutarAsync(contexto.EmpresaId.Value, datos, usuarioId, usuarioNombre, ct).ConfigureAwait(false);
         return resultado.EsCorrecto ? resultado.ACreado($"/comandas/{resultado.Valor.Id}") : ResultadosHttp.AProblema(resultado.Error);
+    }
+
+    /// <summary>Extrae el usuario (camarero) y su nombre del token, para atribuir la comanda.</summary>
+    private static (Guid? Id, string? Nombre) CamareroActual(ClaimsPrincipal usuario)
+    {
+        var sub = usuario.FindFirstValue(ClaimTypes.NameIdentifier) ?? usuario.FindFirstValue("sub");
+        var id = Guid.TryParse(sub, out var g) ? g : (Guid?)null;
+        var nombre = usuario.FindFirstValue("nombre");
+        return (id, string.IsNullOrWhiteSpace(nombre) ? null : nombre);
+    }
+
+    private static async Task<IResult> VentasPorCamareroAsync(IContextoEmpresa contexto, VentasPorCamarero caso, CancellationToken ct, DateOnly? dia = null)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, dia, ct).ConfigureAwait(false));
     }
 
     private static async Task<IResult> AgregarLineaAsync(Guid id, DatosLineaComanda datos, AgregarLineaComanda caso, CancellationToken ct) =>
