@@ -34,6 +34,8 @@ public sealed class HosteleriaDbContext : DbContextEmpresaBase, IUnidadDeTrabajo
 
     public DbSet<ConfiguracionCarta> ConfiguracionesCarta => Set<ConfiguracionCarta>();
 
+    public DbSet<SuscripcionBar> Suscripciones => Set<SuscripcionBar>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Esquema);
@@ -390,6 +392,43 @@ internal sealed class RepositorioConfiguracionCarta : IRepositorioConfiguracionC
         _contexto.ConfiguracionesCarta.SingleOrDefaultAsync(c => c.EmpresaId == empresaId, ct);
 
     public void Agregar(ConfiguracionCarta configuracion) => _contexto.ConfiguracionesCarta.Add(configuracion);
+}
+
+internal sealed class SuscripcionConfig : IEntityTypeConfiguration<SuscripcionBar>
+{
+    public void Configure(EntityTypeBuilder<SuscripcionBar> builder)
+    {
+        builder.ToTable("suscripcion");
+        builder.HasKey(s => s.Id);
+        builder.Property(s => s.Id).HasColumnName("id");
+        builder.Property(s => s.EmpresaId).HasColumnName("empresa_id").IsRequired();
+        builder.Property(s => s.Plan).HasColumnName("plan").HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Property(s => s.ActualizadaEn).HasColumnName("actualizada_en").IsRequired();
+
+        builder.HasIndex(s => s.EmpresaId).IsUnique().HasDatabaseName("ux_suscripcion_empresa");
+        builder.Ignore(s => s.EventosDominio);
+    }
+}
+
+internal sealed class RepositorioSuscripcion : IRepositorioSuscripcion, IConsultaPlanBar
+{
+    private readonly HosteleriaDbContext _contexto;
+
+    public RepositorioSuscripcion(HosteleriaDbContext contexto) => _contexto = contexto;
+
+    public Task<SuscripcionBar?> ObtenerAsync(Guid empresaId, CancellationToken ct = default) =>
+        _contexto.Suscripciones.SingleOrDefaultAsync(s => s.EmpresaId == empresaId, ct);
+
+    public void Agregar(SuscripcionBar suscripcion) => _contexto.Suscripciones.Add(suscripcion);
+
+    public async Task<PlanBar> ObtenerPlanAsync(Guid empresaId, CancellationToken ct = default)
+    {
+        var plan = await _contexto.Suscripciones
+            .Where(s => s.EmpresaId == empresaId)
+            .Select(s => (PlanBar?)s.Plan)
+            .SingleOrDefaultAsync(ct).ConfigureAwait(false);
+        return plan ?? PlanesBar.PorDefecto;
+    }
 }
 
 internal sealed class RepositorioFichasCarta : IRepositorioFichasCarta, IConsultaFichasCarta

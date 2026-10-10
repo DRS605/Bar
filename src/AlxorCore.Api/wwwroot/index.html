@@ -381,7 +381,8 @@
 
   <script>
     const API = "";
-    let token=null, empresa=null, usuario=null, vista="inicio";
+    let token=null, empresa=null, usuario=null, vista="inicio", plan="Pro";
+    const esPro = () => plan === "Pro";
     const eur = n => (Number(n)||0).toLocaleString("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2})+" €";
     const esc = s => String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
     const fdate = s => { if(!s) return ""; const p=String(s).slice(0,10).split("-"); return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:String(s); };
@@ -543,7 +544,8 @@
         });
     }
 
-    function arrancar() {
+    async function arrancar() {
+      try{ const s=await api("/suscripcion"); plan=(s&&s.plan)||"Pro"; }catch{ plan="Pro"; }
       document.getElementById("login").style.display="none";
       document.getElementById("app").style.display="flex";
       const ini=(usuario?.nombre||"U").slice(0,1).toUpperCase();
@@ -598,7 +600,7 @@
         <div class="kpi kpi-link" onclick="ir('informes')" title="Ver informes"><div class="top"><div class="chipico">${kIcon.fact}</div></div><div class="lbl">Ventas este mes</div><div class="val">${eur(d.facturadoMes)}</div></div>
         <div class="kpi kpi-link" onclick="ir('gastos')" title="Ver gastos"><div class="top"><div class="chipico">${kIcon.gasto}</div></div><div class="lbl">Gastos este mes</div><div class="val">${eur(d.gastadoMes)}</div></div>
         <div class="kpi pos kpi-link" onclick="ir('hosteleria')" title="Ir a Barra / Salón"><div class="top"><div class="chipico">${ICON.hosteleria}</div></div><div class="lbl">Mesas ocupadas</div><div class="val">${ocup}<span style="font-size:15px;color:var(--muted)"> / ${mesas.length}</span></div></div>
-        <div class="kpi kpi-link" onclick="ir('reservas')" title="Ver reservas"><div class="top"><div class="chipico">${ICON.reservas}</div></div><div class="lbl">Reservas hoy</div><div class="val">${resHoy}</div></div></div>`;
+        ${esPro()?`<div class="kpi kpi-link" onclick="ir('reservas')" title="Ver reservas"><div class="top"><div class="chipico">${ICON.reservas}</div></div><div class="lbl">Reservas hoy</div><div class="val">${resHoy}</div></div>`:`<div class="kpi kpi-link" onclick="ir('ajustes')" title="Tu plan"><div class="top"><div class="chipico">${ICON.ajustes}</div></div><div class="lbl">Tu plan</div><div class="val" style="font-size:20px">Essential</div></div>`}</div>`;
       const paso=(hecho,titulo,desc,accion)=>`<div class="onb-step${hecho?" done":""}"><span class="onb-check">${hecho?"✓":""}</span><div style="flex:1;min-width:0"><strong>${titulo}</strong><br><small class="muted">${desc}</small></div>${hecho?'<span class="pill ok">Hecho</span>':accion}</div>`;
       const onb=`<div class="panel onb"><div style="padding:20px 22px">
         <span class="eyebrow" style="color:var(--copper)">Primeros pasos</span>
@@ -609,9 +611,13 @@
         ${paso(!sinMesas,"Coloca tus mesas","Mesas y barra por zonas (salón, terraza…).",'<button class="btn small" onclick="hosNuevaMesa()">Añadir mesa</button>')}
       </div></div>`;
       const tile=(k,titulo,hint,feat)=>`<button class="tile ${feat?'feat':''}" onclick="ir('${k}')"><span class="tileic">${ICON[k]}</span><span class="tiletx"><b>${titulo}</b><small>${hint}</small></span></button>`;
+      // Tesela de una función Pro: si el local está en Essential, en vez de entrar ofrece mejorar el plan.
+      const tilePro=(k,titulo,hint)=> esPro()
+        ? tile(k,titulo,hint)
+        : `<button class="tile" onclick="planUpsell()" title="Incluida en el plan Pro" style="position:relative;opacity:.9"><span class="tileic">${ICON[k]}</span><span class="tiletx"><b>${titulo}</b><small>${hint}</small></span><span class="pill" style="position:absolute;top:10px;right:10px;background:var(--copper);color:#fff">Pro</span></button>`;
       const grupo=(label,html)=>`<div class="catlabel">${label}</div><div class="tiles">${html}</div>`;
       const menu=
-        grupo("Sala", tile("hosteleria","Barra / Salón",`${ocup} de ${mesas.length} mesas ocupadas`)+tile("plano","Plano del local","Croquis y zonas")+tile("reservas","Reservas",`${resHoy} para hoy`)+tile("cartaqr","Carta con QR","Menú para los clientes"))+
+        grupo("Sala", tile("hosteleria","Barra / Salón",`${ocup} de ${mesas.length} mesas ocupadas`)+tile("plano","Plano del local","Croquis y zonas")+tilePro("reservas","Reservas",esPro()?`${resHoy} para hoy`:"Agenda y aforo")+tilePro("cartaqr","Carta con QR","Menú y autopedido"))+
         grupo("Ventas", tile("tpv","TPV · Tickets","Cobrar en la barra",true)+tile("clientes","Clientes","Habituales y datos"))+
         grupo("Compras", tile("gastos","Gastos","Compras y tickets de proveedor")+tile("proveedores","Proveedores","Tu agenda")+tile("pagos","Pagos","Pagos a proveedores"))+
         grupo("Catálogo y datos", tile("productos","Artículos","Carta y stock")+tile("informes","Informes","Ventas y libros")+tile("ajustes","Ajustes","Empresa y usuarios"));
@@ -641,6 +647,7 @@
     ];
     let cartaIdiomaEdit="en", cartaTrads={}, cartaProds=[], cartaFichas={}, cartaFichaFile=null, cartaTema="verde", cartaFotoV=0;
     async function vCartaQr(){
+      if(!esPro()){ return planGate("Carta con QR y autopedido","Tus clientes escanean el QR de su mesa, ven la carta en su idioma con fotos y alérgenos, y piden desde el móvil. Tú confirmas cada pedido y te llega a la cuenta."); }
       view('<div class="muted">Cargando…</div>');
       const url=cartaUrlPublica(), qr=`/carta/${empresa.id}/qr.svg`;
       try{ const [prods,trads,fichas,cfg]=await Promise.all([api("/productos").catch(()=>[]),cartaCargarTrads(),api("/carta/fichas").catch(()=>[]),api("/carta/configuracion").catch(()=>({tema:"verde"}))]);
@@ -1059,12 +1066,12 @@
         const estado=libre?'<span class="pill ok">Libre</span>':`<span class="pill wait">Ocupada · ${eur(m.totalComandaAbierta)}</span>`;
         const accion=libre?`<button class="btn small" onclick="hosAbrir('${m.id}')">Abrir comanda</button>`:`<button class="btn small" onclick="hosVerComanda('${m.comandaAbiertaId}')">Ver cuenta →</button>`;
         return `<div class="panel" style="margin:0"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div><strong style="font-size:15px">${m.nombre}</strong><br><small class="muted">${m.zona||"—"} · ${m.capacidad||0} pax</small></div>${estado}</div>
-          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn small ghost" onclick="hosEditarMesa('${m.id}')">Editar</button><button class="btn small ghost" onclick="hosQrMesa('${m.id}','${(m.nombre||"").replace(/'/g,"")}')">📱 QR</button>${accion}</div></div>`;
+          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn small ghost" onclick="hosEditarMesa('${m.id}')">Editar</button>${esPro()?`<button class="btn small ghost" onclick="hosQrMesa('${m.id}','${(m.nombre||"").replace(/'/g,"")}')">📱 QR</button>`:""}${accion}</div></div>`;
       };
       const grid=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px">${mesas.map(card).join("")}</div>`;
       view(panel("Mesas y barra",`<div id="hosBanner"></div>`+grid,nueva));
-      hosBanner();
-      hosIniciarSondeo();
+      // El autopedido (pedidos del cliente y avisos de mesa) es una función del plan Pro.
+      if(esPro()){ hosBanner(); hosIniciarSondeo(); }
     }
     function hosRefrescar(){ (vista==="plano"?vPlano:vHosteleria)(); }
 
@@ -1157,7 +1164,7 @@
         <div style="padding:14px 18px"><div id="hosCart"></div><div id="hosTotal"></div>
         <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
           <button class="btn small ghost" onclick="vHosteleria()">← Volver</button>
-          <button class="btn small secondary" onclick="hosEnviarCocina('${c.id}')">🍳 Cocina</button>
+          ${esPro()?`<button class="btn small secondary" onclick="hosEnviarCocina('${c.id}')">🍳 Cocina</button>`:""}
           <button class="btn small secondary" onclick="hosCuenta('${c.id}')">🧾 Cuenta</button>
           <button class="btn small secondary" onclick="hosMesaMenu('${c.id}')">Mesa ▾</button>
           <button class="btn small secondary" id="hosRepartirBtn" onclick="hosRepartir('${c.id}')">Repartir</button>
@@ -1522,6 +1529,7 @@
     let resReservas=[], resMesas=[];
     function resFechaLocal(iso){ const d=new Date(iso); const p=n=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; }
     async function vReservas(){
+      if(!esPro()){ return planGate("Reservas","Agenda de reservas con control de aforo, recordatorios automáticos por correo y calendario suscribible. Sienta la reserva y abre su comanda de un toque."); }
       view('<div class="muted">Cargando…</div>');
       const [reservas,mesas]=await Promise.all([api("/reservas"),api("/mesas").catch(()=>[])]);
       resReservas=reservas; resMesas=mesas;
@@ -1856,7 +1864,56 @@
       try{ panelUsuarios=await panelUsuariosHtml(); }catch(e){ panelUsuarios=""; }
       let panelAudit="";
       try{ panelAudit=await panelAuditoriaHtml(); }catch(e){ panelAudit=""; }
-      view(panelSeries+panelCobroHtml()+panelUsuarios+panelDemoHtml()+panelDatosHtml()+panelAudit);
+      view(panelPlanHtml()+panelSeries+panelCobroHtml()+panelUsuarios+panelDemoHtml()+panelDatosHtml()+panelAudit);
+    }
+    // ---- Plan del local (Essential vs Pro) ----
+    const PLAN_PRO_FUNCS = ["Carta QR con autopedido multiidioma","Pedidos del cliente desde el móvil","Comandas a cocina / barra","Reservas con aforo y recordatorios"];
+    const PLAN_BASE_FUNCS = ["Catálogo y carta","Mesas y comandas","Cobro con ticket (IVA incluido)","Cierre de caja e informes"];
+    function planPrecio(p){ return p==="Pro"?"29,95 €":"12,95 €"; }
+    function panelPlanHtml(){
+      const pro=esPro();
+      const actual=pro?"Pro":"Essential";
+      const lista=(items,on)=>items.map(t=>`<li style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px"><span style="color:${on?'var(--pos)':'var(--muted)'};font-weight:700">${on?'✓':'·'}</span><span>${t}</span></li>`).join("");
+      const cuerpo=`<p class="muted" style="margin:0 0 14px">Tu local está en el plan <strong>${actual}</strong> · <strong>${planPrecio(actual)}/mes</strong> por local (IVA aparte).</p>
+        <div class="grid2" style="gap:14px">
+          <div style="border:1px solid var(--line);border-radius:12px;padding:14px"><strong>Essential · 12,95 €</strong>
+            <ul style="list-style:none;padding:0;margin:10px 0 0;font-size:13.5px">${lista(PLAN_BASE_FUNCS,true)}</ul></div>
+          <div style="border:1.5px solid var(--accent);border-radius:12px;padding:14px"><strong>Pro · 29,95 €</strong> <span class="pill" style="background:var(--copper);color:#fff">Todo incluido</span>
+            <ul style="list-style:none;padding:0;margin:10px 0 0;font-size:13.5px">${lista(PLAN_BASE_FUNCS,true)}${lista(PLAN_PRO_FUNCS,pro)}</ul></div>
+        </div>`;
+      const accion=pro
+        ? `<button class="btn small ghost" onclick="modalCambiarPlan('Essential')">Cambiar a Essential</button>`
+        : `<button class="btn small" onclick="modalCambiarPlan('Pro')">Mejorar a Pro →</button>`;
+      return panel("Tu plan",cuerpo,accion);
+    }
+    // Pantalla de «función Pro» cuando se entra a una sección capada en Essential.
+    function planGate(titulo,desc){
+      const func=PLAN_PRO_FUNCS.map(t=>`<li style="display:flex;gap:8px;margin-bottom:6px"><span style="color:var(--copper);font-weight:700">★</span><span>${t}</span></li>`).join("");
+      view(panel(titulo,`<div style="text-align:center;padding:10px 6px 4px">
+          <span class="pill" style="background:var(--copper);color:#fff">Plan Pro</span>
+          <h2 style="font-family:var(--display);font-weight:600;margin:12px 0 6px">${titulo}</h2>
+          <p class="muted" style="max-width:52ch;margin:0 auto 16px">${desc}</p>
+          <ul style="list-style:none;padding:0;margin:0 auto 18px;max-width:34ch;text-align:left;font-size:14px">${func}</ul>
+          <p class="muted" style="font-size:13px;margin:0 0 16px">El plan Pro cuesta <strong>29,95 €/mes</strong> (ahora estás en Essential, 12,95 €).</p>
+          <button class="btn" onclick="modalCambiarPlan('Pro')">Mejorar a Pro →</button>
+          <div style="margin-top:10px"><button class="btn small ghost" onclick="ir('inicio')">Volver</button></div>
+        </div>`));
+    }
+    function planUpsell(){ ir("ajustes"); }
+    function modalCambiarPlan(destino){
+      const aPro=destino==="Pro";
+      const texto=aPro
+        ? `Vas a mejorar <strong>${empresa.razonSocial}</strong> al plan <strong>Pro</strong> (29,95 €/mes). Se activan la carta QR con autopedido, las comandas a cocina y las reservas.`
+        : `Vas a cambiar <strong>${empresa.razonSocial}</strong> al plan <strong>Essential</strong> (12,95 €/mes). Se desactivan la carta QR con autopedido, las comandas a cocina y las reservas. Tus datos se conservan.`;
+      abrir(aPro?"Mejorar a Pro":"Cambiar a Essential",
+        `<p class="muted" style="margin:0 0 6px">${texto}</p>`,
+        async()=>{ await cambiarPlan(destino); });
+    }
+    async function cambiarPlan(destino){
+      await api("/suscripcion",{method:"PUT",body:JSON.stringify({plan:destino})});
+      plan=destino;
+      toast("Plan actualizado: "+destino,"ok");
+      ir("inicio");
     }
     function panelDemoHtml(){
       const cuerpo=`<p class="muted" style="margin:0 0 14px">Monta en un clic un <strong>bar de ejemplo</strong> —carta por categorías, mesas por zonas, turnos, reservas de hoy y una comanda abierta— en una <strong>empresa aparte</strong> («Bar de ejemplo»), sin tocar tus datos. Ideal para <strong>enseñar Bar Query en vivo</strong>; cuando termines, bórrala desde «Tus empresas».</p>

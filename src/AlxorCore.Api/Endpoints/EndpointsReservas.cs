@@ -17,7 +17,8 @@ public static class EndpointsReservas
     {
         ArgumentNullException.ThrowIfNull(rutas);
 
-        var reservas = rutas.MapGroup("/reservas").WithTags("Reservas");
+        // Las reservas son una función del plan Pro (todo el grupo queda capado en Essential).
+        var reservas = rutas.MapGroup("/reservas").WithTags("Reservas").RequierePlanPro();
 
         reservas.MapGet("", ListarAsync)
             .WithSummary("Lista las reservas de la empresa (opcionalmente por rango de fechas).")
@@ -71,7 +72,7 @@ public static class EndpointsReservas
             .WithSummary("Ocupación (aforo usado/libre) de los turnos en una fecha.")
             .RequireAuthorization();
 
-        var turnos = rutas.MapGroup("/turnos").WithTags("Turnos");
+        var turnos = rutas.MapGroup("/turnos").WithTags("Turnos").RequierePlanPro();
 
         turnos.MapGet("", ListarTurnosAsync)
             .WithSummary("Lista los turnos (horarios) de la empresa.")

@@ -1,6 +1,7 @@
 using AlxorCore.Api.Comun;
 using AlxorCore.Catalogo.Aplicacion;
 using AlxorCore.Hosteleria.Aplicacion;
+using AlxorCore.Hosteleria.Dominio;
 using AlxorCore.Nucleo.Multiempresa;
 using AlxorCore.Nucleo.Resultados;
 using AlxorCore.Organizacion.Aplicacion.Puertos;
@@ -52,10 +53,16 @@ public static class EndpointsCarta
     private static async Task<IResult> DatosAsync(
         Guid empresaId, string? idioma, IContextoEmpresaMutable contexto,
         IConsultaProductos productos, IConsultaEmpresas empresas, IConsultaTraducciones traducciones,
-        IConsultaFichasCarta fichas, ObtenerConfiguracionCarta configuracion, CancellationToken ct)
+        IConsultaFichasCarta fichas, ObtenerConfiguracionCarta configuracion, IConsultaPlanBar planes, CancellationToken ct)
     {
         // Lectura pública acotada a este local (el filtro de empresa y la RLS usan la empresa fijada).
         contexto.Fijar(empresaId);
+
+        // La carta QR con autopedido es una función del plan Pro: en Essential no existe carta pública.
+        if (!PlanesBar.IncluyeFuncionesPro(await planes.ObtenerPlanAsync(empresaId, ct).ConfigureAwait(false)))
+        {
+            return Results.NotFound();
+        }
 
         var empresa = await empresas.ObtenerAsync(empresaId, ct).ConfigureAwait(false);
         if (empresa is null)
@@ -106,24 +113,39 @@ public static class EndpointsCarta
     }
 
     private static async Task<IResult> PedirAsync(
-        Guid empresaId, Guid mesaId, DatosPedidoWeb datos, IContextoEmpresaMutable contexto, CrearPedidoWeb caso, CancellationToken ct)
+        Guid empresaId, Guid mesaId, DatosPedidoWeb datos, IContextoEmpresaMutable contexto, CrearPedidoWeb caso, IConsultaPlanBar planes, CancellationToken ct)
     {
         contexto.Fijar(empresaId);
+        if (!PlanesBar.IncluyeFuncionesPro(await planes.ObtenerPlanAsync(empresaId, ct).ConfigureAwait(false)))
+        {
+            return Results.NotFound();
+        }
+
         var r = await caso.EjecutarAsync(empresaId, mesaId, datos, ct).ConfigureAwait(false);
         return r.EsCorrecto ? Results.Ok(r.Valor) : ResultadosHttp.AProblema(r.Error);
     }
 
     private static async Task<IResult> AvisarAsync(
-        Guid empresaId, Guid mesaId, DatosAvisoMesa datos, IContextoEmpresaMutable contexto, CrearAvisoMesa caso, CancellationToken ct)
+        Guid empresaId, Guid mesaId, DatosAvisoMesa datos, IContextoEmpresaMutable contexto, CrearAvisoMesa caso, IConsultaPlanBar planes, CancellationToken ct)
     {
         contexto.Fijar(empresaId);
+        if (!PlanesBar.IncluyeFuncionesPro(await planes.ObtenerPlanAsync(empresaId, ct).ConfigureAwait(false)))
+        {
+            return Results.NotFound();
+        }
+
         return (await caso.EjecutarAsync(empresaId, mesaId, datos, ct).ConfigureAwait(false)).ASinContenido();
     }
 
     private static async Task<IResult> FotoAsync(
-        Guid empresaId, Guid productoId, IContextoEmpresaMutable contexto, ObtenerFotoProducto caso, CancellationToken ct)
+        Guid empresaId, Guid productoId, IContextoEmpresaMutable contexto, ObtenerFotoProducto caso, IConsultaPlanBar planes, CancellationToken ct)
     {
         contexto.Fijar(empresaId);
+        if (!PlanesBar.IncluyeFuncionesPro(await planes.ObtenerPlanAsync(empresaId, ct).ConfigureAwait(false)))
+        {
+            return Results.NotFound();
+        }
+
         var foto = await caso.EjecutarAsync(empresaId, productoId, ct).ConfigureAwait(false);
         return foto is null ? Results.NotFound() : Results.File(foto.Datos, foto.Tipo);
     }

@@ -47,6 +47,9 @@ public static class RegistroServicios
         servicios.AddScoped<IRepositorioFichasCarta>(sp => sp.GetRequiredService<RepositorioFichasCarta>());
         servicios.AddScoped<IConsultaFichasCarta>(sp => sp.GetRequiredService<RepositorioFichasCarta>());
         servicios.AddScoped<IRepositorioConfiguracionCarta, RepositorioConfiguracionCarta>();
+        servicios.AddScoped<RepositorioSuscripcion>();
+        servicios.AddScoped<IRepositorioSuscripcion>(sp => sp.GetRequiredService<RepositorioSuscripcion>());
+        servicios.AddScoped<IConsultaPlanBar>(sp => sp.GetRequiredService<RepositorioSuscripcion>());
 
         servicios.AddScoped<CrearMesa>();
         servicios.AddScoped<ActualizarMesa>();
@@ -85,6 +88,10 @@ public static class RegistroServicios
         servicios.AddScoped<GuardarConfiguracionCarta>();
         servicios.AddScoped<ObtenerFotoProducto>();
         servicios.AddScoped<RegenerarTokenCartaMesa>();
+
+        // Planes / suscripción (Essential vs Pro).
+        servicios.AddScoped<ObtenerSuscripcion>();
+        servicios.AddScoped<CambiarPlanBar>();
 
         return servicios;
     }

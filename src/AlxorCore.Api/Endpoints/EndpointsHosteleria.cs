@@ -42,74 +42,89 @@ public static class EndpointsHosteleria
 
         mesas.MapGet("/{id:guid}/qr-carta.svg", QrCartaMesaAsync)
             .WithSummary("Código QR (SVG) de autopedido de una mesa: enlaza a la carta de esa mesa para pedir.")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequierePlanPro();
 
         mesas.MapGet("/{id:guid}/carta-link", CartaLinkMesaAsync)
             .WithSummary("Enlace (y token) de autopedido de una mesa, para imprimir o compartir el QR.")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequierePlanPro();
 
         mesas.MapPost("/{id:guid}/regenerar-token", RegenerarTokenAsync)
             .WithSummary("Genera un token de carta nuevo para la mesa (invalida sus QR de autopedido ya impresos).")
-            .RequierePermiso(Permisos.HosteleriaGestionar);
+            .RequierePermiso(Permisos.HosteleriaGestionar)
+            .RequierePlanPro();
 
         // Autopedido: pedidos del cliente (pendientes de aceptar) y avisos de mesa.
         var pedidosWeb = rutas.MapGroup("/pedidos-web").WithTags("Autopedido");
 
         pedidosWeb.MapGet("", ListarPedidosWebAsync)
             .WithSummary("Lista los pedidos hechos por los clientes desde el móvil, pendientes de aceptar.")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequierePlanPro();
 
         pedidosWeb.MapPost("/{id:guid}/aceptar", AceptarPedidoWebAsync)
             .WithSummary("Acepta un pedido del cliente: lo añade a la cuenta de la mesa.")
-            .RequierePermiso(Permisos.HosteleriaGestionar);
+            .RequierePermiso(Permisos.HosteleriaGestionar)
+            .RequierePlanPro();
 
         pedidosWeb.MapPost("/{id:guid}/rechazar", RechazarPedidoWebAsync)
             .WithSummary("Rechaza un pedido del cliente.")
-            .RequierePermiso(Permisos.HosteleriaGestionar);
+            .RequierePermiso(Permisos.HosteleriaGestionar)
+            .RequierePlanPro();
 
         var avisos = rutas.MapGroup("/avisos").WithTags("Autopedido");
 
         avisos.MapGet("", ListarAvisosAsync)
             .WithSummary("Lista los avisos de mesa pendientes (llamar al camarero / pedir la cuenta).")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequierePlanPro();
 
         avisos.MapPost("/{id:guid}/atender", AtenderAvisoAsync)
             .WithSummary("Marca un aviso de mesa como atendido.")
-            .RequierePermiso(Permisos.HosteleriaGestionar);
+            .RequierePermiso(Permisos.HosteleriaGestionar)
+            .RequierePlanPro();
 
         var traducciones = rutas.MapGroup("/carta/traducciones").WithTags("Autopedido");
 
         traducciones.MapGet("", ListarTraduccionesAsync)
             .WithSummary("Lista las traducciones de la carta (inglés/francés) del local.")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequierePlanPro();
 
         traducciones.MapPut("", GuardarTraduccionAsync)
             .WithSummary("Guarda o borra una traducción de la carta (nombre vacío = volver al español).")
-            .RequierePermiso(Permisos.HosteleriaGestionar);
+            .RequierePermiso(Permisos.HosteleriaGestionar)
+            .RequierePlanPro();
 
         var fichas = rutas.MapGroup("/carta/fichas").WithTags("Autopedido");
 
         fichas.MapGet("", ListarFichasCartaAsync)
             .WithSummary("Lista las fichas de carta (alérgenos y si tienen foto) de los productos.")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequierePlanPro();
 
         fichas.MapPut("/{productoId:guid}", GuardarFichaCartaAsync)
             .WithSummary("Guarda la ficha de carta de un producto (alérgenos y/o foto).")
-            .RequierePermiso(Permisos.HosteleriaGestionar);
+            .RequierePermiso(Permisos.HosteleriaGestionar)
+            .RequierePlanPro();
 
         fichas.MapPut("/{productoId:guid}/disponibilidad", CambiarDisponibilidadAsync)
             .WithSummary("Marca un plato como agotado o lo reactiva (cambio rápido durante el servicio).")
-            .RequierePermiso(Permisos.HosteleriaGestionar);
+            .RequierePermiso(Permisos.HosteleriaGestionar)
+            .RequierePlanPro();
 
         var configuracionCarta = rutas.MapGroup("/carta/configuracion").WithTags("Autopedido");
 
         configuracionCarta.MapGet("", ObtenerConfiguracionCartaAsync)
             .WithSummary("Obtiene la configuración de la carta (tema visual).")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequierePlanPro();
 
         configuracionCarta.MapPut("", GuardarConfiguracionCartaAsync)
             .WithSummary("Fija el tema visual de la carta del local.")
-            .RequierePermiso(Permisos.HosteleriaGestionar);
+            .RequierePermiso(Permisos.HosteleriaGestionar)
+            .RequierePlanPro();
 
         var comandas = rutas.MapGroup("/comandas").WithTags("Comandas");
 
@@ -147,7 +162,19 @@ public static class EndpointsHosteleria
 
         comandas.MapPost("/{id:guid}/cocina", EnviarCocinaAsync)
             .WithSummary("Envía a cocina/barra los artículos nuevos de la comanda (marca e imprime).")
-            .RequierePermiso(Permisos.HosteleriaGestionar);
+            .RequierePermiso(Permisos.HosteleriaGestionar)
+            .RequierePlanPro();
+
+        // Plan contratado del local (Essential vs Pro). No se capa por plan: cualquiera puede verlo/cambiarlo.
+        var suscripcion = rutas.MapGroup("/suscripcion").WithTags("Plan");
+
+        suscripcion.MapGet("", ObtenerSuscripcionAsync)
+            .WithSummary("Plan (tarifa) contratado por el local y, por tanto, qué funciones tiene disponibles.")
+            .RequireAuthorization();
+
+        suscripcion.MapPut("", CambiarSuscripcionAsync)
+            .WithSummary("Cambia el plan contratado del local (Essential / Pro).")
+            .RequierePermiso(Permisos.EmpresaAjustes);
 
         comandas.MapPost("/{id:guid}/cobrar", CobrarComandaAsync)
             .WithSummary("Cobra la comanda emitiendo un ticket y libera la mesa.")
@@ -251,6 +278,26 @@ public static class EndpointsHosteleria
 
     private static async Task<IResult> RegenerarTokenAsync(Guid id, RegenerarTokenCartaMesa caso, CancellationToken ct) =>
         (await caso.EjecutarAsync(id, ct).ConfigureAwait(false)).ASinContenido();
+
+    private static async Task<IResult> ObtenerSuscripcionAsync(IContextoEmpresa contexto, ObtenerSuscripcion caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> CambiarSuscripcionAsync(DatosSuscripcion datos, IContextoEmpresa contexto, CambiarPlanBar caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return (await caso.EjecutarAsync(contexto.EmpresaId.Value, datos, ct).ConfigureAwait(false)).AOk();
+    }
 
     private static async Task<IResult> ListarPedidosWebAsync(IContextoEmpresa contexto, ListarPedidosWebPendientes caso, CancellationToken ct)
     {

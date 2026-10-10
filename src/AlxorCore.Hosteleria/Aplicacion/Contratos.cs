@@ -226,3 +226,30 @@ public interface IRepositorioConfiguracionCarta
 
     void Agregar(ConfiguracionCarta configuracion);
 }
+
+// ---------------------------------------------------------------------------
+// Planes / suscripción del local (Essential vs Pro).
+// ---------------------------------------------------------------------------
+
+/// <summary>Suscripción (plan contratado) de un local.</summary>
+public sealed record SuscripcionDto(string Plan)
+{
+    public static SuscripcionDto Desde(SuscripcionBar s) => new(s.Plan.ToString());
+}
+
+/// <summary>Repositorio de la suscripción (plan) de la empresa.</summary>
+public interface IRepositorioSuscripcion
+{
+    Task<SuscripcionBar?> ObtenerAsync(Guid empresaId, CancellationToken ct = default);
+
+    void Agregar(SuscripcionBar suscripcion);
+}
+
+/// <summary>
+/// Consulta rápida del plan contratado por una empresa (para el control de acceso por plan en los
+/// endpoints). Devuelve el plan por defecto cuando el local aún no tiene suscripción grabada.
+/// </summary>
+public interface IConsultaPlanBar
+{
+    Task<PlanBar> ObtenerPlanAsync(Guid empresaId, CancellationToken ct = default);
+}

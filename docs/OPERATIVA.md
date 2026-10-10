@@ -1,7 +1,31 @@
 # Cómo montar y operar Bar Query (nube vs on-premise)
 
-Guía de operación para vender y dar servicio. **Precio: 29,95 €/mes por local**, tarifa plana,
-sin coste por terminal, alta gratis. Hardware para el bar: **0 €** (usan sus móviles/tablets).
+Guía de operación para vender y dar servicio. **Dos planes por local**, sin permanencia, sin coste
+por terminal, alta gratis. Hardware para el bar: **0 €** (usan sus móviles/tablets).
+
+## Planes
+
+| | **Essential — 12,95 €/mes** | **Pro — 29,95 €/mes** |
+|---|---|---|
+| Catálogo y carta | ✅ | ✅ |
+| Mesas y comandas | ✅ | ✅ |
+| Cobro con ticket (IVA incluido) | ✅ | ✅ |
+| Cierre de caja e informes | ✅ | ✅ |
+| Comandas a cocina / barra | — | ✅ |
+| **Carta QR con autopedido** (multiidioma, fotos, alérgenos) | — | ✅ |
+| Pedidos del cliente desde su móvil | — | ✅ |
+| Reservas (aforo, recordatorios, calendario) | — | ✅ |
+
+- **Essential** es el gancho de entrada: «convierte tu móvil en caja registradora». Para el bar que
+  solo quiere **sacar tickets** y llevar la caja.
+- **Pro** añade la capa digital de cara al cliente (carta QR con autopedido estilo Qamarero),
+  las comandas a cocina y las reservas.
+- El plan se ve y se cambia en **Ajustes → Tu plan** dentro de la app. Técnicamente es el campo
+  `plan` de la suscripción del local (por defecto **Pro**, para no capar a los locales ya existentes).
+- El cobro de la cuota se factura por fuera (Stripe/recibo/transferencia); el plan de la app controla
+  qué funciones ve el bar, no el cobro.
+
+> El resto de la guía usa 29,95 € (Pro) como referencia; para Essential, sustituye por 12,95 €.
 
 ## Resumen de la decisión
 - **Por defecto: NUBE (SaaS multiempresa).** Un servidor sirve a muchos bares. Es lo más barato de
@@ -57,5 +81,6 @@ desarrollo futuro, cuando varios clientes lo pidan.
 ## Qué necesita el bar (para el argumentario de venta)
 - **Nada de hardware nuevo:** móvil/tablet que ya tienen. (Opcional: tablet Android de ~60–100 €.)
 - **Nada que instalar:** es web; se «añade a la pantalla de inicio» como una app.
-- **Alta gratis**, **sin permanencia**, **sin cobro por terminal**. Todo incluido (TPV, comandas,
-  cobro, reservas, informes y **carta QR con autopedido**) por **29,95 €/mes**.
+- **Alta gratis**, **sin permanencia**, **sin cobro por terminal**. Dos planes: **Essential** (caja y
+  tickets) por **12,95 €/mes** y **Pro** (añade carta QR con autopedido, comandas a cocina y reservas)
+  por **29,95 €/mes**.
