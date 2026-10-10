@@ -72,6 +72,12 @@ public sealed class LineaComanda : EntidadBase<Guid>
     /// <summary>Cantidad pendiente de enviar a cocina (lo pedido menos lo ya enviado).</summary>
     public decimal CantidadPendienteCocina => Cantidad > CantidadEnviadaCocina ? Cantidad - CantidadEnviadaCocina : 0m;
 
+    /// <summary>Cantidad ya servida (marcada como lista en la pantalla de cocina).</summary>
+    public decimal CantidadServida { get; private set; }
+
+    /// <summary>Cantidad enviada a cocina que aún está pendiente de servir (lo que ve la pantalla de cocina).</summary>
+    public decimal CantidadPendienteServir => CantidadEnviadaCocina > CantidadServida ? CantidadEnviadaCocina - CantidadServida : 0m;
+
     /// <summary>Cantidad de esta línea ya cobrada en tickets parciales (reparto de la cuenta por artículos).</summary>
     public decimal CantidadCobrada { get; private set; }
 
@@ -117,6 +123,9 @@ public sealed class LineaComanda : EntidadBase<Guid>
 
         return nueva;
     }
+
+    /// <summary>Marca como servida toda la cantidad enviada a cocina (acción de la pantalla de cocina).</summary>
+    internal void MarcarServida() => CantidadServida = CantidadEnviadaCocina;
 
     /// <summary>
     /// Suma cantidad a la línea (pedir otra unidad del mismo producto). Lo usa la comanda para acumular

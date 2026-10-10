@@ -48,14 +48,30 @@ internal sealed class GeneradorComandaCocinaEscPos : IGeneradorComandaCocina
         Bytes(AlinearIzq);
         Linea(new string('-', 32));
         Bytes(NegritaOn); Bytes(TamanoAlto);
-        foreach (var l in datos.Lineas)
+        // Agrupamos por zona (Cocina/Barra): si hay más de una, se imprime una cabecera por zona.
+        var grupos = datos.Lineas
+            .GroupBy(l => string.IsNullOrWhiteSpace(l.Zona) ? "" : l.Zona!)
+            .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var variasZonas = grupos.Count(g => g.Key.Length > 0) > 1;
+        foreach (var g in grupos)
         {
-            Linea($"{Cantidad(l.Cantidad)} x {l.Descripcion}");
-            if (!string.IsNullOrWhiteSpace(l.Nota))
+            if (variasZonas && g.Key.Length > 0)
             {
                 Bytes(TamanoNormal);
-                Linea($"   > {l.Nota}");
+                Linea($"== {g.Key.ToUpperInvariant()} ==");
                 Bytes(TamanoAlto);
+            }
+
+            foreach (var l in g)
+            {
+                Linea($"{Cantidad(l.Cantidad)} x {l.Descripcion}");
+                if (!string.IsNullOrWhiteSpace(l.Nota))
+                {
+                    Bytes(TamanoNormal);
+                    Linea($"   > {l.Nota}");
+                    Bytes(TamanoAlto);
+                }
             }
         }
 

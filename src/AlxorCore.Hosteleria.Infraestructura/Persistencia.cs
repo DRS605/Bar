@@ -42,6 +42,8 @@ public sealed class HosteleriaDbContext : DbContextEmpresaBase, IUnidadDeTrabajo
 
     public DbSet<GrupoOpcion> GruposOpcion => Set<GrupoOpcion>();
 
+    public DbSet<ZonaProducto> ZonasProducto => Set<ZonaProducto>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(Esquema);
@@ -118,9 +120,11 @@ internal sealed class ConfiguracionComanda : IEntityTypeConfiguration<Comanda>
             linea.Property(l => l.Base).HasColumnName("base").HasColumnType("numeric(14,2)").IsRequired();
             linea.Property(l => l.CuotaIva).HasColumnName("cuota_iva").HasColumnType("numeric(14,2)").IsRequired();
             linea.Property(l => l.CantidadEnviadaCocina).HasColumnName("cantidad_enviada_cocina").HasColumnType("numeric(14,3)").IsRequired();
+            linea.Property(l => l.CantidadServida).HasColumnName("cantidad_servida").HasColumnType("numeric(14,3)").IsRequired();
             linea.Property(l => l.CantidadCobrada).HasColumnName("cantidad_cobrada").HasColumnType("numeric(14,3)").IsRequired();
             linea.Ignore(l => l.Total);
             linea.Ignore(l => l.CantidadPendienteCocina);
+            linea.Ignore(l => l.CantidadPendienteServir);
             linea.Ignore(l => l.CantidadPendienteCobro);
             linea.Ignore(l => l.BasePendiente);
             linea.Ignore(l => l.CuotaIvaPendiente);
@@ -181,7 +185,7 @@ internal sealed class RepositorioMesas : IRepositorioMesas, IConsultaMesas
     }
 }
 
-internal sealed class RepositorioComandas : IRepositorioComandas, IConsultaComandas
+internal sealed class RepositorioComandas : IRepositorioComandas, IConsultaComandas, IConsultaCocina
 {
     private readonly HosteleriaDbContext _contexto;
 
@@ -230,6 +234,44 @@ internal sealed class RepositorioComandas : IRepositorioComandas, IConsultaComan
             .Select(f => new VentasCamareroDto(f.UsuarioId, string.IsNullOrWhiteSpace(f.UsuarioNombre) ? "Sin asignar" : f.UsuarioNombre!, f.Comandas, f.Total))
             .OrderByDescending(f => f.Total)
             .ToList();
+    }
+
+    public async Task<IReadOnlyList<ItemCocinaDto>> PendientesAsync(Guid empresaId, ZonaPreparacion? zona = null, CancellationToken ct = default)
+    {
+        // Las comandas abiertas son pocas y sus líneas (propiedad poseída) se cargan con el agregado.
+        var comandas = await _contexto.Comandas
+            .Where(c => c.EmpresaId == empresaId && c.Estado == EstadoComanda.Abierta)
+            .ToListAsync(ct).ConfigureAwait(false);
+        var zonas = await _contexto.ZonasProducto
+            .Where(z => z.EmpresaId == empresaId)
+            .ToDictionaryAsync(z => z.ProductoId, z => z.Zona, ct).ConfigureAwait(false);
+        var mesas = await _contexto.Mesas
+            .Where(m => m.EmpresaId == empresaId)
+            .ToDictionaryAsync(m => m.Id, m => m.Nombre, ct).ConfigureAwait(false);
+
+        var items = new List<ItemCocinaDto>();
+        foreach (var c in comandas)
+        {
+            foreach (var l in c.Lineas)
+            {
+                if (l.CantidadPendienteServir <= 0)
+                {
+                    continue;
+                }
+
+                var z = zonas.TryGetValue(l.ProductoId, out var zz) ? zz : ZonaPreparacion.Cocina;
+                if (zona is not null && z != zona.Value)
+                {
+                    continue;
+                }
+
+                items.Add(new ItemCocinaDto(
+                    c.Id, l.Id, mesas.TryGetValue(c.MesaId, out var nombre) ? nombre : "Mesa",
+                    l.Descripcion, l.CantidadPendienteServir, z.ToString(), l.Nota, c.AbiertaEn));
+            }
+        }
+
+        return items.OrderBy(i => i.Desde).ToList();
     }
 }
 
@@ -434,6 +476,38 @@ internal sealed class SuscripcionConfig : IEntityTypeConfiguration<SuscripcionBa
         builder.HasIndex(s => s.EmpresaId).IsUnique().HasDatabaseName("ux_suscripcion_empresa");
         builder.Ignore(s => s.EventosDominio);
     }
+}
+
+internal sealed class ZonaProductoConfig : IEntityTypeConfiguration<ZonaProducto>
+{
+    public void Configure(EntityTypeBuilder<ZonaProducto> builder)
+    {
+        builder.ToTable("zona_producto");
+        builder.HasKey(z => z.Id);
+        builder.Property(z => z.Id).HasColumnName("id");
+        builder.Property(z => z.EmpresaId).HasColumnName("empresa_id").IsRequired();
+        builder.Property(z => z.ProductoId).HasColumnName("producto_id").IsRequired();
+        builder.Property(z => z.Zona).HasColumnName("zona").HasMaxLength(20).HasConversion<string>().IsRequired();
+        builder.Property(z => z.ActualizadaEn).HasColumnName("actualizada_en").IsRequired();
+
+        builder.HasIndex(z => new { z.EmpresaId, z.ProductoId }).IsUnique().HasDatabaseName("ux_zona_producto");
+        builder.Ignore(z => z.EventosDominio);
+    }
+}
+
+internal sealed class RepositorioZonasProducto : IRepositorioZonasProducto
+{
+    private readonly HosteleriaDbContext _contexto;
+
+    public RepositorioZonasProducto(HosteleriaDbContext contexto) => _contexto = contexto;
+
+    public Task<ZonaProducto?> ObtenerAsync(Guid productoId, CancellationToken ct = default) =>
+        _contexto.ZonasProducto.SingleOrDefaultAsync(z => z.ProductoId == productoId, ct);
+
+    public async Task<IReadOnlyList<ZonaProducto>> ListarPorEmpresaAsync(Guid empresaId, CancellationToken ct = default) =>
+        await _contexto.ZonasProducto.Where(z => z.EmpresaId == empresaId).ToListAsync(ct).ConfigureAwait(false);
+
+    public void Agregar(ZonaProducto zona) => _contexto.ZonasProducto.Add(zona);
 }
 
 internal sealed class GrupoOpcionConfig : IEntityTypeConfiguration<GrupoOpcion>

@@ -173,6 +173,28 @@ public static class EndpointsHosteleria
             .WithSummary("Fija los grupos de opciones de un producto (reemplaza los existentes).")
             .RequierePermiso(Permisos.HosteleriaGestionar);
 
+        // Zonas de preparación (Cocina/Barra) por producto.
+        var zonas = rutas.MapGroup("/carta/zonas").WithTags("Cocina");
+
+        zonas.MapGet("", ListarZonasAsync)
+            .WithSummary("Zona de preparación (Cocina/Barra) de cada producto del local.")
+            .RequireAuthorization();
+
+        zonas.MapPut("/{productoId:guid}", GuardarZonaProductoAsync)
+            .WithSummary("Fija la zona de preparación de un producto.")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
+        // Pantalla de cocina (KDS): artículos pendientes de servir.
+        var cocina = rutas.MapGroup("/cocina").WithTags("Cocina");
+
+        cocina.MapGet("/pendientes", PendientesCocinaAsync)
+            .WithSummary("Artículos enviados y pendientes de servir, para la pantalla de cocina (opcional por zona).")
+            .RequireAuthorization();
+
+        cocina.MapPost("/servir", ServirCocinaAsync)
+            .WithSummary("Marca un artículo como servido desde la pantalla de cocina.")
+            .RequierePermiso(Permisos.HosteleriaGestionar);
+
         var comandas = rutas.MapGroup("/comandas").WithTags("Comandas");
 
         comandas.MapGet("", ListarComandasAsync)
@@ -543,6 +565,41 @@ public static class EndpointsHosteleria
         return (await caso.EjecutarAsync(contexto.EmpresaId.Value, productoId, datos, ct).ConfigureAwait(false)).ASinContenido();
     }
 
+    private static async Task<IResult> ListarZonasAsync(IContextoEmpresa contexto, ObtenerZonasEmpresa caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> GuardarZonaProductoAsync(Guid productoId, DatosZonaProducto datos, IContextoEmpresa contexto, GuardarZonaProducto caso, CancellationToken ct)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return (await caso.EjecutarAsync(contexto.EmpresaId.Value, productoId, datos, ct).ConfigureAwait(false)).ASinContenido();
+    }
+
+    private sealed record ServirCocinaPeticion(Guid ComandaId, Guid LineaId);
+
+    private static async Task<IResult> PendientesCocinaAsync(IContextoEmpresa contexto, ListarPendientesCocina caso, CancellationToken ct, string? zona = null)
+    {
+        if (contexto.EmpresaId is null)
+        {
+            return ResultadosHttp.AProblema(Error.Validacion("empresa.no_seleccionada", "Selecciona una empresa primero."));
+        }
+
+        return Results.Ok(await caso.EjecutarAsync(contexto.EmpresaId.Value, zona, ct).ConfigureAwait(false));
+    }
+
+    private static async Task<IResult> ServirCocinaAsync(ServirCocinaPeticion datos, ServirItemCocina caso, CancellationToken ct) =>
+        (await caso.EjecutarAsync(datos.ComandaId, datos.LineaId, ct).ConfigureAwait(false)).ASinContenido();
+
     private static async Task<IResult> ListarMovimientosCajaAsync(IContextoEmpresa contexto, ListarMovimientosCaja caso, CancellationToken ct, DateOnly? dia = null)
     {
         if (contexto.EmpresaId is null)
@@ -615,7 +672,7 @@ public static class EndpointsHosteleria
         (await caso.EjecutarAsync(id, lineaId, ct).ConfigureAwait(false)).AOk();
 
     private static async Task<IResult> EnviarCocinaAsync(
-        Guid id, IContextoEmpresa contexto, EnviarComandaCocina caso, IConsultaMesas mesas,
+        Guid id, IContextoEmpresa contexto, EnviarComandaCocina caso, IConsultaMesas mesas, IRepositorioZonasProducto zonas,
         IGeneradorComandaCocina generador, IImpresoraTickets impresora, ILoggerFactory registros, CancellationToken ct)
     {
         if (contexto.EmpresaId is null)
@@ -631,10 +688,13 @@ public static class EndpointsHosteleria
             try
             {
                 var mesa = await mesas.ObtenerAsync(resultado.Valor.MesaId, ct).ConfigureAwait(false);
+                var mapaZonas = (await zonas.ListarPorEmpresaAsync(contexto.EmpresaId.Value, ct).ConfigureAwait(false))
+                    .ToDictionary(z => z.ProductoId, z => z.Zona.ToString());
                 var datos = new DatosComandaCocina(
                     string.IsNullOrWhiteSpace(mesa?.Nombre) ? "Mesa" : mesa!.Nombre,
                     resultado.Valor.Hora,
-                    resultado.Valor.Articulos.Select(a => new LineaCocina(a.Cantidad, a.Descripcion, a.Nota)).ToList(),
+                    resultado.Valor.Articulos.Select(a => new LineaCocina(a.Cantidad, a.Descripcion, a.Nota,
+                        mapaZonas.TryGetValue(a.ProductoId, out var z) ? z : null)).ToList(),
                     resultado.Valor.Notas);
                 await impresora.ImprimirAsync(generador.Generar(datos), ct).ConfigureAwait(false);
             }

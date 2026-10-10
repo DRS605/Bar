@@ -329,11 +329,24 @@ public sealed class Comanda : RaizAgregadoEmpresa<Guid>
             var nueva = linea.MarcarEnviadaCocina();
             if (nueva > 0)
             {
-                articulos.Add(new ArticuloCocina(linea.Descripcion, nueva, linea.Nota));
+                articulos.Add(new ArticuloCocina(linea.ProductoId, linea.Descripcion, nueva, linea.Nota));
             }
         }
 
         return Resultado.Ok<IReadOnlyList<ArticuloCocina>>(articulos);
+    }
+
+    /// <summary>Marca una línea como servida (lista en la pantalla de cocina).</summary>
+    public Resultado ServirLinea(Guid lineaId)
+    {
+        var linea = _lineas.SingleOrDefault(l => l.Id == lineaId);
+        if (linea is null)
+        {
+            return Resultado.Fallo(Error.NoEncontrado("comanda.linea_no_encontrada", "La línea no existe."));
+        }
+
+        linea.MarcarServida();
+        return Resultado.Ok();
     }
 
     /// <summary>Actualiza las notas de la comanda mientras está abierta.</summary>

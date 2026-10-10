@@ -34,6 +34,8 @@ public static class RegistroServicios
         servicios.AddScoped<RepositorioComandas>();
         servicios.AddScoped<IRepositorioComandas>(sp => sp.GetRequiredService<RepositorioComandas>());
         servicios.AddScoped<IConsultaComandas>(sp => sp.GetRequiredService<RepositorioComandas>());
+        servicios.AddScoped<IConsultaCocina>(sp => sp.GetRequiredService<RepositorioComandas>());
+        servicios.AddScoped<IRepositorioZonasProducto, RepositorioZonasProducto>();
         servicios.AddScoped<RepositorioPedidosWeb>();
         servicios.AddScoped<IRepositorioPedidosWeb>(sp => sp.GetRequiredService<RepositorioPedidosWeb>());
         servicios.AddScoped<IConsultaPedidosWeb>(sp => sp.GetRequiredService<RepositorioPedidosWeb>());
@@ -110,6 +112,12 @@ public static class RegistroServicios
         servicios.AddScoped<ObtenerOpcionesProducto>();
         servicios.AddScoped<ListarOpcionesEmpresa>();
         servicios.AddScoped<GuardarOpcionesProducto>();
+
+        // Zonas de preparación y pantalla de cocina (KDS).
+        servicios.AddScoped<ObtenerZonasEmpresa>();
+        servicios.AddScoped<GuardarZonaProducto>();
+        servicios.AddScoped<ListarPendientesCocina>();
+        servicios.AddScoped<ServirItemCocina>();
 
         return servicios;
     }

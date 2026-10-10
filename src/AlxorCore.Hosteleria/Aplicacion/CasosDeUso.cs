@@ -388,7 +388,7 @@ public sealed class CambiarNotaLineaComanda
 }
 
 /// <summary>Un artículo que se envía a cocina (cantidad nueva de este envío, con su nota).</summary>
-public sealed record ArticuloCocinaDto(decimal Cantidad, string Descripcion, string? Nota = null);
+public sealed record ArticuloCocinaDto(Guid ProductoId, decimal Cantidad, string Descripcion, string? Nota = null);
 
 /// <summary>Lo que se manda a cocina/barra al enviar una comanda: mesa, hora y artículos nuevos.</summary>
 public sealed record ComandaCocinaDto(Guid ComandaId, Guid MesaId, DateTimeOffset Hora, IReadOnlyList<ArticuloCocinaDto> Articulos, string? Notas);
@@ -422,7 +422,7 @@ public sealed class EnviarComandaCocina
         }
 
         await _unidadDeTrabajo.GuardarCambiosAsync(ct).ConfigureAwait(false);
-        var articulos = r.Valor.Select(a => new ArticuloCocinaDto(a.Cantidad, a.Descripcion, a.Nota)).ToList();
+        var articulos = r.Valor.Select(a => new ArticuloCocinaDto(a.ProductoId, a.Cantidad, a.Descripcion, a.Nota)).ToList();
         return Resultado.Ok(new ComandaCocinaDto(comanda.Id, comanda.MesaId, _reloj.AhoraUtc, articulos, comanda.Notas));
     }
 }

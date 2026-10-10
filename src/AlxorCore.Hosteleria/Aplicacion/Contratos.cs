@@ -88,6 +88,35 @@ public sealed record ArqueoCajaDto(
     decimal EfectivoTeorico, IReadOnlyList<MovimientoCajaDto> Movimientos);
 
 // ---------------------------------------------------------------------------
+// Zonas de preparación (Cocina/Barra) y pantalla de cocina (KDS).
+// ---------------------------------------------------------------------------
+
+/// <summary>Zona de preparación asignada a un producto.</summary>
+public sealed record ZonaProductoDto(Guid ProductoId, string Zona)
+{
+    public static ZonaProductoDto Desde(ZonaProducto z) => new(z.ProductoId, z.Zona.ToString());
+}
+
+/// <summary>Un artículo pendiente de servir en la pantalla de cocina.</summary>
+public sealed record ItemCocinaDto(Guid ComandaId, Guid LineaId, string Mesa, string Descripcion, decimal Cantidad, string Zona, string? Nota, DateTimeOffset Desde);
+
+/// <summary>Repositorio de zonas de preparación por producto.</summary>
+public interface IRepositorioZonasProducto
+{
+    Task<ZonaProducto?> ObtenerAsync(Guid productoId, CancellationToken ct = default);
+
+    Task<IReadOnlyList<ZonaProducto>> ListarPorEmpresaAsync(Guid empresaId, CancellationToken ct = default);
+
+    void Agregar(ZonaProducto zona);
+}
+
+/// <summary>Consulta de la pantalla de cocina: artículos enviados y pendientes de servir.</summary>
+public interface IConsultaCocina
+{
+    Task<IReadOnlyList<ItemCocinaDto>> PendientesAsync(Guid empresaId, ZonaPreparacion? zona = null, CancellationToken ct = default);
+}
+
+// ---------------------------------------------------------------------------
 // Opciones de producto: formatos/tamaños (media/ración) y extras con suplemento.
 // ---------------------------------------------------------------------------
 

@@ -1160,7 +1160,7 @@
       view('<div class="muted">Cargando…</div>');
       const [mesas,prods]=await Promise.all([api("/mesas"),api("/productos").catch(()=>[])]);
       hosProductos=prods;
-      const nueva=`<div style="display:flex;gap:8px"><button class="btn small ghost" onclick="modalCierreCaja()">🧾 Cierre de caja</button><button class="btn small" onclick="hosNuevaMesa()">+ Nueva mesa</button></div>`;
+      const nueva=`<div style="display:flex;gap:8px"><a class="btn small ghost" href="/cocina.html" target="_blank" title="Abrir la pantalla de cocina">👨‍🍳 Cocina</a><button class="btn small ghost" onclick="modalCierreCaja()">🧾 Cierre de caja</button><button class="btn small" onclick="hosNuevaMesa()">+ Nueva mesa</button></div>`;
       if(!mesas.length){ view(panel("",vacio("hosteleria","Sin mesas todavía","Crea las mesas y la barra de tu local para empezar a tomar comandas.",`<button class="btn small" onclick="hosNuevaMesa()">+ Nueva mesa</button>`))); return; }
       const card=m=>{
         const libre=!m.ocupada;
@@ -2208,14 +2208,16 @@
       <div class="grid2"><div><label>Código / EAN (opcional)</label><input id="p_ref" placeholder="Ej. 8412345678901"/></div><div><label>IVA</label>${ivaSel("p_iva")}</div></div>
       <div class="grid2"><div><label>Precio de venta · PVP (IVA incl.)</label><input id="p_precio" type="number" step="0.01" value="0"/></div><div><label>Precio de compra / coste (€)</label><input id="p_compra" type="number" step="0.01" value="0"/></div></div>
       <label>Categoría (opcional, agrupa en el TPV)</label><input id="p_cat" list="p_cat_lista" placeholder="Ej. Cervezas, Vinos, Tapas, Refrescos"/><datalist id="p_cat_lista">${[...new Set((_cacheProd||[]).map(x=>x.categoria).filter(Boolean))].map(c=>`<option value="${c}">`).join("")}</datalist>
+      <label>Zona de preparación (a dónde va en cocina)</label><select id="p_zona"><option value="Cocina">Cocina</option><option value="Barra">Barra</option></select>
       <label>Proveedor habitual (opcional)</label><select id="p_prov">${provOpts}</select>
       <label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-weight:500;cursor:pointer"><input id="p_stock_ctrl" type="checkbox" style="width:auto" onchange="document.getElementById('p_stock_box').style.display=this.checked?'block':'none'"/> Llevar control de stock (existencias)</label>
       <div id="p_stock_box" style="display:none;margin-top:8px"><label>Stock inicial (unidades)${editar?' <span class="muted">(no se modifica al editar; usa el botón 📦)</span>':''}</label><input id="p_stock_ini" type="number" step="0.001" value="0" ${editar?'disabled':''}/></div>
       <p class="muted" style="font-size:12px;margin:10px 0 0">El precio de compra sirve para calcular el margen en el informe de beneficio. El stock se descuenta automáticamente al facturar.</p>
       ${editar?`<button type="button" class="btn small secondary" style="margin-top:12px" onclick="modalOpciones('${p.id}')">⚙️ Formatos y extras…</button>`:'<p class="muted" style="font-size:11.5px;margin-top:8px">Guarda el artículo y vuelve a editarlo para añadirle formatos (media/ración) y extras.</p>'}`,
-      async()=>{ const b=JSON.stringify({nombre:val("p_nombre"),referencia:val("p_ref")||null,precioUnitario:Number(val("p_precio")),precioCompra:Number(val("p_compra")),codigoIva:val("p_iva"),tipo:(p&&p.tipo)?p.tipo:"Servicio",categoria:val("p_cat")||null,proveedorHabitualId:val("p_prov")||null,controlarStock:document.getElementById("p_stock_ctrl").checked,stockInicial:Number(val("p_stock_ini")||0)}); await api("/productos"+(editar?"/"+p.id:""),{method:editar?"PUT":"POST",body:b}); vProductos(); });
+      async()=>{ const b=JSON.stringify({nombre:val("p_nombre"),referencia:val("p_ref")||null,precioUnitario:Number(val("p_precio")),precioCompra:Number(val("p_compra")),codigoIva:val("p_iva"),tipo:(p&&p.tipo)?p.tipo:"Servicio",categoria:val("p_cat")||null,proveedorHabitualId:val("p_prov")||null,controlarStock:document.getElementById("p_stock_ctrl").checked,stockInicial:Number(val("p_stock_ini")||0)}); const saved=await api("/productos"+(editar?"/"+p.id:""),{method:editar?"PUT":"POST",body:b}); const pid=editar?p.id:(saved&&saved.id); if(pid){ try{ await api("/carta/zonas/"+pid,{method:"PUT",body:JSON.stringify({zona:val("p_zona")})}); }catch{} } vProductos(); });
       if(p){ rellenar({p_nombre:p.nombre,p_ref:p.referencia,p_precio:p.precioUnitario,p_compra:p.precioCompra,p_iva:p.codigoIva,p_cat:p.categoria,p_prov:p.proveedorHabitualId});
-        if(p.controlarStock){ document.getElementById("p_stock_ctrl").checked=true; document.getElementById("p_stock_box").style.display="block"; } } }
+        if(p.controlarStock){ document.getElementById("p_stock_ctrl").checked=true; document.getElementById("p_stock_box").style.display="block"; } }
+      if(editar){ try{ const zs=await api("/carta/zonas"); const z=(zs||[]).find(x=>x.productoId===p.id); if(z){ document.getElementById("p_zona").value=z.zona; } }catch{} } }
     function opcionesATexto(grupos){
       return (grupos||[]).map(g=>{
         const cab=`${g.nombre} | ${g.seleccion==="Multiple"?"multiple":"unica"}${g.obligatorio?" | obligatorio":""}`;
