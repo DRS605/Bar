@@ -301,8 +301,13 @@
         transition: transform .22s ease; box-shadow: 0 10px 40px rgba(11,42,74,.20); }
       .sidebar.open { transform:translateX(0); }
       .hamb { display:inline-flex; align-items:center; }
-      .topbar { padding: 0 14px; height: 60px; }
-      .topbar .title { font-size: 15px; }
+      .topbar { padding: 0 14px; height: 60px; gap: 10px; }
+      .tb-left { gap: 8px; flex: 1 1 auto; min-width: 0; }
+      .brandbtn .brandtxt { display: none; }          /* en móvil solo el logo (sigue llevando a Inicio) */
+      .back { padding: 6px 11px; flex: none; }
+      .topbar .title { font-size: 15px; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .tb-left .brandbtn + .title { padding-left: 10px; }
+      .company { flex: none; }
       .content { padding: 16px 14px; }
       .hero { padding: 20px 18px; border-radius:18px; }
       .hero h1 { font-size: 21px; }
