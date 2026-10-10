@@ -11,8 +11,8 @@ public class PedidoWebTests
     private static readonly Guid Empresa = Guid.NewGuid();
     private static readonly Guid Mesa = Guid.NewGuid();
 
-    private static (Guid, string, decimal, string?) Item(string desc, decimal cant = 1m, string? nota = null) =>
-        (Guid.NewGuid(), desc, cant, nota);
+    private static (Guid, string, decimal, string?, decimal?) Item(string desc, decimal cant = 1m, string? nota = null) =>
+        (Guid.NewGuid(), desc, cant, nota, (decimal?)null);
 
     [Fact]
     public void Crear_registra_pendiente_con_lineas_y_evento()
@@ -30,7 +30,7 @@ public class PedidoWebTests
     [Fact]
     public void Crear_sin_lineas_falla()
     {
-        PedidoWeb.Crear(Empresa, Mesa, IdiomaCarta.Es, Array.Empty<(Guid, string, decimal, string?)>(), Reloj)
+        PedidoWeb.Crear(Empresa, Mesa, IdiomaCarta.Es, Array.Empty<(Guid, string, decimal, string?, decimal?)>(), Reloj)
             .Error.Codigo.Should().Be("pedido_web.sin_lineas");
     }
 

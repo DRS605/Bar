@@ -43,7 +43,7 @@ public sealed class LineaPedidoWeb : EntidadBase<Guid>
     {
     }
 
-    internal LineaPedidoWeb(Guid empresaId, Guid pedidoWebId, Guid productoId, string descripcion, decimal cantidad, string? nota)
+    internal LineaPedidoWeb(Guid empresaId, Guid pedidoWebId, Guid productoId, string descripcion, decimal cantidad, string? nota, decimal? precio = null)
         : base(Guid.NewGuid())
     {
         EmpresaId = empresaId;
@@ -53,6 +53,7 @@ public sealed class LineaPedidoWeb : EntidadBase<Guid>
         Cantidad = cantidad;
         nota = string.IsNullOrWhiteSpace(nota) ? null : nota.Trim();
         Nota = nota is { Length: > LongitudMaximaNota } ? nota[..LongitudMaximaNota] : nota;
+        Precio = precio;
     }
 
     /// <summary>Empresa (para el aislamiento multiempresa de la tabla de líneas).</summary>
@@ -72,6 +73,9 @@ public sealed class LineaPedidoWeb : EntidadBase<Guid>
 
     /// <summary>Nota de preparación opcional que el cliente escribe («sin cebolla»…).</summary>
     public string? Nota { get; private set; }
+
+    /// <summary>Precio fijado de la línea cuando no es un producto del catálogo (p. ej. el menú del día); nulo en líneas de producto.</summary>
+    public decimal? Precio { get; private set; }
 }
 
 /// <summary>
@@ -123,7 +127,7 @@ public sealed class PedidoWeb : RaizAgregadoEmpresa<Guid>
     /// <summary>Crea un pedido pendiente a partir de los artículos elegidos por el cliente.</summary>
     public static Resultado<PedidoWeb> Crear(
         Guid empresaId, Guid mesaId, IdiomaCarta idioma,
-        IEnumerable<(Guid ProductoId, string Descripcion, decimal Cantidad, string? Nota)> items, IReloj reloj)
+        IEnumerable<(Guid ProductoId, string Descripcion, decimal Cantidad, string? Nota, decimal? Precio)> items, IReloj reloj)
     {
         ArgumentNullException.ThrowIfNull(reloj);
         ArgumentNullException.ThrowIfNull(items);
@@ -142,7 +146,7 @@ public sealed class PedidoWeb : RaizAgregadoEmpresa<Guid>
         var pedido = new PedidoWeb(Guid.NewGuid(), empresaId, mesaId, idioma, reloj.AhoraUtc);
         foreach (var item in lista)
         {
-            pedido._lineas.Add(new LineaPedidoWeb(empresaId, pedido.Id, item.ProductoId, item.Descripcion, item.Cantidad, item.Nota));
+            pedido._lineas.Add(new LineaPedidoWeb(empresaId, pedido.Id, item.ProductoId, item.Descripcion, item.Cantidad, item.Nota, item.Precio));
         }
 
         pedido.RegistrarEvento(new PedidoWebRecibido(pedido.Id, empresaId, mesaId, reloj.AhoraUtc));

@@ -164,7 +164,8 @@ public sealed class Comanda : RaizAgregadoEmpresa<Guid>
 
         // Si ya se pidió el mismo producto al mismo precio e IVA, se acumula en su línea (una comanda
         // muestra «Caña ×3», no tres líneas de «Caña»). Un precio distinto (tarifa cambiada) abre línea.
-        var existente = _lineas.FirstOrDefault(
+        // Las líneas sin producto (menú del día, líneas libres) nunca se fusionan: cada una es distinta.
+        var existente = productoId == Guid.Empty ? null : _lineas.FirstOrDefault(
             l => l.ProductoId == productoId && l.PrecioUnitario == precioUnitario && l.CodigoIva == codigoIva);
         if (existente is not null)
         {

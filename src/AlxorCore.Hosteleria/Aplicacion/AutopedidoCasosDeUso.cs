@@ -8,8 +8,11 @@ namespace AlxorCore.Hosteleria.Aplicacion;
 /// <summary>Un artículo que el cliente añade a su pedido desde el móvil.</summary>
 public sealed record ItemPedidoWeb(Guid ProductoId, decimal Cantidad = 1m, string? Nota = null);
 
+/// <summary>Un menú del día que el cliente pide desde el móvil, con los platos elegidos por sección.</summary>
+public sealed record MenuPedidoWeb(IReadOnlyList<string> Platos, decimal Cantidad = 1m);
+
 /// <summary>Pedido que el cliente envía desde la mesa (autopedido por QR).</summary>
-public sealed record DatosPedidoWeb(Guid Token, string? Idioma, IReadOnlyList<ItemPedidoWeb> Items);
+public sealed record DatosPedidoWeb(Guid Token, string? Idioma, IReadOnlyList<ItemPedidoWeb> Items, IReadOnlyList<MenuPedidoWeb>? Menus = null);
 
 /// <summary>Confirmación de un pedido web recibido.</summary>
 public sealed record PedidoWebCreadoDto(Guid Id, int NumeroLineas);
@@ -48,15 +51,17 @@ public sealed class CrearPedidoWeb
     private readonly IRepositorioMesas _mesas;
     private readonly IConsultaProductos _productos;
     private readonly IRepositorioFichasCarta _fichas;
+    private readonly IRepositorioMenuDia _menuDia;
     private readonly IRepositorioPedidosWeb _pedidos;
     private readonly IUnidadDeTrabajoHosteleria _unidadDeTrabajo;
     private readonly IReloj _reloj;
 
-    public CrearPedidoWeb(IRepositorioMesas mesas, IConsultaProductos productos, IRepositorioFichasCarta fichas, IRepositorioPedidosWeb pedidos, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
+    public CrearPedidoWeb(IRepositorioMesas mesas, IConsultaProductos productos, IRepositorioFichasCarta fichas, IRepositorioMenuDia menuDia, IRepositorioPedidosWeb pedidos, IUnidadDeTrabajoHosteleria unidadDeTrabajo, IReloj reloj)
     {
         _mesas = mesas;
         _productos = productos;
         _fichas = fichas;
+        _menuDia = menuDia;
         _pedidos = pedidos;
         _unidadDeTrabajo = unidadDeTrabajo;
         _reloj = reloj;
@@ -73,14 +78,16 @@ public sealed class CrearPedidoWeb
             return Resultado.Fallo<PedidoWebCreadoDto>(guard);
         }
 
-        if (datos.Items is null || datos.Items.Count == 0)
+        var hayItems = datos.Items is { Count: > 0 };
+        var hayMenus = datos.Menus is { Count: > 0 };
+        if (!hayItems && !hayMenus)
         {
             return Resultado.Fallo<PedidoWebCreadoDto>(Error.Validacion("pedido_web.sin_lineas", "El pedido no tiene artículos."));
         }
 
         // Solo productos del catálogo de este local y activos (evita pedidos con artículos ajenos/retirados).
-        var items = new List<(Guid, string, decimal, string?)>(datos.Items.Count);
-        foreach (var item in datos.Items.Where(i => i.Cantidad > 0))
+        var items = new List<(Guid, string, decimal, string?, decimal?)>();
+        foreach (var item in (datos.Items ?? Array.Empty<ItemPedidoWeb>()).Where(i => i.Cantidad > 0))
         {
             var producto = await _productos.ObtenerAsync(item.ProductoId, ct).ConfigureAwait(false);
             if (producto is null || !producto.Activo)
@@ -94,7 +101,24 @@ public sealed class CrearPedidoWeb
                 return Resultado.Fallo<PedidoWebCreadoDto>(Error.Conflicto("producto.agotado", $"«{producto.Nombre}» está agotado."));
             }
 
-            items.Add((item.ProductoId, producto.Nombre, item.Cantidad, item.Nota));
+            items.Add((item.ProductoId, producto.Nombre, item.Cantidad, item.Nota, (decimal?)null));
+        }
+
+        // Menú del día: línea sin producto, con el precio cerrado del menú (lo fija el servidor, no el cliente).
+        if (hayMenus)
+        {
+            var menu = await _menuDia.ObtenerAsync(empresaId, ct).ConfigureAwait(false);
+            if (menu is null || !menu.Activo)
+            {
+                return Resultado.Fallo<PedidoWebCreadoDto>(Error.Conflicto("menu_dia.no_disponible", "El menú del día no está disponible."));
+            }
+
+            foreach (var m in datos.Menus!.Where(x => x.Cantidad > 0))
+            {
+                var platos = (m.Platos ?? Array.Empty<string>()).Where(p => !string.IsNullOrWhiteSpace(p)).Select(p => p.Trim()).ToList();
+                var nota = platos.Count > 0 ? string.Join(" · ", platos) : null;
+                items.Add((Guid.Empty, "Menú del día", m.Cantidad, nota, menu.Precio));
+            }
         }
 
         var pedido = PedidoWeb.Crear(empresaId, mesaId, Autopedido.IdiomaDe(datos.Idioma), items, _reloj);
@@ -189,13 +213,23 @@ public sealed class AceptarPedidoWeb
 
         foreach (var linea in pedido.Lineas)
         {
-            var producto = await _productos.ObtenerAsync(linea.ProductoId, ct).ConfigureAwait(false);
-            if (producto is null)
+            Resultado<LineaComanda> agregada;
+            if (linea.Precio is { } precioMenu)
             {
-                return Resultado.Fallo<ComandaDto>(Error.NoEncontrado("producto.no_encontrado", "Un artículo del pedido ya no existe."));
+                // Línea sin producto (menú del día): se añade con su precio cerrado e IVA de hostelería (10 %).
+                agregada = comanda.AgregarLinea(Guid.Empty, linea.Descripcion, linea.Cantidad, precioMenu, "IVA10", 10m, _reloj);
+            }
+            else
+            {
+                var producto = await _productos.ObtenerAsync(linea.ProductoId, ct).ConfigureAwait(false);
+                if (producto is null)
+                {
+                    return Resultado.Fallo<ComandaDto>(Error.NoEncontrado("producto.no_encontrado", "Un artículo del pedido ya no existe."));
+                }
+
+                agregada = comanda.AgregarLinea(producto.Id, producto.Nombre, linea.Cantidad, producto.PrecioUnitario, producto.CodigoIva, producto.PorcentajeIva, _reloj);
             }
 
-            var agregada = comanda.AgregarLinea(producto.Id, producto.Nombre, linea.Cantidad, producto.PrecioUnitario, producto.CodigoIva, producto.PorcentajeIva, _reloj);
             if (agregada.EsFallo)
             {
                 return Resultado.Fallo<ComandaDto>(agregada.Error);

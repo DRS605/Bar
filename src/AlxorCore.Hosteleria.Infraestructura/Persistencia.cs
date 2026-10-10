@@ -305,6 +305,7 @@ internal sealed class ConfiguracionPedidoWeb : IEntityTypeConfiguration<PedidoWe
             linea.Property(l => l.Descripcion).HasColumnName("descripcion").HasMaxLength(LineaPedidoWeb.LongitudMaximaNota).IsRequired();
             linea.Property(l => l.Cantidad).HasColumnName("cantidad").HasColumnType("numeric(14,3)").IsRequired();
             linea.Property(l => l.Nota).HasColumnName("nota").HasMaxLength(LineaPedidoWeb.LongitudMaximaNota);
+            linea.Property(l => l.Precio).HasColumnName("precio").HasColumnType("numeric(14,2)");
             linea.HasIndex("PedidoWebId").HasDatabaseName("ix_linea_pedido_web_pedido");
         });
     }

@@ -57,6 +57,8 @@
   .menudia .md-st{ font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--chip); margin-bottom:4px; }
   .menudia .md-p{ font-size:14.5px; color:var(--ink); padding:3px 0; border-bottom:1px dashed var(--line); }
   .menudia .md-p:last-child{ border-bottom:0; }
+  .menudia .md-opt{ display:flex; align-items:center; gap:9px; padding:7px 0; font-size:14.5px; cursor:pointer; border-bottom:1px dashed var(--line); }
+  .menudia .md-opt:last-child{ border-bottom:0; } .menudia .md-opt input{ width:auto; accent-color:var(--accent); }
 
   /* Reserva online */
   .reserva{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px; margin-top:18px; }
@@ -169,9 +171,9 @@
   const MENUDIA = { es:"Menú del día", en:"Menu of the day", fr:"Menu du jour" };
   const menuDiaLabel = () => MENUDIA[lang] || MENUDIA.es;
   const RES = {
-    es:{ t:"Reservar mesa", n:"Tu nombre", p:"Personas", tel:"Teléfono", nota:"Comentario (opcional)", env:"Solicitar reserva", ok:"¡Reserva solicitada! El local te la confirmará.", err:"No se pudo enviar la reserva.", falta:"Pon tu nombre y la fecha." },
-    en:{ t:"Book a table", n:"Your name", p:"People", tel:"Phone", nota:"Comment (optional)", env:"Request booking", ok:"Booking requested! The venue will confirm.", err:"Couldn't send the booking.", falta:"Enter your name and the date." },
-    fr:{ t:"Réserver une table", n:"Votre nom", p:"Personnes", tel:"Téléphone", nota:"Commentaire (facultatif)", env:"Demander", ok:"Réservation demandée ! Le lieu confirmera.", err:"Envoi impossible.", falta:"Indiquez votre nom et la date." },
+    es:{ t:"Reservar mesa", n:"Tu nombre", p:"Personas", tel:"Teléfono", nota:"Comentario (opcional)", env:"Solicitar reserva", ok:"¡Reserva solicitada! El local te la confirmará.", err:"No se pudo enviar la reserva.", falta:"Pon tu nombre y la fecha.", pedirMenu:"Pedir este menú" },
+    en:{ t:"Book a table", n:"Your name", p:"People", tel:"Phone", nota:"Comment (optional)", env:"Request booking", ok:"Booking requested! The venue will confirm.", err:"Couldn't send the booking.", falta:"Enter your name and the date.", pedirMenu:"Order this set menu" },
+    fr:{ t:"Réserver une table", n:"Votre nom", p:"Personnes", tel:"Téléphone", nota:"Commentaire (facultatif)", env:"Demander", ok:"Réservation demandée ! Le lieu confirmera.", err:"Envoi impossible.", falta:"Indiquez votre nom et la date.", pedirMenu:"Commander ce menu" },
   };
   const resL = () => RES[lang] || RES.es;
   // Nombres de los 14 alérgenos (Reglamento UE 1169/2011) en cada idioma.
@@ -222,10 +224,16 @@
         <div class="langs">${langBtns}</div>
       </header>`;
     const md = carta.menuDia;
+    const puedePedirMenu = pedirActivo && md && (md.secciones||[]).length;
     const menuHtml = (md && (md.secciones||[]).length) ? `<section class="menudia">
         <div class="md-head"><h2>${esc(menuDiaLabel())}</h2>${md.precio?`<span class="md-precio">${eur(md.precio)}</span>`:""}</div>
         ${md.incluye?`<div class="md-inc">${esc(md.incluye)}</div>`:""}
-        ${(md.secciones||[]).map(s=>`<div class="md-sec"><div class="md-st">${esc(s.titulo)}</div>${(s.platos||[]).map(p=>`<div class="md-p">${esc(p)}</div>`).join("")}</div>`).join("")}
+        ${(md.secciones||[]).map((s,si)=>`<div class="md-sec"><div class="md-st">${esc(s.titulo)}</div>${(s.platos||[]).map((p,pi)=>
+            puedePedirMenu
+              ? `<label class="md-opt"><input type="radio" name="md_${si}" value="${esc(p)}" ${pi===0?"checked":""}> <span>${esc(p)}</span></label>`
+              : `<div class="md-p">${esc(p)}</div>`
+          ).join("")}</div>`).join("")}
+        ${puedePedirMenu?`<button class="rv-btn" style="margin-top:12px" onclick="pedirMenu(${md.secciones.length})">${esc(resL().pedirMenu)}${md.precio?` · ${eur(md.precio)}`:""}</button>`:""}
       </section>` : "";
     const hayCategorias = carta.categorias && carta.categorias.length;
     if(!hayCategorias && !menuHtml){ wrap.innerHTML = head + `<div class="estado">${esc(t.sinCarta)}</div>`; sincronizarBarra(); return; }
@@ -338,6 +346,17 @@
       msg.className="rv-msg ok"; msg.textContent=L.ok;
       ["rvNombre","rvFecha","rvTel","rvNota"].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=""; });
     }catch(e){ msg.className="rv-msg err"; msg.textContent=L.err; }
+  };
+
+  window.pedirMenu = async (n) => {
+    const platos = [];
+    for(let i=0;i<n;i++){ const sel=document.querySelector(`input[name="md_${i}"]:checked`); if(sel) platos.push(sel.value); }
+    try{
+      const r=await fetch(`/carta/${E}/mesa/${M}/pedido`,{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({token:TK, idioma:lang, items:[], menus:[{platos, cantidad:1}]})});
+      if(!r.ok) throw new Error();
+      toast(t.enviado);
+    }catch(e){ toast(t.errEnvio); }
   };
 
   cargar();
